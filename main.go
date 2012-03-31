@@ -18,7 +18,7 @@ type User struct {
 }
 
 type Project struct {
-	Name string
+	Name      string
 	AdminUser string // corresponds to User.Login field
 }
 
@@ -31,7 +31,7 @@ func readDataAtStartup(fileName string) error {
 		return nil
 	} else {
 		// TODO: read the data
-		file.Close()		
+		file.Close()
 	}
 	return nil
 }
