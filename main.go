@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"text/template"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -14,7 +15,7 @@ const (
 	// information about users and projects. All in
 	// one place because I expect this information to be
 	// very small
-	DataFileName = "apptranslator.js"
+	dataFileName = "apptranslator.js"
 )
 
 type User struct {
@@ -30,13 +31,15 @@ type Project struct {
 }
 
 type AppState struct {
-	Users    []User
-	Projects []Project
+	Users    []*User
+	Projects []*Project
 }
 
 var (
 	appState  = AppState{}
 	staticDir = filepath.Join("www", "static")
+	tmplMain = filepath.Join("www", "main.html")
+	templates = template.Must(template.ParseFiles(tmplMain))
 )
 
 func saveData() {
@@ -45,11 +48,11 @@ func saveData() {
 		fmt.Printf("FileStorage.SetJSON, Marshal json failed (%v):%s\n", appState, err)
 		return
 	}
-	ioutil.WriteFile(DataFileName, b, 0600)
+	ioutil.WriteFile(dataFileName, b, 0600)
 }
 
 func readDataAtStartup() error {
-	b, err := ioutil.ReadFile(DataFileName)
+	b, err := ioutil.ReadFile(dataFileName)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -84,26 +87,43 @@ func serveFileStatic(w http.ResponseWriter, r *http.Request, fileName string) {
 
 const lenStatic = len("/static/")
 
+// handler for url: /static/
 func handleStatic(w http.ResponseWriter, r *http.Request) {
 	file := r.URL.Path[lenStatic:]
 	serveFileStatic(w, r, file)
 }
 
+// handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
-	serveFileFromDir(w, r, "www", "main.html")
+	t, err := template.ParseFiles(tmplMain)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	t.Execute(w, appState)
+
+	/*err := templates.ExecuteTemplate(w, tmplMain, appState)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}*/
 }
 
 func main() {
+	appState.Users = make([]*User, 100)
+	appState.Projects = make([]*Project, 100)
+	appState.Projects = append(appState.Projects, &Project{"SumatraPDF", "kjk", "secret"})
+
 	if err := readDataAtStartup(); err != nil {
-		fmt.Printf("Failed to open data file %s. Can't proceed.\n", DataFileName)
+		fmt.Printf("Failed to open data file %s. Can't proceed.\n", dataFileName)
 		return
 	}
-	fmt.Printf("Read the data from %s\n", DataFileName)
+	fmt.Printf("Read the data from %s\n", dataFileName)
 
 	http.HandleFunc("/static/", handleStatic)
 	http.HandleFunc("/", handleMain)
 
-	port := ":8888"
+	port := ":8890"
 	fmt.Printf("Running on %s\n", port)
 	http.ListenAndServe(port, nil)
+	fmt.Printf("Exited\n")
 }
