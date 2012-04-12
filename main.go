@@ -102,9 +102,15 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 	serveFileStatic(w, r, file)
 }
 
+type TmplMainVars struct {
+	Projects *[]*Project
+	LoggedIn bool
+}
+
 // handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
-	err := GetTemplates().ExecuteTemplate(w, tmplMain, appState)
+	vars := &TmplMainVars{&appState.Projects, true}
+	err := GetTemplates().ExecuteTemplate(w, tmplMain, vars)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -113,7 +119,6 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	appState.Projects = append(appState.Projects, &Project{"SumatraPDF", "kjk", "secret"})
-	fmt.Printf("len(appState.Projects)=%d\n", len(appState.Projects))
 	if err := readDataAtStartup(); err != nil {
 		fmt.Printf("Failed to open data file %s. Can't proceed.\n", dataFileName)
 		return

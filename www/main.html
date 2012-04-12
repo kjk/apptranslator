@@ -3,24 +3,66 @@
 <head>
 <link href="/static/css/bootstrap.css" rel="stylesheet">	
 <link href="/static/css/bootstrap-responsive.css" rel="stylesheet">
+<!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
 </head>
+
 <body>
 
 <div class="container">
-<p></p>
-<p>Hello! This is App Translator.</p>
+<header class="jumbotron subhead" id="overview">
+	<h1>App Translator</h1>
+	<p class="lead">We help desktop software developers
+translate their apps from English to other languages with the
+help of their users.</p>
+</header>
+<p><b>Developer?</b> You can add your application, submit
+strings for translation and download user submitted translations.</p>
+<p><b>User?</b> You can help translate your favourite app
+to your language.</p>
 
 {{if len .Projects}}
-<p>Projects:</p>
+<p>Applications:</p>
 <ul>
   {{range .Projects}}
-  <li>{{.Name}}</li>
+  <li><a href="/project/{{.Name}}">{{.Name}}</li>
   {{end}}
 </ul>
 {{else}}
 There are no projects!
 {{end}}
 
+<div class="modal hide fade" id="addProject">
+	<div class="modal-header">
+		<a class="close" data-dismiss="modal">×</a>
+		<h3>Add application to be translated</h3>
+	</div>
+	<div>
+		<form class="well">
+			<div class="modal-body">
+				<label>Application name:</label>
+				<input type="text" name="appName" size="128" placeholder="Enter name...">
+				<label>Application website url:</label>
+				<input type="text" name="appUrl" size="128" placeholder="Enter url...">
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary">Add application</button>
+				<a href="#" class="btn"data-dismiss="modal">Cancel</a>
+			</div>
+		</form>
+	</div>
 </div>
+
+{{if .LoggedIn}}
+<a data-toggle="modal" href="#addProject" class="btn btn-primary btn-mini">Add your applications</a> for translation.
+{{else}}
+<a href="/login">Log in</a> to create a project.
+{{end}}
+</div>
+
+<!-- placed at the end for faster loading -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script src="/static/js/bootstrap.js"></script>
 </body>
 </html>
