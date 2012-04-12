@@ -7,15 +7,18 @@
 <body>
 
 <div class="container">
+<p></p>
 <p>Hello! This is App Translator.</p>
 
-{{if len .Projects}}There are no projects!{{else}}
+{{if len .Projects}}
 <p>Projects:</p>
 <ul>
   {{range .Projects}}
   <li>{{.Name}}</li>
   {{end}}
 </ul>
+{{else}}
+There are no projects!
 {{end}}
 
 </div>

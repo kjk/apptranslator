@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"text/template"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -36,11 +36,20 @@ type AppState struct {
 }
 
 var (
-	appState  = AppState{}
-	staticDir = filepath.Join("www", "static")
-	tmplMain = filepath.Join("www", "main.html")
-	templates = template.Must(template.ParseFiles(tmplMain))
+	appState        = AppState{}
+	staticDir       = filepath.Join("www", "static")
+	tmplMain        = "main.html"
+	tmplMainPath    = filepath.Join("www", tmplMain)
+	templates       = template.Must(template.ParseFiles(tmplMainPath))
+	reloadTemplates = true
 )
+
+func GetTemplates() *template.Template {
+	if reloadTemplates {
+		return template.Must(template.ParseFiles(tmplMainPath))
+	}
+	return templates
+}
 
 func saveData() {
 	b, err := json.Marshal(&appState)
@@ -95,24 +104,16 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 
 // handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles(tmplMain)
+	err := GetTemplates().ExecuteTemplate(w, tmplMain, appState)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	t.Execute(w, appState)
-
-	/*err := templates.ExecuteTemplate(w, tmplMain, appState)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}*/
 }
 
 func main() {
-	appState.Users = make([]*User, 100)
-	appState.Projects = make([]*Project, 100)
 	appState.Projects = append(appState.Projects, &Project{"SumatraPDF", "kjk", "secret"})
-
+	fmt.Printf("len(appState.Projects)=%d\n", len(appState.Projects))
 	if err := readDataAtStartup(); err != nil {
 		fmt.Printf("Failed to open data file %s. Can't proceed.\n", dataFileName)
 		return
