@@ -137,6 +137,10 @@ func handleAddApp(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleApp(w http.ResponseWriter, r *http.Request) {
+	// TODO: write me!
+}
+
 func main() {
 	appState.Apps = append(appState.Apps, &App{"SumatraPDF", "kjk", "secret"})
 	if err := readDataAtStartup(); err != nil {
@@ -147,6 +151,7 @@ func main() {
 
 	http.HandleFunc("/static/", handleStatic)
 	http.HandleFunc("/addapp", handleAddApp)
+	http.HandleFunc("/app/", handleApp)
 	http.HandleFunc("/", handleMain)
 
 	port := ":8890"
