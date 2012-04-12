@@ -22,24 +22,24 @@ strings for translation and download user submitted translations.</p>
 <p><b>User?</b> You can help translate your favourite app
 to your language.</p>
 
-{{if len .Projects}}
+{{if len .Apps}}
 <p>Applications:</p>
 <ul>
-  {{range .Projects}}
-  <li><a href="/project/{{.Name}}">{{.Name}}</li>
+  {{range .Apps}}
+  <li><a href="/app/{{.Name}}">{{.Name}}</li>
   {{end}}
 </ul>
 {{else}}
-There are no projects!
+There are no applications!
 {{end}}
 
-<div class="modal hide fade" id="addProject">
+<div class="modal hide fade" id="addApp">
 	<div class="modal-header">
 		<a class="close" data-dismiss="modal">×</a>
 		<h3>Add application to be translated</h3>
 	</div>
 	<div>
-		<form class="well">
+		<form class="well" action="/addapp" method="POST">
 			<div class="modal-body">
 				<label>Application name:</label>
 				<input type="text" name="appName" size="128" placeholder="Enter name...">
@@ -54,15 +54,40 @@ There are no projects!
 	</div>
 </div>
 
+<div class="modal hide fade" id="errorMsg">
+	<div class="modal-header">
+		<a  href="#" class="close" data-dismiss="modal">×</a>
+		<h3>Error!</h3>
+	</div>
+	<div>
+		<div class="modal-body">
+			{{.ErrorMsg}}
+		</div>
+		<div class="modal-footer">
+			<a href="#"class="btn" data-dismiss="modal">Close</a>
+		</div>
+	</form>
+	</div>
+</div>
+
 {{if .LoggedIn}}
-<a data-toggle="modal" href="#addProject" class="btn btn-primary btn-mini">Add your applications</a> for translation.
+<a data-toggle="modal" href="#addApp" class="btn btn-primary btn-mini">Add your applications</a> for translation.
 {{else}}
-<a href="/login">Log in</a> to create a project.
+<a href="/login">Log in</a> to add your application.
 {{end}}
 </div>
 
 <!-- placed at the end for faster loading -->
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
 <script src="/static/js/bootstrap.js"></script>
+
+<script>
+
+{{if .ErrorMsg}}
+$("#errorMsg").modal('show');
+{{end}}
+
+</script>
+
 </body>
 </html>

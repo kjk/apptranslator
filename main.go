@@ -8,11 +8,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
 	// this is where we store, in an append-only fashion,
-	// information about users and projects. All in
+	// information about users and applications. All in
 	// one place because I expect this information to be
 	// very small
 	dataFileName = "apptranslator.js"
@@ -22,7 +23,7 @@ type User struct {
 	Login string
 }
 
-type Project struct {
+type App struct {
 	Name      string
 	AdminUser string // corresponds to User.Login field
 	// a secret value that must be provided when uploading
@@ -31,8 +32,8 @@ type Project struct {
 }
 
 type AppState struct {
-	Users    []*User
-	Projects []*Project
+	Users []*User
+	Apps  []*App
 }
 
 var (
@@ -103,13 +104,32 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 type TmplMainVars struct {
-	Projects *[]*Project
+	Apps     *[]*App
 	LoggedIn bool
+	ErrorMsg string
 }
 
 // handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
-	vars := &TmplMainVars{&appState.Projects, true}
+	var errmsg string
+	vars := &TmplMainVars{&appState.Apps, true, errmsg}
+	err := GetTemplates().ExecuteTemplate(w, tmplMain, vars)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// handler for url: /addapp
+// Form with values: appName and appUrl
+func handleAddApp(w http.ResponseWriter, r *http.Request) {
+	appName := strings.TrimSpace(r.FormValue("appName"))
+	appUrl := strings.TrimSpace(r.FormValue("appUrl"))
+	var errmsg string
+	if len(appName) == 0 || len(appUrl) == 0 {
+		errmsg = "Must provide application name and url"
+	}
+	vars := &TmplMainVars{&appState.Apps, true, errmsg}
 	err := GetTemplates().ExecuteTemplate(w, tmplMain, vars)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -118,7 +138,7 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	appState.Projects = append(appState.Projects, &Project{"SumatraPDF", "kjk", "secret"})
+	appState.Apps = append(appState.Apps, &App{"SumatraPDF", "kjk", "secret"})
 	if err := readDataAtStartup(); err != nil {
 		fmt.Printf("Failed to open data file %s. Can't proceed.\n", dataFileName)
 		return
@@ -126,6 +146,7 @@ func main() {
 	fmt.Printf("Read the data from %s\n", dataFileName)
 
 	http.HandleFunc("/static/", handleStatic)
+	http.HandleFunc("/addapp", handleAddApp)
 	http.HandleFunc("/", handleMain)
 
 	port := ":8890"
