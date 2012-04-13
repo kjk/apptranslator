@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -25,6 +27,7 @@ type User struct {
 
 type App struct {
 	Name      string
+	Url       string
 	AdminUser string // corresponds to User.Login field
 	// a secret value that must be provided when uploading
 	// new strings for translation
@@ -120,6 +123,33 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func appAlreadyExists(appName string) bool {
+	for _, app := range appState.Apps {
+		if app.Name == appName {
+			return true
+		}
+	}
+	return false
+}
+
+func genAppUploadSecret() string {
+	t := time.Now()
+	rand.Seed(t.UnixNano())
+	count := 8
+	maxLetter := int('z' - 'a')
+	r := make([]byte, count)
+	for i := 0; i < count; i++ {
+		letter := rand.Intn(maxLetter)
+		r[i] = byte('a' + letter)
+	}
+	return string(r)
+}
+
+func addApp(app *App) {
+	appState.Apps = append(appState.Apps, app)
+	saveData()
+}
+
 // handler for url: /addapp
 // Form with values: appName and appUrl
 func handleAddApp(w http.ResponseWriter, r *http.Request) {
@@ -128,6 +158,13 @@ func handleAddApp(w http.ResponseWriter, r *http.Request) {
 	var errmsg string
 	if len(appName) == 0 || len(appUrl) == 0 {
 		errmsg = "Must provide application name and url"
+	} else if appAlreadyExists(appName) {
+		errmsg = fmt.Sprintf("Application %s already exists. Choose a different name.", appName)
+	}
+	if errmsg == "" {
+		app := &App{appName, appUrl, "dummy", genAppUploadSecret()}
+		addApp(app)
+
 	}
 	vars := &TmplMainVars{&appState.Apps, true, errmsg}
 	err := GetTemplates().ExecuteTemplate(w, tmplMain, vars)
@@ -142,12 +179,16 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	appState.Apps = append(appState.Apps, &App{"SumatraPDF", "kjk", "secret"})
 	if err := readDataAtStartup(); err != nil {
 		fmt.Printf("Failed to open data file %s. Can't proceed.\n", dataFileName)
 		return
 	}
 	fmt.Printf("Read the data from %s\n", dataFileName)
+	// for testing, add a dummy app if no apps exist
+	if len(appState.Apps) == 0 {
+		addApp(&App{"SumatraPDF", "http://blog.kowalczyk.info", "kjk", genAppUploadSecret()})
+		fmt.Printf("Added dummy SumatraPDF app")
+	}
 
 	http.HandleFunc("/static/", handleStatic)
 	http.HandleFunc("/addapp", handleAddApp)
