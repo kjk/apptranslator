@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"encoding/gob"
+	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"os"
+	"path/filepath"
 	"strings"
 )
 

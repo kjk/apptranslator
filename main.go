@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -18,6 +19,7 @@ const (
 	// information about users and applications. All in
 	// one place because I expect this information to be
 	// very small
+	dataDir      = "data"
 	dataFileName = "apptranslator.js"
 )
 
@@ -48,8 +50,8 @@ type LogTranslationChange struct {
 }
 
 type AppState struct {
-	Users        []*User
-	Apps         []*App
+	Users []*User
+	Apps  []*App
 }
 
 var (
@@ -74,18 +76,53 @@ func saveData() {
 		fmt.Printf("FileStorage.SetJSON, Marshal json failed (%v):%s\n", appState, err)
 		return
 	}
-	ioutil.WriteFile(dataFileName, b, 0600)
+	path := filepath.Join(dataDir, dataFileName)
+	ioutil.WriteFile(path, b, 0600)
+}
+
+// we ignore errors when reading
+func readTranslationsFromLog(app *App) {
+	app.translations = make(map[string]*TranslationsForLang)
+	fileName := app.Name + "_trans.dat"
+	path := filepath.Join(dataDir, fileName)
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Printf("readTranslationsFromLog(): file '%s' doesn't exist", path)
+		return
+	}
+	defer file.Close()
+	decoder := gob.NewDecoder(file)
+	var logentry LogTranslationChange
+	entries := 0
+	for {
+		err := decoder.Decode(&logentry)
+		if err != nil {
+			fmt.Printf("Finished decoding, %s\n", err.Error())
+			break
+		}
+		entries++
+	}
+	fmt.Printf("Found %d translation log entries for app %s\n", entries, app.Name)
 }
 
 func readDataAtStartup() error {
-	b, err := ioutil.ReadFile(dataFileName)
+	path := filepath.Join(dataDir, dataFileName)
+	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return err
 	}
-	return json.Unmarshal(b, &appState)
+	err = json.Unmarshal(b, &appState)
+	if err != nil {
+		fmt.Printf("readDataAtStartup(): error json decoding '%s', %s", path, err.Error())
+		return err
+	}
+	for _, app := range appState.Apps {
+		readTranslationsFromLog(app)
+	}
+	return nil
 }
 
 func serve404(w http.ResponseWriter) {
@@ -175,7 +212,7 @@ func handleAddApp(w http.ResponseWriter, r *http.Request) {
 		errmsg = fmt.Sprintf("Application %s already exists. Choose a different name.", appName)
 	}
 	if errmsg == "" {
-		app := &App{appName, appUrl, "dummy", genAppUploadSecret()}
+		app := &App{appName, appUrl, "dummy", genAppUploadSecret(), nil}
 		addApp(app)
 
 	}
@@ -199,7 +236,7 @@ func main() {
 	fmt.Printf("Read the data from %s\n", dataFileName)
 	// for testing, add a dummy app if no apps exist
 	if len(appState.Apps) == 0 {
-		addApp(&App{"SumatraPDF", "http://blog.kowalczyk.info", "kjk", genAppUploadSecret()})
+		addApp(&App{"SumatraPDF", "http://blog.kowalczyk.info", "kjk", genAppUploadSecret(), nil})
 		fmt.Printf("Added dummy SumatraPDF app")
 	}
 
