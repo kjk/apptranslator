@@ -8,7 +8,7 @@ type Lang struct {
 
 // list of languages that we know about
 var (
-	Languages = [...]Lang{
+	Languages = [...]*Lang{
 		&Lang{"af", "Afrikaans", "Afrikaans"},
 		&Lang{"am", "Armenian", "Հայերեն"},
 		&Lang{"ar", "Arabic", "الْعَرَبيّة"},
