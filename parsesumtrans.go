@@ -10,13 +10,14 @@ import (
 
 const (
 	_ = iota
+
 	ParsingMeta
 	ParsingBeforeString
 	ParsingAfterString
 )
 
 type LangTranslations struct {
-	LangId          string // iso name of the language ("en", "cn", "sp-rs")
+	LangCode        string // iso name of the language ("en", "cn", "sp-rs")
 	LangNameEnglish string
 	LangNameNative  string
 	Strings         []string
@@ -159,8 +160,8 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 				if "Contributor" == name {
 					// do nothing
 				} else if "Lang" == name {
-					lt.LangId, lt.LangNameEnglish, lt.LangNameNative = parseLang(val)
-					if "" == lt.LangId {
+					lt.LangCode, lt.LangNameEnglish, lt.LangNameNative = parseLang(val)
+					if "" == lt.LangCode {
 						msg := fmt.Sprintf("Couldn't parse '%s'", s)
 						return nil, &CantParseError{msg, lineNo}
 					}
@@ -198,9 +199,9 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 
 func ParseFile(name string) (*LangTranslations, error) {
 	file, err := os.Open(name)
-	defer file.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 	return Parse(file)
 }

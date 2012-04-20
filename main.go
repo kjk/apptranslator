@@ -25,6 +25,11 @@ type User struct {
 	Login string
 }
 
+type TranslationsForLang struct {
+	LangCode    string
+	Translation string
+}
+
 type App struct {
 	Name      string
 	Url       string
@@ -32,11 +37,19 @@ type App struct {
 	// a secret value that must be provided when uploading
 	// new strings for translation
 	UploadSecret string
+	// we don't want to serialize translations
+	translations map[string]*TranslationsForLang
+}
+
+type LogTranslationChange struct {
+	LangCode       string
+	EnglishStr     string
+	NewTranslation string
 }
 
 type AppState struct {
-	Users []*User
-	Apps  []*App
+	Users        []*User
+	Apps         []*App
 }
 
 var (
