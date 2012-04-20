@@ -17,16 +17,18 @@
 translate their apps from English to other languages with the
 help of their users.</p>
 </header>
+<!--
 <p><b>Developer?</b> You can add your application, submit
 strings for translation and download user submitted translations.</p>
 <p><b>User?</b> You can help translate your favourite app
 to your language.</p>
+-->
 
 {{if len .Apps}}
 <p>Applications:</p>
 <ul>
   {{range .Apps}}
-  <li><a href="/app/{{.Name}}">{{.Name}}</li>
+  <li><a href="/app/?name={{.Name}}">{{.Name}}</li>
   {{end}}
 </ul>
 {{else}}
@@ -70,12 +72,14 @@ There are no applications!
 	</div>
 </div>
 
+<!--
 {{if .LoggedIn}}
 <a data-toggle="modal" href="#addApp" class="btn btn-primary btn-mini">Add your applications</a> for translation.
 {{else}}
 <a href="/login">Log in</a> to add your application.
 {{end}}
 </div>
+-->
 
 <hr>
 <center>App Translator was created by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>

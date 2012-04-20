@@ -59,13 +59,15 @@ var (
 	staticDir       = filepath.Join("www", "static")
 	tmplMain        = "main.html"
 	tmplMainPath    = filepath.Join("www", tmplMain)
-	templates       = template.Must(template.ParseFiles(tmplMainPath))
+	tmplApp         = "app.html"
+	tmplAppPath     = filepath.Join("www", tmplApp)
+	templates       = template.Must(template.ParseFiles(tmplMainPath, tmplAppPath))
 	reloadTemplates = true
 )
 
 func GetTemplates() *template.Template {
 	if reloadTemplates {
-		return template.Must(template.ParseFiles(tmplMainPath))
+		return template.Must(template.ParseFiles(tmplMainPath, tmplAppPath))
 	}
 	return templates
 }
@@ -129,6 +131,10 @@ func serve404(w http.ResponseWriter) {
 	fmt.Fprint(w, `<html><body>Page Not Found!</body></html>`)
 }
 
+func serverErrorMsg(w http.ResponseWriter, msg string) {
+	fmt.Fprintf(w, `<html><body>Error: %s</body></html>`, msg)
+}
+
 func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName string) {
 	filePath := filepath.Join(dir, fileName)
 	http.ServeFile(w, r, filePath)
@@ -156,7 +162,7 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 	serveFileStatic(w, r, file)
 }
 
-type TmplMainVars struct {
+type TmplMainModel struct {
 	Apps     *[]*App
 	LoggedIn bool
 	ErrorMsg string
@@ -164,10 +170,8 @@ type TmplMainVars struct {
 
 // handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
-	var errmsg string
-	vars := &TmplMainVars{&appState.Apps, true, errmsg}
-	err := GetTemplates().ExecuteTemplate(w, tmplMain, vars)
-	if err != nil {
+	model := &TmplMainModel{&appState.Apps, true, ""}
+	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -216,16 +220,40 @@ func handleAddApp(w http.ResponseWriter, r *http.Request) {
 		addApp(app)
 
 	}
-	vars := &TmplMainVars{&appState.Apps, true, errmsg}
-	err := GetTemplates().ExecuteTemplate(w, tmplMain, vars)
-	if err != nil {
+	model := &TmplMainModel{&appState.Apps, true, errmsg}
+	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
+func findApp(name string) *App {
+	for _, app := range appState.Apps {
+		if app.Name == name {
+			return app
+		}
+	}
+	return nil
+}
+
+type AppModel struct {
+	AppName string
+}
+
+// handler for url: /app/?name=%s
 func handleApp(w http.ResponseWriter, r *http.Request) {
-	// TODO: write me!
+	appName := strings.TrimSpace(r.FormValue("name"))
+	fmt.Printf("handleApp() appName=%s\n", appName)
+	app := findApp(appName)
+	if app == nil {
+		serverErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
+	}
+	var model AppModel
+	model.AppName = appName
+	if err := GetTemplates().ExecuteTemplate(w, tmplApp, model); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func main() {
