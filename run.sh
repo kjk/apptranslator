@@ -1,1 +1,1 @@
-go run main.go langs.go parsesumstr.go
+go run main.go langs.go
