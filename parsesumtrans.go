@@ -121,7 +121,8 @@ func parseLang(s string) (id, nameEnglish, nameNative string) {
 	id = parts[0]
 	parts = strings.SplitN(parts[1], "(", 2)
 	if len(parts) != 2 {
-		return "", "", ""
+		name := strings.Trim(parts[0], " ")
+		return id, name, name
 	}
 	nameEnglish = strings.Trim(parts[0], " ")
 	nameNative = strings.TrimRight(parts[1], " )")
@@ -134,7 +135,6 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 	state := ParsingMeta
 	currString := ""
 	lineNo := 0
-	emptyLines := 0
 	for {
 		lineNo++
 		line, err := myReadLine(r)
@@ -179,23 +179,15 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 			}
 			lt.Add(currString, s)
 			state = ParsingBeforeString
-			emptyLines = 0
 			continue
 		}
 
 		if ParsingBeforeString == state {
-			if isComment(s) {
-				return nil, &CantParseError{"Unexpected comment line", lineNo}
+			if isEmptyOrComment(s) {
+				continue
 			}
-			if 0 == len(s) {
-				if emptyLines > 0 {
-					return nil, &CantParseError{"Unexpected empty line", lineNo}
-				}
-				emptyLines++
-			} else {
-				currString = s
-				state = ParsingAfterString
-			}
+			currString = s
+			state = ParsingAfterString
 			continue
 		}
 

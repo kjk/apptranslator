@@ -57,3 +57,5 @@ Contributor: WangKing (http://wkismet.spaces.live.com)
 
 Sorry, that shouldn't have happened!\n\nPlease press 'Cancel', if you want to help us fix the cause of this crash.
 抱歉，本不应该发生的！\n\n如果你希望帮助我们修复这个崩溃问题，请点击'取消'。
+
+# Untranslated
