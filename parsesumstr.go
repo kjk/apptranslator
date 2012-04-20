@@ -16,10 +16,11 @@ const (
 )
 
 type LangTranslations struct {
-	LangId       string // iso name of the language ("en", "cn", "sp-rs")
-	LangName     string
-	Strings      []string
-	Translations []string
+	LangId          string // iso name of the language ("en", "cn", "sp-rs")
+	LangNameEnglish string
+	LangNameNative  string
+	Strings         []string
+	Translations    []string
 }
 
 func NewLangTranslations() (lt *LangTranslations) {
@@ -109,6 +110,24 @@ func removeBom(b []byte) []byte {
 	return b
 }
 
+// given s as:
+// cn Chinese Simplified (简体中文)
+// returns "cn" as id, "Chinese Simplified" as nameEnglish and "简体中文" as nameNative
+func parseLang(s string) (id, nameEnglish, nameNative string) {
+	parts := strings.SplitN(s, " ", 2)
+	if len(parts) != 2 {
+		return "", "", ""
+	}
+	id = parts[0]
+	parts = strings.SplitN(parts[1], "(", 2)
+	if len(parts) != 2 {
+		return "", "", ""
+	}
+	nameEnglish = strings.Trim(parts[0], " ")
+	nameNative = strings.TrimRight(parts[1], " )")
+	return
+}
+
 func Parse(reader io.Reader) (*LangTranslations, error) {
 	r := bufio.NewReaderSize(reader, 4*1024)
 	lt := NewLangTranslations()
@@ -120,12 +139,14 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 		lineNo++
 		line, err := myReadLine(r)
 		if err != nil {
+			if err == io.EOF {
+				return lt, nil
+			}
 			//err.LineNo = lineNo
 			return nil, err
 		}
 		line = removeTrailing(removeBom(line))
 		s := string(line)
-		fmt.Printf("'%s', len=%d\n", s, len(s))
 		if ParsingMeta == state {
 			if isEmptyOrComment(s) {
 				continue
@@ -138,8 +159,11 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 				if "Contributor" == name {
 					// do nothing
 				} else if "Lang" == name {
-					// TODO: parse name better
-					lt.LangId = val
+					lt.LangId, lt.LangNameEnglish, lt.LangNameNative = parseLang(val)
+					if "" == lt.LangId {
+						msg := fmt.Sprintf("Couldn't parse '%s'", s)
+						return nil, &CantParseError{msg, lineNo}
+					}
 				} else {
 					msg := fmt.Sprintf("Enexpected header: '%s'", name)
 					return nil, &CantParseError{msg, lineNo}
@@ -149,7 +173,6 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 		}
 
 		if ParsingAfterString == state {
-			fmt.Println("ParsingAfterString")
 			if isEmptyOrComment(s) {
 				msg := "Unexpected empty or comment line"
 				return nil, &CantParseError{msg, lineNo}
@@ -169,8 +192,10 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 					return nil, &CantParseError{"Unexpected empty line", lineNo}
 				}
 				emptyLines++
+			} else {
+				currString = s
+				state = ParsingAfterString
 			}
-			currString = s
 			continue
 		}
 
