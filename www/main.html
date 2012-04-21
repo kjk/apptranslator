@@ -28,7 +28,7 @@ to your language.</p>
 <p>Applications:</p>
 <ul>
   {{range .Apps}}
-  <li><a href="/app/?name={{.Name}}">{{.Name}}</li>
+  <li><a href="/app/?name={{.Name}}">{{.Name}}</a> ({{.LangsCount}} languages, {{.StringsCount}} strings, {{.UntranslatedCount}} untranslated in all languages)</li>
   {{end}}
 </ul>
 {{else}}

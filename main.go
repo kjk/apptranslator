@@ -27,9 +27,24 @@ type User struct {
 	Login string
 }
 
-type TranslationsForLang struct {
-	LangCode    string
-	Translation string
+type TranslationsForStrings struct {
+	LangCodes    []string
+	Translations []string
+}
+
+func NewTranslationsForStrings() *TranslationsForStrings {
+	return &TranslationsForStrings{make([]string, 0), make([]string, 0)}
+}
+
+func (t *TranslationsForStrings) Replace(langCode, trans string) {
+	for i, v := range t.LangCodes {
+		if v == langCode {
+			t.Translations[i] = trans
+			return
+		}
+	}
+	t.LangCodes = append(t.LangCodes, langCode)
+	t.Translations = append(t.Translations, trans)
 }
 
 type App struct {
@@ -40,7 +55,12 @@ type App struct {
 	// new strings for translation
 	UploadSecret string
 	// we don't want to serialize translations
-	translations map[string]*TranslationsForLang
+	translations map[string]*TranslationsForStrings
+
+	// used in templates
+	LangsCount        int
+	StringsCount      int
+	UntranslatedCount int
 }
 
 type LogTranslationChange struct {
@@ -82,14 +102,29 @@ func saveData() {
 	ioutil.WriteFile(path, b, 0600)
 }
 
+func calcModelData(app *App) {
+	langs := make(map[string]bool)
+	app.StringsCount = len(app.translations)
+	untranslated := 0
+	for _, t := range app.translations {
+		for _, langCode := range t.LangCodes {
+			langs[langCode] = true
+		}
+		langUntranslated := app.StringsCount - len(t.LangCodes)
+		untranslated += langUntranslated
+	}
+	app.UntranslatedCount = untranslated
+	app.LangsCount = len(langs)
+}
+
 // we ignore errors when reading
 func readTranslationsFromLog(app *App) {
-	app.translations = make(map[string]*TranslationsForLang)
+	app.translations = make(map[string]*TranslationsForStrings)
 	fileName := app.Name + "_trans.dat"
 	path := filepath.Join(dataDir, fileName)
 	file, err := os.Open(path)
 	if err != nil {
-		fmt.Printf("readTranslationsFromLog(): file '%s' doesn't exist", path)
+		fmt.Printf("readTranslationsFromLog(): file '%s' doesn't exist\n", path)
 		return
 	}
 	defer file.Close()
@@ -103,6 +138,13 @@ func readTranslationsFromLog(app *App) {
 			break
 		}
 		entries++
+		s := logentry.EnglishStr
+		trans, ok := app.translations[s]
+		if !ok {
+			trans = NewTranslationsForStrings()
+			app.translations[s] = trans
+		}
+		trans.Replace(logentry.LangCode, logentry.NewTranslation)
 	}
 	fmt.Printf("Found %d translation log entries for app %s\n", entries, app.Name)
 }
@@ -118,7 +160,7 @@ func readDataAtStartup() error {
 	}
 	err = json.Unmarshal(b, &appState)
 	if err != nil {
-		fmt.Printf("readDataAtStartup(): error json decoding '%s', %s", path, err.Error())
+		fmt.Printf("readDataAtStartup(): error json decoding '%s', %s\n", path, err.Error())
 		return err
 	}
 	for _, app := range appState.Apps {
@@ -171,6 +213,9 @@ type TmplMainModel struct {
 // handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
 	model := &TmplMainModel{&appState.Apps, true, ""}
+	for _, app := range appState.Apps {
+		calcModelData(app)
+	}
 	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -216,7 +261,7 @@ func handleAddApp(w http.ResponseWriter, r *http.Request) {
 		errmsg = fmt.Sprintf("Application %s already exists. Choose a different name.", appName)
 	}
 	if errmsg == "" {
-		app := &App{appName, appUrl, "dummy", genAppUploadSecret(), nil}
+		app := &App{appName, appUrl, "dummy", genAppUploadSecret(), nil, 0, 0, 0}
 		addApp(app)
 
 	}
@@ -264,7 +309,7 @@ func main() {
 	fmt.Printf("Read the data from %s\n", dataFileName)
 	// for testing, add a dummy app if no apps exist
 	if len(appState.Apps) == 0 {
-		addApp(&App{"SumatraPDF", "http://blog.kowalczyk.info", "kjk", genAppUploadSecret(), nil})
+		addApp(&App{"SumatraPDF", "http://blog.kowalczyk.info", "kjk", genAppUploadSecret(), nil, 0, 0, 0})
 		fmt.Printf("Added dummy SumatraPDF app")
 	}
 

@@ -1,6 +1,6 @@
-- handle 'add application' form (/addapp)
- - check the app doesn't already exist
- - add an app and save the new data
+- show number of languages/total untranslated strings on main page
+- show list of languages and number of untranslated strings on app page
+- show a page for editing translations for a given language
 - user authentication via twitter
 - user authentication via google
 - user authentication via facebook
