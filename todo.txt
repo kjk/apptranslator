@@ -1,0 +1,6 @@
+- handle 'add application' form (/addapp)
+ - check the app doesn't already exist
+ - add an app and save the new data
+- user authentication via twitter
+- user authentication via google
+- user authentication via facebook
