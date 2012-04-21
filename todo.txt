@@ -1,6 +1,22 @@
-- show number of languages/total untranslated strings on main page
-- show list of languages and number of untranslated strings on app page
+List of things to do for app translator.
+
+Must have:
 - show a page for editing translations for a given language
+- add a new string for translation via web page
+- download all translations in a single file
+- upload strings to be translated
+- allow editing a translation
+- before accepting a translation, verify the order of % escapes is correct
 - user authentication via twitter
+
+Nice to have:
+- remember who did what translation, so that we can credit people
+- a page that shows a log of changes (who, what, when)
+- an RSS feed for each app/lang pair which shows currently untranslated
+  strings (so that translators have an easy way to be notified about the
+  need to translate)
+- ability of anonymous users to edit translation. They would be put in
+  a queue and would have to be verified/accepted by a signed in user
 - user authentication via google
 - user authentication via facebook
+- import strings from other formats, like .po files, Cocoa's .nib files etc.
