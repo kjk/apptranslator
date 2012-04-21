@@ -103,18 +103,19 @@ func saveData() {
 }
 
 func calcModelData(app *App) {
+	fmt.Printf("calcModelData(): %s\n", app.Name)
 	langs := make(map[string]bool)
 	app.StringsCount = len(app.translations)
-	untranslated := 0
+	app.UntranslatedCount = 0
 	for _, t := range app.translations {
 		for _, langCode := range t.LangCodes {
 			langs[langCode] = true
 		}
-		langUntranslated := app.StringsCount - len(t.LangCodes)
-		untranslated += langUntranslated
 	}
-	app.UntranslatedCount = untranslated
 	app.LangsCount = len(langs)
+	for _, t := range app.translations {
+		app.UntranslatedCount += app.LangsCount - len(t.LangCodes)
+	}
 }
 
 // we ignore errors when reading
@@ -165,6 +166,7 @@ func readDataAtStartup() error {
 	}
 	for _, app := range appState.Apps {
 		readTranslationsFromLog(app)
+		calcModelData(app)
 	}
 	return nil
 }
@@ -213,9 +215,6 @@ type TmplMainModel struct {
 // handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
 	model := &TmplMainModel{&appState.Apps, true, ""}
-	for _, app := range appState.Apps {
-		calcModelData(app)
-	}
 	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -282,7 +281,7 @@ func findApp(name string) *App {
 }
 
 type AppModel struct {
-	AppName string
+	App *App
 }
 
 // handler for url: /app/?name=%s
@@ -294,7 +293,7 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 		serverErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
 	}
 	var model AppModel
-	model.AppName = appName
+	model.App = app
 	if err := GetTemplates().ExecuteTemplate(w, tmplApp, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
