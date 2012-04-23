@@ -18,7 +18,17 @@
 		total untranslated strings (in all languages)</p>
 </header>
 
-
+{{$appName := .App.Name}}
+{{if len .Langs}}
+<p>Applications:</p>
+<ul>
+  {{range .Langs}}
+  <li><a href="/app/?name={{$appName}}&lang={{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated strings)</li>
+  {{end}}
+</ul>
+{{else}}
+There are no languages!
+{{end}}
 
 <hr>
 <center>App Translator lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>

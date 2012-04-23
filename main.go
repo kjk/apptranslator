@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -27,16 +28,16 @@ type User struct {
 	Login string
 }
 
-type TranslationsForStrings struct {
+type TranslationsForString struct {
 	LangCodes    []string
 	Translations []string
 }
 
-func NewTranslationsForStrings() *TranslationsForStrings {
-	return &TranslationsForStrings{make([]string, 0), make([]string, 0)}
+func NewTranslationsForString() *TranslationsForString {
+	return &TranslationsForString{make([]string, 0), make([]string, 0)}
 }
 
-func (t *TranslationsForStrings) Replace(langCode, trans string) {
+func (t *TranslationsForString) Replace(langCode, trans string) {
 	for i, v := range t.LangCodes {
 		if v == langCode {
 			t.Translations[i] = trans
@@ -55,7 +56,7 @@ type App struct {
 	// new strings for translation
 	UploadSecret string
 	// we don't want to serialize translations
-	translations map[string]*TranslationsForStrings
+	translations map[string]*TranslationsForString
 
 	// used in templates
 	LangsCount        int
@@ -102,8 +103,8 @@ func saveData() {
 	ioutil.WriteFile(path, b, 0600)
 }
 
-func calcModelData(app *App) {
-	fmt.Printf("calcModelData(): %s\n", app.Name)
+func buildAppData(app *App) {
+	fmt.Printf("buildAppData(): %s\n", app.Name)
 	langs := make(map[string]bool)
 	app.StringsCount = len(app.translations)
 	app.UntranslatedCount = 0
@@ -120,7 +121,7 @@ func calcModelData(app *App) {
 
 // we ignore errors when reading
 func readTranslationsFromLog(app *App) {
-	app.translations = make(map[string]*TranslationsForStrings)
+	app.translations = make(map[string]*TranslationsForString)
 	fileName := app.Name + "_trans.dat"
 	path := filepath.Join(dataDir, fileName)
 	file, err := os.Open(path)
@@ -142,7 +143,7 @@ func readTranslationsFromLog(app *App) {
 		s := logentry.EnglishStr
 		trans, ok := app.translations[s]
 		if !ok {
-			trans = NewTranslationsForStrings()
+			trans = NewTranslationsForString()
 			app.translations[s] = trans
 		}
 		trans.Replace(logentry.LangCode, logentry.NewTranslation)
@@ -166,7 +167,7 @@ func readDataAtStartup() error {
 	}
 	for _, app := range appState.Apps {
 		readTranslationsFromLog(app)
-		calcModelData(app)
+		buildAppData(app)
 	}
 	return nil
 }
@@ -206,7 +207,7 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 	serveFileStatic(w, r, file)
 }
 
-type TmplMainModel struct {
+type ModelMain struct {
 	Apps     *[]*App
 	LoggedIn bool
 	ErrorMsg string
@@ -214,7 +215,7 @@ type TmplMainModel struct {
 
 // handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
-	model := &TmplMainModel{&appState.Apps, true, ""}
+	model := &ModelMain{&appState.Apps, true, ""}
 	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -264,7 +265,7 @@ func handleAddApp(w http.ResponseWriter, r *http.Request) {
 		addApp(app)
 
 	}
-	model := &TmplMainModel{&appState.Apps, true, errmsg}
+	model := &ModelMain{&appState.Apps, true, errmsg}
 	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -280,8 +281,65 @@ func findApp(name string) *App {
 	return nil
 }
 
-type AppModel struct {
-	App *App
+type LangInfo struct {
+	Code              string
+	Name              string
+	Strings           []string
+	Translations      []string
+	Untranslated      []string
+	UntranslatedCount int
+}
+
+func NewLangInfo(langCode string) *LangInfo {
+	li := new(LangInfo)
+	li.Code = langCode
+	li.Name = LangNameByCode(langCode)
+	li.Strings = make([]string, 0)
+	li.Translations = make([]string, 0)
+	li.Untranslated = make([]string, 0)
+	return li
+}
+
+type ModelApp struct {
+	App   *App
+	Langs []*LangInfo
+}
+
+// so that we can sort ModelApp.Langs by name
+type LangInfoSeq []*LangInfo
+
+func (s LangInfoSeq) Len() int      { return len(s) }
+func (s LangInfoSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+type ByName struct{ LangInfoSeq }
+
+func (s ByName) Less(i, j int) bool { return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name }
+
+func buildModelApp(app *App) *ModelApp {
+	model := new(ModelApp)
+	model.App = app
+	langs := make(map[string]*LangInfo)
+	total := 0
+	for str, transForString := range app.translations {
+		total += len(transForString.LangCodes)
+		for i, langCode := range transForString.LangCodes {
+			translation := transForString.Translations[i]
+			langInfo, ok := langs[langCode]
+			if !ok {
+				langInfo = NewLangInfo(langCode)
+				langs[langCode] = langInfo
+			}
+			langInfo.Strings = append(langInfo.Strings, str)
+			langInfo.Translations = append(langInfo.Translations, translation)
+		}
+	}
+	model.Langs = make([]*LangInfo, 0)
+	for _, lang := range langs {
+		model.Langs = append(model.Langs, lang)
+		// TODO: calculate untranslated for each lang
+	}
+	sort.Sort(ByName{model.Langs})
+	return model
 }
 
 // handler for url: /app/?name=%s
@@ -292,9 +350,9 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 	if app == nil {
 		serverErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
 	}
-	var model AppModel
-	model.App = app
+	model := buildModelApp(app)
 	if err := GetTemplates().ExecuteTemplate(w, tmplApp, model); err != nil {
+		fmt.Print(err.Error(), "\n")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

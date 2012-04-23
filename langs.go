@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type Lang struct {
 	Code       string
 	Name       string
@@ -74,3 +76,12 @@ var (
 		&Lang{"vn", "Vietnamese", "Việt Nam"},
 	}
 )
+
+func LangNameByCode(code string) string {
+	for _, lang := range Languages {
+		if code == lang.Code {
+			return lang.Name
+		}
+	}
+	return fmt.Sprintf("Unknown lang code %s", code)
+}
