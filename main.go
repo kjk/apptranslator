@@ -311,10 +311,20 @@ func (s LangInfoSeq) Len() int      { return len(s) }
 func (s LangInfoSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 type ByName struct{ LangInfoSeq }
+
 func (s ByName) Less(i, j int) bool { return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name }
 
 type ByUntranslated struct{ LangInfoSeq }
-func (s ByUntranslated) Less(i, j int) bool { return len(s.LangInfoSeq[i].Untranslated) > len(s.LangInfoSeq[j].Untranslated) }
+
+func (s ByUntranslated) Less(i, j int) bool {
+	l1 := len(s.LangInfoSeq[i].Untranslated)
+	l2 := len(s.LangInfoSeq[j].Untranslated)
+	if l1 != l2 {
+		return l1 > l2
+	}
+	// to make sort more stable, we compare by name if counts are the same
+	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
+}
 
 func calcUntranslated(app *App, langInfo *LangInfo) {
 	untranslated := langInfo.Untranslated
