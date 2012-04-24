@@ -23,7 +23,7 @@
 <p>Applications:</p>
 <ul>
   {{range .Langs}}
-  <li><a href="/app/?name={{$appName}}&lang={{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated strings)</li>
+  <li><a href="/app/?name={{$appName}}&lang={{.Code}}">{{.Name}}</a> ({{len .Untranslated}} untranslated strings)</li>
   {{end}}
 </ul>
 {{else}}

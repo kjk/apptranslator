@@ -282,12 +282,11 @@ func findApp(name string) *App {
 }
 
 type LangInfo struct {
-	Code              string
-	Name              string
-	Strings           []string
-	Translations      []string
-	Untranslated      []string
-	UntranslatedCount int
+	Code         string
+	Name         string
+	Strings      []string
+	Translations []string
+	Untranslated []string
 }
 
 func NewLangInfo(langCode string) *LangInfo {
@@ -312,8 +311,27 @@ func (s LangInfoSeq) Len() int      { return len(s) }
 func (s LangInfoSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 type ByName struct{ LangInfoSeq }
-
 func (s ByName) Less(i, j int) bool { return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name }
+
+type ByUntranslated struct{ LangInfoSeq }
+func (s ByUntranslated) Less(i, j int) bool { return len(s.LangInfoSeq[i].Untranslated) > len(s.LangInfoSeq[j].Untranslated) }
+
+func calcUntranslated(app *App, langInfo *LangInfo) {
+	untranslated := langInfo.Untranslated
+	for s, _ := range app.translations {
+		isTranslated := false
+		for _, s2 := range langInfo.Strings {
+			if s == s2 {
+				isTranslated = true
+				break
+			}
+		}
+		if !isTranslated {
+			untranslated = append(untranslated, s)
+		}
+	}
+	langInfo.Untranslated = untranslated
+}
 
 func buildModelApp(app *App) *ModelApp {
 	model := new(ModelApp)
@@ -335,10 +353,10 @@ func buildModelApp(app *App) *ModelApp {
 	}
 	model.Langs = make([]*LangInfo, 0)
 	for _, lang := range langs {
+		calcUntranslated(app, lang)
 		model.Langs = append(model.Langs, lang)
-		// TODO: calculate untranslated for each lang
 	}
-	sort.Sort(ByName{model.Langs})
+	sort.Sort(ByUntranslated{model.Langs})
 	return model
 }
 
