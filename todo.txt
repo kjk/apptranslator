@@ -1,6 +1,8 @@
 List of things to do for app translator.
 
 Must have:
+- better sort of translations translations
+- page translations (max 10-20 per page)
 - show a page for editing translations for a given language
 - add a new string for translation via web page
 - download all translations in a single file
@@ -8,6 +10,8 @@ Must have:
 - allow editing a translation
 - before accepting a translation, verify the order of % escapes is correct
 - user authentication via twitter
+- ability to see history of translations for a given string and revert to any past translations
+- ability to rename original string while preserving the translation
 
 Nice to have:
 - remember who did what translation, so that we can credit people

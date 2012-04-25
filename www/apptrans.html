@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link href="/static/css/bootstrap.css" rel="stylesheet">	
+<link href="/static/css/bootstrap-responsive.css" rel="stylesheet">
+<!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+
+<style type=text/css>
+.trans {
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+
+.trans:hover {
+	background-color: #fafafa;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<header class="jumbotron subhead" id="overview">
+	<h1>{{.LangInfo.Name}} translations for <a href="/app/?name={{.App.Name}}">{{.App.Name}}</a></h1>
+	<p class="lead">There are {{len .LangInfo.Untranslated}} untranslated strings, {{ .StringsCount}} total strings.</p>
+</header>
+ 
+{{if len .LangInfo.Untranslated}}
+	{{range .LangInfo.Untranslated}}
+	<div class="trans">
+		{{.}} <a href="#">Add translation</a> 
+	</div>
+	{{end}}
+{{end}}
+{{if len .LangInfo.Translations}}
+
+	{{range .LangInfo.Translations}}
+	<div class="trans">
+		{{.String}}
+		<span style="color:blue">=&gt;</span>
+		{{.Translation}} <a href="#">Edit</a>
+	</div>
+	{{end}}
+{{end}}
+<hr>
+<center>App Translator lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>
+
+<!-- placed at the end for faster loading -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script src="/static/js/bootstrap.js"></script>
+
+</body>
+</html>
