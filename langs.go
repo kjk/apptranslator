@@ -85,3 +85,12 @@ func LangNameByCode(code string) string {
 	}
 	return fmt.Sprintf("Unknown lang code %s", code)
 }
+
+func IsValidLangCode(code string) bool {
+	for _, lang := range Languages {
+		if code == lang.Code {
+			return true
+		}
+	}
+	return false
+}

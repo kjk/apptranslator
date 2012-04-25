@@ -20,7 +20,7 @@
 
 {{$appName := .App.Name}}
 {{if len .Langs}}
-<p>Applications:</p>
+<p>Languages:</p>
 <ul>
   {{range .Langs}}
   <li><a href="/app/?name={{$appName}}&lang={{.Code}}">{{.Name}}</a> ({{len .Untranslated}} untranslated strings)</li>

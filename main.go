@@ -76,19 +76,26 @@ type AppState struct {
 }
 
 var (
-	appState        = AppState{}
-	staticDir       = filepath.Join("www", "static")
+	appState  = AppState{}
+	staticDir = filepath.Join("www", "static")
+
 	tmplMain        = "main.html"
-	tmplMainPath    = filepath.Join("www", tmplMain)
 	tmplApp         = "app.html"
-	tmplAppPath     = filepath.Join("www", tmplApp)
-	templates       = template.Must(template.ParseFiles(tmplMainPath, tmplAppPath))
+	tmplAppTrans    = "apptrans.html"
+	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans}
+	templatePaths   = make([]string, 0)
+	templates       *template.Template
 	reloadTemplates = true
 )
 
 func GetTemplates() *template.Template {
-	if reloadTemplates {
-		return template.Must(template.ParseFiles(tmplMainPath, tmplAppPath))
+	if reloadTemplates || (nil == templates) {
+		if 0 == len(templatePaths) {
+			for _, name := range templateNames {
+				templatePaths = append(templatePaths, filepath.Join("www", name))
+			}
+		}
+		templates = template.Must(template.ParseFiles(templatePaths...))
 	}
 	return templates
 }
@@ -281,6 +288,13 @@ func findApp(name string) *App {
 	return nil
 }
 
+/*
+type Translation struct {
+	String      string
+	Translation string
+}
+*/
+
 type LangInfo struct {
 	Code         string
 	Name         string
@@ -370,14 +384,48 @@ func buildModelApp(app *App) *ModelApp {
 	return model
 }
 
-// handler for url: /app/?name=%s
+type ModelAppTranslations struct {
+	App      *App
+	LangInfo *LangInfo
+}
+
+func buildModelAppTranslations(app *App, langCode string) *ModelAppTranslations {
+	model := &ModelAppTranslations{App: app}
+	modelApp := buildModelApp(app)
+	for _, langInfo := range modelApp.Langs {
+		if langInfo.Code == langCode {
+			model.LangInfo = langInfo
+			return model
+		}
+	}
+	panic("buildModelAppTranslations() failed")
+}
+
+// handler for url: /app/?name=$app&lang=$lang
+func handleAppTranslations(w http.ResponseWriter, r *http.Request, app *App, langCode string) {
+	fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, langCode)
+	model := buildModelAppTranslations(app, langCode)
+	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
+		fmt.Print(err.Error(), "\n")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// handler for url: /app/?name=$app
 func handleApp(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("name"))
-	fmt.Printf("handleApp() appName=%s\n", appName)
 	app := findApp(appName)
 	if app == nil {
 		serverErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
+		return
 	}
+	lang := strings.TrimSpace(r.FormValue("lang"))
+	if IsValidLangCode(lang) {
+		handleAppTranslations(w, r, app, lang)
+		return
+	}
+	fmt.Printf("handleApp() appName=%s\n", appName)
 	model := buildModelApp(app)
 	if err := GetTemplates().ExecuteTemplate(w, tmplApp, model); err != nil {
 		fmt.Print(err.Error(), "\n")
