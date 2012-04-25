@@ -294,10 +294,10 @@ type Translation struct {
 }
 
 type LangInfo struct {
-	Code         string
-	Name         string
-	Translations []Translation
-	Untranslated []string
+	Code              string
+	Name              string
+	Translations      []Translation
+	UntranslatedCount int
 }
 
 const (
@@ -320,7 +320,17 @@ func (s TranslationSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 type ByString struct{ TranslationSeq }
 
 func (s ByString) Less(i, j int) bool {
-	return transStringLess(s.TranslationSeq[i].String, s.TranslationSeq[j].String)
+	s1 := s.TranslationSeq[i].String
+	s2 := s.TranslationSeq[j].String
+	trans1 := s.TranslationSeq[i].Translation
+	trans2 := s.TranslationSeq[j].Translation
+	if trans1 == "" && trans2 != "" {
+		return true
+	}
+	if trans2 == "" && trans1 != "" {
+		return false
+	}
+	return transStringLess(s1, s2)
 }
 
 type StringsSeq []string
@@ -339,7 +349,6 @@ func NewLangInfo(langCode string) *LangInfo {
 	li.Code = langCode
 	li.Name = LangNameByCode(langCode)
 	li.Translations = make([]Translation, 0)
-	li.Untranslated = make([]string, 0)
 	return li
 }
 
@@ -361,8 +370,8 @@ func (s ByName) Less(i, j int) bool { return s.LangInfoSeq[i].Name < s.LangInfoS
 type ByUntranslated struct{ LangInfoSeq }
 
 func (s ByUntranslated) Less(i, j int) bool {
-	l1 := len(s.LangInfoSeq[i].Untranslated)
-	l2 := len(s.LangInfoSeq[j].Untranslated)
+	l1 := s.LangInfoSeq[i].UntranslatedCount
+	l2 := s.LangInfoSeq[j].UntranslatedCount
 	if l1 != l2 {
 		return l1 > l2
 	}
@@ -371,7 +380,7 @@ func (s ByUntranslated) Less(i, j int) bool {
 }
 
 func calcUntranslated(app *App, langInfo *LangInfo) {
-	untranslated := langInfo.Untranslated
+	untranslated := make([]string, 0)
 	for s, _ := range app.translations {
 		isTranslated := false
 		for _, trans := range langInfo.Translations {
@@ -385,9 +394,14 @@ func calcUntranslated(app *App, langInfo *LangInfo) {
 			untranslated = append(untranslated, s)
 		}
 	}
-	sort.Sort(SmartString{untranslated})
+	langInfo.UntranslatedCount = len(untranslated)
+	for _, str := range untranslated {
+		var trans Translation
+		trans.String = str
+		trans.Translation = ""
+		langInfo.Translations = append(langInfo.Translations, trans)
+	}
 	sort.Sort(ByString{langInfo.Translations})
-	langInfo.Untranslated = untranslated
 }
 
 func buildModelApp(app *App) *ModelApp {
@@ -431,7 +445,7 @@ func buildModelAppTranslations(app *App, langCode string) *ModelAppTranslations 
 	for _, langInfo := range modelApp.Langs {
 		if langInfo.Code == langCode {
 			model.LangInfo = langInfo
-			model.StringsCount = len(langInfo.Untranslated) + len(langInfo.Translations)
+			model.StringsCount = len(langInfo.Translations)
 			return model
 		}
 	}
@@ -471,6 +485,11 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handler for url: /edittranslation
+func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
+	panic("Not implemented")
+}
+
 func main() {
 	if err := readDataAtStartup(); err != nil {
 		fmt.Printf("Failed to open data file %s. Can't proceed.\n", dataFileName)
@@ -486,6 +505,7 @@ func main() {
 	http.HandleFunc("/static/", handleStatic)
 	http.HandleFunc("/addapp", handleAddApp)
 	http.HandleFunc("/app/", handleApp)
+	http.HandleFunc("/edittranslation", handleEditTranslation)
 	http.HandleFunc("/", handleMain)
 
 	port := ":8890"

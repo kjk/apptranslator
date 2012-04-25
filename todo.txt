@@ -1,17 +1,18 @@
 List of things to do for app translator.
 
 Must have:
-- show a page for editing translations for a given language
-- add a new string for translation via web page
+- implement handleEditTranslation()
+- before accepting a translation, verify the order of % escapes is correct
 - download all translations in a single file
 - upload strings to be translated
-- allow editing a translation
-- before accepting a translation, verify the order of % escapes is correct
 - user authentication via twitter
 - ability to see history of translations for a given string and revert to any past translations
 - ability to rename original string while preserving the translation
+- only enable 'Submit' in edit translation form if the translation has changed
+- add a new string for translation via web page
 
 Nice to have:
+- view recent translations (next to languages list on the summary page for the application)
 - remember who did what translation, so that we can credit people
 - a page that shows a log of changes (who, what, when)
 - an RSS feed for each app/lang pair which shows currently untranslated

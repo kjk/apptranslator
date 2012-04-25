@@ -25,32 +25,76 @@
 <div class="container">
 <header class="jumbotron subhead" id="overview">
 	<h1>{{.LangInfo.Name}} translations for <a href="/app/?name={{.App.Name}}">{{.App.Name}}</a></h1>
-	<p class="lead">There are {{len .LangInfo.Untranslated}} untranslated strings, {{ .StringsCount}} total strings.</p>
+	<p class="lead">There are {{.LangInfo.UntranslatedCount}} untranslated strings, {{ .StringsCount}} total strings.</p>
 </header>
- 
-{{if len .LangInfo.Untranslated}}
-	{{range .LangInfo.Untranslated}}
-	<div class="trans">
-		{{.}} <a href="#">Add translation</a> 
-	</div>
-	{{end}}
-{{end}}
-{{if len .LangInfo.Translations}}
 
-	{{range .LangInfo.Translations}}
-	<div class="trans">
-		{{.String}}
-		<span style="color:blue">=&gt;</span>
-		{{.Translation}} <a href="#">Edit</a>
+{{if len .LangInfo.Translations}}
+	{{range $idx, $el := .LangInfo.Translations}}
+	<div class="trans" id="idTrans{{$idx}}">
+		<span class="origstr">{{.String}}</span>
+		{{if len .Translation}}
+			<span style="color:blue">=&gt;</span>
+			<span class="transstr">{{.Translation}}</span> <a href="#" class="editbtn" id="idEdit{{$idx}}">Edit</a>
+		{{else}}
+			<a href="#" class="addbtn" id="idEdit{{$idx}}">Add translation...</a>
+		{{end}}
 	</div>
 	{{end}}
 {{end}}
-<hr>
-<center>App Translator lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>
+
+<div class="modal hide" id="idEditTrans">
+	<div class="modal-header">
+		<a class="close" data-dismiss="modal">×</a>
+		<h3><span id="idEditTransHdr"></span></h3>
+	</div>
+	<div>
+		<form class="well" action="/edittranslation" method="POST">
+			<div class="modal-body">
+				<label>String:</label>
+				<textarea rows=3 readonly="readonly" id="idEditFormString" style="width:90%"></textarea>
+				<label>Translation:</label>
+				<textarea rows=3 id="idEditFormTrans" style="width:90%"></textarea>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary">Submit</button>
+				<a href="#" class="btn"data-dismiss="modal">Cancel</a>
+			</div>
+		</form>
+	</div>
+</div>
+
+<hr style="margin:4px">
+<center style="padding-bottom:12px"><a href="/">App Translator</a>, lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>
 
 <!-- placed at the end for faster loading -->
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
 <script src="/static/js/bootstrap.js"></script>
+
+<script>
+
+$(document).ready(function() {
+	$(".addbtn").click(function() {
+		$("#idEditTransHdr").text("Add translation");
+		var el = $(this).parent().find(".origstr");
+		$("#idEditFormString").text(el.text());
+		$("#idEditFormTrans").text("");
+		$("#idEditTrans").modal('show');
+		$("#idEditFormTrans").focus();
+	});
+
+	$(".editbtn").click(function() {
+		$("#idEditTransHdr").text("Edit translation");
+		var el = $(this).parent().find(".origstr");
+		$("#idEditFormString").text(el.text());
+		el = $(this).parent().find(".transstr");
+		$("#idEditFormTrans").text(el.text());
+		$("#idEditTrans").modal('show');
+		$("#idEditFormTrans").focus();
+	});
+
+});
+
+</script>
 
 </body>
 </html>
