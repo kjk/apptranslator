@@ -300,6 +300,18 @@ type LangInfo struct {
 	Untranslated []string
 }
 
+const (
+	stringCmpRemoveSet = ";,:()[]&_ "
+)
+
+func transStringLess(s1, s2 string) bool {
+	s1 = strings.Trim(s1, stringCmpRemoveSet)
+	s2 = strings.Trim(s2, stringCmpRemoveSet)
+	s1 = strings.ToLower(s1)
+	s2 = strings.ToLower(s2)
+	return s1 < s2
+}
+
 type TranslationSeq []Translation
 
 func (s TranslationSeq) Len() int      { return len(s) }
@@ -308,7 +320,18 @@ func (s TranslationSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 type ByString struct{ TranslationSeq }
 
 func (s ByString) Less(i, j int) bool {
-	return s.TranslationSeq[i].String < s.TranslationSeq[j].String
+	return transStringLess(s.TranslationSeq[i].String, s.TranslationSeq[j].String)
+}
+
+type StringsSeq []string
+
+func (s StringsSeq) Len() int      { return len(s) }
+func (s StringsSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+type SmartString struct{ StringsSeq }
+
+func (s SmartString) Less(i, j int) bool {
+	return transStringLess(s.StringsSeq[i], s.StringsSeq[j])
 }
 
 func NewLangInfo(langCode string) *LangInfo {
@@ -362,7 +385,7 @@ func calcUntranslated(app *App, langInfo *LangInfo) {
 			untranslated = append(untranslated, s)
 		}
 	}
-	sort.Strings(untranslated)
+	sort.Sort(SmartString{untranslated})
 	sort.Sort(ByString{langInfo.Translations})
 	langInfo.Untranslated = untranslated
 }

@@ -1,8 +1,6 @@
 List of things to do for app translator.
 
 Must have:
-- better sort of translations translations
-- page translations (max 10-20 per page)
 - show a page for editing translations for a given language
 - add a new string for translation via web page
 - download all translations in a single file
