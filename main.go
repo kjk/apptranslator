@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -234,7 +233,7 @@ func readTranslationsFromLog(app *App) {
 		return
 	}
 	defer file.Close()
-	decoder := gob.NewDecoder(file)
+	decoder := json.NewDecoder(file)
 	var logentry LogTranslationChange
 	entries := 0
 	for {

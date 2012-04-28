@@ -17,23 +17,14 @@ const (
 )
 
 type LangTranslations struct {
-	LangCode        string // iso name of the language ("en", "cn", "sp-rs")
+	LangCode        string	// iso name of the language ("en", "cn", "sp-rs")	
 	LangNameEnglish string
 	LangNameNative  string
-	Strings         []string
-	Translations    []string
 }
 
 func NewLangTranslations() (lt *LangTranslations) {
 	lt = new(LangTranslations)
-	lt.Strings = make([]string, 0)
-	lt.Translations = make([]string, 0)
 	return
-}
-
-func (lt *LangTranslations) Add(str, trans string) {
-	lt.Strings = append(lt.Strings, str)
-	lt.Translations = append(lt.Translations, trans)
 }
 
 type CantParseError struct {
@@ -130,7 +121,13 @@ func parseLang(s string) (id, nameEnglish, nameNative string) {
 	return
 }
 
-func Parse(reader io.Reader) (*LangTranslations, error) {
+func ParseFile(fileName string, tl *TranslationLog) error {
+	reader, err := os.Open(fileName)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
 	r := bufio.NewReaderSize(reader, 4*1024)
 	lt := NewLangTranslations()
 	state := ParsingMeta
@@ -141,10 +138,10 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 		line, err := myReadLine(r)
 		if err != nil {
 			if err == io.EOF {
-				return lt, nil
+				return nil
 			}
 			//err.LineNo = lineNo
-			return nil, err
+			return err
 		}
 		line = removeTrailing(removeBom(line))
 		s := string(line)
@@ -163,11 +160,11 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 					lt.LangCode, lt.LangNameEnglish, lt.LangNameNative = parseLang(val)
 					if "" == lt.LangCode {
 						msg := fmt.Sprintf("Couldn't parse '%s'", s)
-						return nil, &CantParseError{msg, lineNo}
+						return &CantParseError{msg, lineNo}
 					}
 				} else {
 					msg := fmt.Sprintf("Enexpected header: '%s'", name)
-					return nil, &CantParseError{msg, lineNo}
+					return &CantParseError{msg, lineNo}
 				}
 			}
 			continue
@@ -176,9 +173,12 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 		if ParsingAfterString == state {
 			if isEmptyOrComment(s) {
 				msg := "Unexpected empty or comment line"
-				return nil, &CantParseError{msg, lineNo}
+				return &CantParseError{msg, lineNo}
 			}
-			lt.Add(currString, s)
+			err := tl.write(lt.LangCode, currString, s)
+			if nil != err {
+				fmt.Printf("Error in file %s line %d\n", fileName, lineNo)
+			}
 			state = ParsingBeforeString
 			continue
 		}
@@ -194,14 +194,5 @@ func Parse(reader io.Reader) (*LangTranslations, error) {
 
 		panic("Unexpected parsing state")
 	}
-	return lt, nil
-}
-
-func ParseFile(name string) (*LangTranslations, error) {
-	file, err := os.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	return Parse(file)
+	return nil
 }
