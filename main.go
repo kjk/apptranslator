@@ -93,6 +93,7 @@ func (li *LangInfo) addTranslation(str, translation string) {
 	for _, t := range li.Translations {
 		if str == t.String {
 			t.updateTranslation(translation)
+			li.updateUntranslatedCount()
 			return
 		}
 	}
@@ -540,6 +541,7 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	str := strings.TrimSpace(r.FormValue("string"))
 	translation := strings.TrimSpace(r.FormValue("translation"))
 	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'", str, translation, langCode)
+	// TODO: prevent adding new strings?
 	app.addTranslation(langCode, str, translation)
 	// TODO: save a translation to the log
 	// TODO: url-escape app.Name and langCode
