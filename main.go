@@ -174,9 +174,9 @@ func (a *App) addUntranslated() {
 }
 
 type LogTranslationChange struct {
-	LangCode       string
-	EnglishStr     string
-	NewTranslation string
+	LangCode       string `json:"l"`
+	EnglishStr     string `json:"s"`
+	NewTranslation string `json:"t"`
 }
 
 type AppState struct {
