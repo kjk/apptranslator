@@ -32,9 +32,9 @@
 	{{range $idx, $el := .LangInfo.Translations}}
 	<div class="trans" id="idTrans{{$idx}}">
 		<span class="origstr">{{.String}}</span>
-		{{if len .Translation}}
+		{{if len .Translations}}
 			<span style="color:blue">=&gt;</span>
-			<span class="transstr">{{.Translation}}</span> <a href="#" class="editbtn" id="idEdit{{$idx}}">Edit</a>
+			<span class="transstr">{{.Current}}</span> <a href="#" class="editbtn" id="idEdit{{$idx}}">Edit</a>
 		{{else}}
 			<a href="#" class="addbtn" id="idEdit{{$idx}}">Add translation...</a>
 		{{end}}
@@ -51,9 +51,11 @@
 		<form class="well" action="/edittranslation" method="POST">
 			<div class="modal-body">
 				<label>String:</label>
-				<textarea rows=3 readonly="readonly" id="idEditFormString" style="width:90%"></textarea>
+				<textarea rows=3 readonly="readonly" name="string" id="idEditFormString" style="width:90%"></textarea>
 				<label>Translation:</label>
-				<textarea rows=3 id="idEditFormTrans" style="width:90%"></textarea>
+				<textarea rows=3 name="translation" id="idEditFormTrans" style="width:90%"></textarea>
+				<input type="hidden" name="app" value="{{.App.Name}}">
+				<input type="hidden" name="lang" value="{{.LangInfo.Code}}">
 			</div>
 			<div class="modal-footer">
 				<button type="submit" class="btn btn-primary">Submit</button>

@@ -28,24 +28,85 @@ type User struct {
 	Login string
 }
 
-type TranslationsForString struct {
-	LangCodes    []string
+type Translation struct {
+	String string
+	// last string is current translation, previous strings
+	// are a history of how translation changed
 	Translations []string
 }
 
-func NewTranslationsForString() *TranslationsForString {
-	return &TranslationsForString{make([]string, 0), make([]string, 0)}
+func NewTranslation(s, trans string) *Translation {
+	t := &Translation{String: s}
+	t.Translations = make([]string, 0)
+	if trans != "" {
+		t.Translations = append(t.Translations, trans)
+	}
+	return t
 }
 
-func (t *TranslationsForString) Replace(langCode, trans string) {
-	for i, v := range t.LangCodes {
-		if v == langCode {
-			t.Translations[i] = trans
+func (t *Translation) Current() string {
+	if 0 == len(t.Translations) {
+		return ""
+	}
+	return t.Translations[len(t.Translations)-1]
+}
+
+func (t *Translation) updateTranslation(trans string) {
+	t.Translations = append(t.Translations, trans)
+}
+
+type LangInfo struct {
+	Code         string
+	Name         string
+	Translations []*Translation
+
+	untranslatedCount int
+}
+
+func NewLangInfo(langCode string) *LangInfo {
+	li := &LangInfo{Code: langCode, Name: LangNameByCode(langCode)}
+	li.Translations = make([]*Translation, 0)
+	return li
+}
+
+func (li *LangInfo) updateUntranslatedCount() {
+	n := 0
+	for _, t := range li.Translations {
+		if len(t.Translations) == 0 {
+			n++
+		}
+	}
+	li.untranslatedCount = n
+}
+
+func (li *LangInfo) UntranslatedCount() int {
+	return li.untranslatedCount
+}
+
+func (li *LangInfo) appendTranslation(str, trans string) {
+	t := NewTranslation(str, trans)
+	li.Translations = append(li.Translations, t)
+	li.updateUntranslatedCount()
+}
+
+func (li *LangInfo) addTranslation(str, translation string) {
+	for _, t := range li.Translations {
+		if str == t.String {
+			t.updateTranslation(translation)
 			return
 		}
 	}
-	t.LangCodes = append(t.LangCodes, langCode)
-	t.Translations = append(t.Translations, trans)
+	li.appendTranslation(str, translation)
+	li.updateUntranslatedCount()
+}
+
+func (li *LangInfo) addUntranslatedIfNotExists(str string) {
+	for _, t := range li.Translations {
+		if str == t.String {
+			return
+		}
+	}
+	li.appendTranslation(str, "")
 }
 
 type App struct {
@@ -55,13 +116,53 @@ type App struct {
 	// a secret value that must be provided when uploading
 	// new strings for translation
 	UploadSecret string
-	// we don't want to serialize translations
-	translations map[string]*TranslationsForString
 
-	// used in templates
-	LangsCount        int
-	StringsCount      int
-	UntranslatedCount int
+	langInfos  []*LangInfo
+	allStrings map[string]bool
+}
+
+func NewApp(name, url string) *App {
+	app := &App{Name: name, Url: url}
+	app.langInfos = make([]*LangInfo, 0)
+	app.UploadSecret = genAppUploadSecret()
+	app.allStrings = make(map[string]bool)
+	return app
+}
+
+// used in templates
+func (a *App) LangsCount() int {
+	return len(a.langInfos)
+}
+
+// used in templates
+func (a *App) StringsCount() int {
+	if len(a.langInfos) == 0 {
+		return 0
+	}
+	return len(a.langInfos[0].Translations)
+}
+
+// used in templates
+func (a *App) UntranslatedCount() int {
+	n := 0
+	for _, langInfo := range a.langInfos {
+		n += langInfo.UntranslatedCount()
+	}
+	return n
+}
+
+func (a *App) LangInfoByCode(langCode string, create bool) *LangInfo {
+	for _, li := range a.langInfos {
+		if li.Code == langCode {
+			return li
+		}
+	}
+	if create {
+		li := NewLangInfo(langCode)
+		a.langInfos = append(a.langInfos, li)
+		return li
+	}
+	return nil
 }
 
 type LogTranslationChange struct {
@@ -112,23 +213,10 @@ func saveData() {
 
 func buildAppData(app *App) {
 	fmt.Printf("buildAppData(): %s\n", app.Name)
-	langs := make(map[string]bool)
-	app.StringsCount = len(app.translations)
-	app.UntranslatedCount = 0
-	for _, t := range app.translations {
-		for _, langCode := range t.LangCodes {
-			langs[langCode] = true
-		}
-	}
-	app.LangsCount = len(langs)
-	for _, t := range app.translations {
-		app.UntranslatedCount += app.LangsCount - len(t.LangCodes)
-	}
 }
 
 // we ignore errors when reading
 func readTranslationsFromLog(app *App) {
-	app.translations = make(map[string]*TranslationsForString)
 	fileName := app.Name + "_trans.dat"
 	path := filepath.Join(dataDir, fileName)
 	file, err := os.Open(path)
@@ -147,13 +235,8 @@ func readTranslationsFromLog(app *App) {
 			break
 		}
 		entries++
-		s := logentry.EnglishStr
-		trans, ok := app.translations[s]
-		if !ok {
-			trans = NewTranslationsForString()
-			app.translations[s] = trans
-		}
-		trans.Replace(logentry.LangCode, logentry.NewTranslation)
+		li := app.LangInfoByCode(logentry.LangCode, true)
+		li.addTranslation(logentry.EnglishStr, logentry.NewTranslation)
 	}
 	fmt.Printf("Found %d translation log entries for app %s\n", entries, app.Name)
 }
@@ -268,7 +351,7 @@ func handleAddApp(w http.ResponseWriter, r *http.Request) {
 		errmsg = fmt.Sprintf("Application %s already exists. Choose a different name.", appName)
 	}
 	if errmsg == "" {
-		app := &App{appName, appUrl, "dummy", genAppUploadSecret(), nil, 0, 0, 0}
+		app := NewApp(appName, appUrl)
 		addApp(app)
 
 	}
@@ -288,18 +371,6 @@ func findApp(name string) *App {
 	return nil
 }
 
-type Translation struct {
-	String      string
-	Translation string
-}
-
-type LangInfo struct {
-	Code              string
-	Name              string
-	Translations      []Translation
-	UntranslatedCount int
-}
-
 const (
 	stringCmpRemoveSet = ";,:()[]&_ "
 )
@@ -312,7 +383,7 @@ func transStringLess(s1, s2 string) bool {
 	return s1 < s2
 }
 
-type TranslationSeq []Translation
+type TranslationSeq []*Translation
 
 func (s TranslationSeq) Len() int      { return len(s) }
 func (s TranslationSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
@@ -322,8 +393,8 @@ type ByString struct{ TranslationSeq }
 func (s ByString) Less(i, j int) bool {
 	s1 := s.TranslationSeq[i].String
 	s2 := s.TranslationSeq[j].String
-	trans1 := s.TranslationSeq[i].Translation
-	trans2 := s.TranslationSeq[j].Translation
+	trans1 := s.TranslationSeq[i].Current()
+	trans2 := s.TranslationSeq[j].Current()
 	if trans1 == "" && trans2 != "" {
 		return true
 	}
@@ -344,14 +415,6 @@ func (s SmartString) Less(i, j int) bool {
 	return transStringLess(s.StringsSeq[i], s.StringsSeq[j])
 }
 
-func NewLangInfo(langCode string) *LangInfo {
-	li := new(LangInfo)
-	li.Code = langCode
-	li.Name = LangNameByCode(langCode)
-	li.Translations = make([]Translation, 0)
-	return li
-}
-
 type ModelApp struct {
 	App   *App
 	Langs []*LangInfo
@@ -370,8 +433,8 @@ func (s ByName) Less(i, j int) bool { return s.LangInfoSeq[i].Name < s.LangInfoS
 type ByUntranslated struct{ LangInfoSeq }
 
 func (s ByUntranslated) Less(i, j int) bool {
-	l1 := s.LangInfoSeq[i].UntranslatedCount
-	l2 := s.LangInfoSeq[j].UntranslatedCount
+	l1 := s.LangInfoSeq[i].UntranslatedCount()
+	l2 := s.LangInfoSeq[j].UntranslatedCount()
 	if l1 != l2 {
 		return l1 > l2
 	}
@@ -379,53 +442,44 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
+// TODO: add untranslated strings as well. We could keep all known
+// strings in App as AllStrings map[string]bool add have
+// func (li *LangInfo) AddUntranslatedIfNotExists(string s)
 func calcUntranslated(app *App, langInfo *LangInfo) {
-	untranslated := make([]string, 0)
-	for s, _ := range app.translations {
-		isTranslated := false
-		for _, trans := range langInfo.Translations {
-			s2 := trans.String
-			if s == s2 {
-				isTranslated = true
-				break
+	/*
+		untranslated := make([]string, 0)
+		for s, _ := range app.translations {
+			isTranslated := false
+			for _, trans := range langInfo.Translations {
+				s2 := trans.String
+				if s == s2 {
+					isTranslated = true
+					break
+				}
+			}
+			if !isTranslated {
+				untranslated = append(untranslated, s)
 			}
 		}
-		if !isTranslated {
-			untranslated = append(untranslated, s)
+		langInfo.UntranslatedCount = len(untranslated)
+		for _, str := range untranslated {
+			var trans Translation
+			trans.String = str
+			trans.Translation = ""
+			langInfo.Translations = append(langInfo.Translations, trans)
 		}
-	}
-	langInfo.UntranslatedCount = len(untranslated)
-	for _, str := range untranslated {
-		var trans Translation
-		trans.String = str
-		trans.Translation = ""
-		langInfo.Translations = append(langInfo.Translations, trans)
-	}
+	*/
 	sort.Sort(ByString{langInfo.Translations})
 }
 
 func buildModelApp(app *App) *ModelApp {
 	model := new(ModelApp)
 	model.App = app
-	langs := make(map[string]*LangInfo)
-	total := 0
-	for str, transForString := range app.translations {
-		total += len(transForString.LangCodes)
-		for i, langCode := range transForString.LangCodes {
-			translation := transForString.Translations[i]
-			langInfo, ok := langs[langCode]
-			if !ok {
-				langInfo = NewLangInfo(langCode)
-				langs[langCode] = langInfo
-			}
-			var trans Translation
-			trans.String = str
-			trans.Translation = translation
-			langInfo.Translations = append(langInfo.Translations, trans)
-		}
-	}
+	// could use App.langInfos directly but it's not
+	// thread safe and really should sort after update
+	// not on every read
 	model.Langs = make([]*LangInfo, 0)
-	for _, lang := range langs {
+	for _, lang := range app.langInfos {
 		calcUntranslated(app, lang)
 		model.Langs = append(model.Langs, lang)
 	}
@@ -487,7 +541,25 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 
 // handler for url: /edittranslation
 func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
-	panic("Not implemented")
+	appName := strings.TrimSpace(r.FormValue("app"))
+	app := findApp(appName)
+	if app == nil {
+		serverErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
+		return
+	}
+	langCode := strings.TrimSpace(r.FormValue("langCode"))
+	if IsValidLangCode(langCode) {
+		serverErrorMsg(w, fmt.Sprintf("Invalid lang code '%s'", langCode))
+		return
+	}
+	li := app.LangInfoByCode(langCode, true)
+	str := strings.TrimSpace(r.FormValue("string"))
+	translation := strings.TrimSpace(r.FormValue("translation"))
+	li.addTranslation(str, translation)
+	// TODO: url-escape app.Name and langCode
+	url := fmt.Sprintf("/app/?name=%s&lang=%s", app.Name, langCode)
+	http.Redirect(w, r, url, 301)
+
 }
 
 func main() {
@@ -498,7 +570,8 @@ func main() {
 	fmt.Printf("Read the data from %s\n", dataFileName)
 	// for testing, add a dummy app if no apps exist
 	if len(appState.Apps) == 0 {
-		addApp(&App{"SumatraPDF", "http://blog.kowalczyk.info", "kjk", genAppUploadSecret(), nil, 0, 0, 0})
+		app := NewApp("SumatraPDF", "http://blog.kowalczyk.info")
+		addApp(app)
 		fmt.Printf("Added dummy SumatraPDF app")
 	}
 
