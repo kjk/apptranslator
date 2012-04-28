@@ -532,14 +532,16 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 		serverErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
 		return
 	}
-	langCode := strings.TrimSpace(r.FormValue("langCode"))
-	if IsValidLangCode(langCode) {
+	langCode := strings.TrimSpace(r.FormValue("lang"))
+	if !IsValidLangCode(langCode) {
 		serverErrorMsg(w, fmt.Sprintf("Invalid lang code '%s'", langCode))
 		return
 	}
 	str := strings.TrimSpace(r.FormValue("string"))
 	translation := strings.TrimSpace(r.FormValue("translation"))
+	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'", str, translation, langCode)
 	app.addTranslation(langCode, str, translation)
+	// TODO: save a translation to the log
 	// TODO: url-escape app.Name and langCode
 	url := fmt.Sprintf("/app/?name=%s&lang=%s", app.Name, langCode)
 	http.Redirect(w, r, url, 301)
