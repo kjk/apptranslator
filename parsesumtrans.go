@@ -17,7 +17,7 @@ const (
 )
 
 type LangTranslations struct {
-	LangCode        string	// iso name of the language ("en", "cn", "sp-rs")	
+	LangCode        string // iso name of the language ("en", "cn", "sp-rs")	
 	LangNameEnglish string
 	LangNameNative  string
 }
