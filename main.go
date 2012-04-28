@@ -151,7 +151,7 @@ func (a *App) UntranslatedCount() int {
 	return n
 }
 
-func (a *App) LangInfoByCode(langCode string, create bool) *LangInfo {
+func (a *App) langInfoByCode(langCode string, create bool) *LangInfo {
 	for _, li := range a.langInfos {
 		if li.Code == langCode {
 			return li
@@ -163,6 +163,14 @@ func (a *App) LangInfoByCode(langCode string, create bool) *LangInfo {
 		return li
 	}
 	return nil
+}
+
+func (a *App) addUntranslated() {
+	for s, _ := range a.allStrings {
+		for _, li := range a.langInfos {
+			li.addUntranslatedIfNotExists(s)
+		}
+	}
 }
 
 type LogTranslationChange struct {
@@ -235,9 +243,9 @@ func readTranslationsFromLog(app *App) {
 			break
 		}
 		entries++
-		li := app.LangInfoByCode(logentry.LangCode, true)
-		li.addTranslation(logentry.EnglishStr, logentry.NewTranslation)
+		app.addTranslation(logentry.LangCode, logentry.EnglishStr, logentry.NewTranslation)
 	}
+	app.addUntranslated()
 	fmt.Printf("Found %d translation log entries for app %s\n", entries, app.Name)
 }
 
@@ -256,6 +264,9 @@ func readDataAtStartup() error {
 		return err
 	}
 	for _, app := range appState.Apps {
+		if nil == app.allStrings {
+			app.allStrings = make(map[string]bool)
+		}
 		readTranslationsFromLog(app)
 		buildAppData(app)
 	}
@@ -442,34 +453,7 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
-// TODO: add untranslated strings as well. We could keep all known
-// strings in App as AllStrings map[string]bool add have
-// func (li *LangInfo) AddUntranslatedIfNotExists(string s)
 func calcUntranslated(app *App, langInfo *LangInfo) {
-	/*
-		untranslated := make([]string, 0)
-		for s, _ := range app.translations {
-			isTranslated := false
-			for _, trans := range langInfo.Translations {
-				s2 := trans.String
-				if s == s2 {
-					isTranslated = true
-					break
-				}
-			}
-			if !isTranslated {
-				untranslated = append(untranslated, s)
-			}
-		}
-		langInfo.UntranslatedCount = len(untranslated)
-		for _, str := range untranslated {
-			var trans Translation
-			trans.String = str
-			trans.Translation = ""
-			langInfo.Translations = append(langInfo.Translations, trans)
-		}
-	*/
-	sort.Sort(ByString{langInfo.Translations})
 }
 
 func buildModelApp(app *App) *ModelApp {
@@ -479,9 +463,10 @@ func buildModelApp(app *App) *ModelApp {
 	// thread safe and really should sort after update
 	// not on every read
 	model.Langs = make([]*LangInfo, 0)
-	for _, lang := range app.langInfos {
-		calcUntranslated(app, lang)
-		model.Langs = append(model.Langs, lang)
+	for _, li := range app.langInfos {
+		// TODO: sort on insert
+		sort.Sort(ByString{li.Translations})
+		model.Langs = append(model.Langs, li)
 	}
 	sort.Sort(ByUntranslated{model.Langs})
 	return model
@@ -552,14 +537,22 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 		serverErrorMsg(w, fmt.Sprintf("Invalid lang code '%s'", langCode))
 		return
 	}
-	li := app.LangInfoByCode(langCode, true)
 	str := strings.TrimSpace(r.FormValue("string"))
 	translation := strings.TrimSpace(r.FormValue("translation"))
-	li.addTranslation(str, translation)
+	app.addTranslation(langCode, str, translation)
 	// TODO: url-escape app.Name and langCode
 	url := fmt.Sprintf("/app/?name=%s&lang=%s", app.Name, langCode)
 	http.Redirect(w, r, url, 301)
 
+}
+
+func (app *App) addTranslation(langCode, str, trans string) {
+	li := app.langInfoByCode(langCode, true)
+	li.addTranslation(str, trans)
+	if _, ok := app.allStrings[str]; ok {
+		return
+	}
+	app.allStrings[str] = true
 }
 
 func main() {
