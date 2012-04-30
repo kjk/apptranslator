@@ -1,8 +1,6 @@
 List of things to do for app translator.
 
 Must have:
-- implement handleEditTranslation()
-- add a transient message after adding a translation
 - before accepting a translation, verify the order of % escapes is correct
 - download all translations in a single file
 - upload strings to be translated

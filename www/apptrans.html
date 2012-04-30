@@ -25,8 +25,18 @@
 <div class="container">
 <header class="jumbotron subhead" id="overview">
 	<h1>{{.LangInfo.Name}} translations for <a href="/app/?name={{.App.Name}}">{{.App.Name}}</a></h1>
-	<p class="lead">There are {{.LangInfo.UntranslatedCount}} untranslated strings, {{ .StringsCount}} total strings.</p>
+	<p class="lead">There are {{.LangInfo.UntranslatedCount}} untranslated strings, {{ .StringsCount}} total strings</p>
+	Translation progress: <div style="width:256px" class="progress">
+  <div class="bar" style="width: {{.TransProgressPercent}}%;"></div>
+	</div>
 </header>
+
+{{if .ShowTranslationEditedMsg}}
+<div class="alert alert-success">
+  <button class="close" data-dismiss="alert">×</button>
+  Translation successfully edited!
+</div>
+{{end}}
 
 {{if len .LangInfo.Translations}}
 	{{range $idx, $el := .LangInfo.Translations}}

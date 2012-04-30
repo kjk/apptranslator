@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -117,16 +118,66 @@ type App struct {
 	// new strings for translation
 	UploadSecret string
 
+	// protects writing translations
+	mu         sync.Mutex
 	langInfos  []*LangInfo
 	allStrings map[string]bool
 }
 
 func NewApp(name, url string) *App {
 	app := &App{Name: name, Url: url}
-	app.langInfos = make([]*LangInfo, 0)
 	app.UploadSecret = genAppUploadSecret()
-	app.allStrings = make(map[string]bool)
+	app.initData()
 	return app
+}
+
+func (app *App) initData() {
+	if nil == app.allStrings {
+		app.allStrings = make(map[string]bool)
+	}
+	langsCount := len(Languages)
+	if nil == app.langInfos {
+		app.langInfos = make([]*LangInfo, langsCount, langsCount)
+		for i, lang := range Languages {
+			app.langInfos[i] = NewLangInfo(lang.Code)
+		}
+	}
+	fmt.Printf("Created %s app with %d langs\n", app.Name, len(app.langInfos))
+}
+
+func (a *App) translationLogFilePath() string {
+	name := fmt.Sprintf("%s_trans.dat", a.Name)
+	return filepath.Join(dataDir, name)
+}
+
+func (a *App) writeTranslationToLog(langCode, str, trans string) {
+	fmt.Printf("writeTranslationToLog %s:%s => %s\n", langCode, str, trans)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	p := a.translationLogFilePath()
+	file, err := os.OpenFile(p, os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Printf("writeTranslationToLog(): failed to open file '%s', %s\n", p, err.Error())
+		return
+	}
+	defer file.Close()
+
+	/*_, err = file.Seek(0, 2)
+	if err != nil {
+		fmt.Printf("writeTranslationToLog(): seek failed %s\n", err.Error())
+		return
+	}*/
+	var logentry LogTranslationChange
+	logentry.LangCode = langCode
+	logentry.EnglishStr = str
+	logentry.NewTranslation = trans
+	encoder := json.NewEncoder(file)
+	// TODO: handle an error in some way (is there anything we can do)?
+	err = encoder.Encode(logentry)
+	if err != nil {
+		fmt.Printf("writeTranslationToLog(): encoder.Encode() failed %s\n", err.Error())
+		return
+	}
 }
 
 // used in templates
@@ -151,25 +202,21 @@ func (a *App) UntranslatedCount() int {
 	return n
 }
 
-func (a *App) langInfoByCode(langCode string, create bool) *LangInfo {
-	for _, li := range a.langInfos {
+func (app *App) addTranslation(langCode, str, trans string, allowNew bool) {
+	_, exists := app.allStrings[str]
+	if !exists && !allowNew {
+		fmt.Printf("Skipped %s\n", str)
+		return
+	}
+	for _, li := range app.langInfos {
 		if li.Code == langCode {
-			return li
+			li.addTranslation(str, trans)
+		} else {
+			li.addUntranslatedIfNotExists(str)
 		}
 	}
-	if create {
-		li := NewLangInfo(langCode)
-		a.langInfos = append(a.langInfos, li)
-		return li
-	}
-	return nil
-}
-
-func (a *App) addUntranslated() {
-	for s, _ := range a.allStrings {
-		for _, li := range a.langInfos {
-			li.addUntranslatedIfNotExists(s)
-		}
+	if !exists {
+		app.allStrings[str] = true
 	}
 }
 
@@ -243,9 +290,8 @@ func readTranslationsFromLog(app *App) {
 			break
 		}
 		entries++
-		app.addTranslation(logentry.LangCode, logentry.EnglishStr, logentry.NewTranslation)
+		app.addTranslation(logentry.LangCode, logentry.EnglishStr, logentry.NewTranslation, true)
 	}
-	app.addUntranslated()
 	fmt.Printf("Found %d translation log entries for app %s\n", entries, app.Name)
 }
 
@@ -264,9 +310,7 @@ func readDataAtStartup() error {
 		return err
 	}
 	for _, app := range appState.Apps {
-		if nil == app.allStrings {
-			app.allStrings = make(map[string]bool)
-		}
+		app.initData()
 		readTranslationsFromLog(app)
 		buildAppData(app)
 	}
@@ -453,9 +497,6 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
-func calcUntranslated(app *App, langInfo *LangInfo) {
-}
-
 func buildModelApp(app *App) *ModelApp {
 	model := new(ModelApp)
 	model.App = app
@@ -473,18 +514,28 @@ func buildModelApp(app *App) *ModelApp {
 }
 
 type ModelAppTranslations struct {
-	App          *App
-	LangInfo     *LangInfo
-	StringsCount int
+	App                      *App
+	LangInfo                 *LangInfo
+	StringsCount             int
+	TransProgressPercent     int
+	ShowTranslationEditedMsg bool
 }
 
 func buildModelAppTranslations(app *App, langCode string) *ModelAppTranslations {
-	model := &ModelAppTranslations{App: app}
+	model := &ModelAppTranslations{App: app, ShowTranslationEditedMsg: false}
 	modelApp := buildModelApp(app)
 	for _, langInfo := range modelApp.Langs {
 		if langInfo.Code == langCode {
 			model.LangInfo = langInfo
 			model.StringsCount = len(langInfo.Translations)
+			if 0 == model.StringsCount {
+				model.TransProgressPercent = 100
+			} else {
+				total := float32(model.StringsCount)
+				translated := float32(model.StringsCount - langInfo.UntranslatedCount())
+				perc := (100. * translated) / total
+				model.TransProgressPercent = int(perc)
+			}
 			return model
 		}
 	}
@@ -540,22 +591,15 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	str := strings.TrimSpace(r.FormValue("string"))
 	translation := strings.TrimSpace(r.FormValue("translation"))
 	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'", str, translation, langCode)
-	// TODO: prevent adding new strings?
-	app.addTranslation(langCode, str, translation)
-	// TODO: save a translation to the log
-	// TODO: url-escape app.Name and langCode
-	url := fmt.Sprintf("/app/?name=%s&lang=%s", app.Name, langCode)
-	http.Redirect(w, r, url, 301)
-
-}
-
-func (app *App) addTranslation(langCode, str, trans string) {
-	li := app.langInfoByCode(langCode, true)
-	li.addTranslation(str, trans)
-	if _, ok := app.allStrings[str]; ok {
+	app.addTranslation(langCode, str, translation, false)
+	app.writeTranslationToLog(langCode, str, translation)
+	model := buildModelAppTranslations(app, langCode)
+	model.ShowTranslationEditedMsg = true
+	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
+		fmt.Print(err.Error(), "\n")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	app.allStrings[str] = true
 }
 
 func main() {
