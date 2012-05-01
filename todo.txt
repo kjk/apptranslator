@@ -2,9 +2,8 @@ List of things to do for app translator.
 
 Must have:
 - upload strings to be translated
-- user authentication via twitter
-- add a notion of obsolete string (it's not downloaded but we do keep the translations in case they are re-added)
 - python script to parse translations from app translator
+- user authentication via twitter
 
 Nice to have:
 - add a new string for translation via web page
