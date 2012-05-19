@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+// import _ "gorilla/securecookie"
+
 const (
 	// this is where we store, in an append-only fashion,
 	// information about users and applications. All in
