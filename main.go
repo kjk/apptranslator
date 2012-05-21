@@ -247,7 +247,8 @@ var (
 	tmplMain        = "main.html"
 	tmplApp         = "app.html"
 	tmplAppTrans    = "apptrans.html"
-	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans}
+	tmplBase		= "base.html"
+	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans, tmplBase}
 	templatePaths   = make([]string, 0)
 	templates       *template.Template
 	reloadTemplates = true
@@ -367,12 +368,31 @@ type ModelMain struct {
 	ErrorMsg string
 }
 
+type content struct {
+    ContentHTML template.HTML
+}
+
+type templateParser struct {
+        HTML string
+}
+
+func (tP *templateParser) Write(p []byte) (n int, err error){
+        tP.HTML += string(p)
+        return len(p), nil
+}
+
 // handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
 	model := &ModelMain{&appState.Apps, true, ""}
-	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
+	tp := &templateParser{}
+	if err := GetTemplates().ExecuteTemplate(tp, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	content := &content{template.HTML(tp.HTML)}
+	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return		
 	}
 }
 

@@ -11,25 +11,8 @@
 <body>
 
 <div class="container">
-
-<header class="jumbotron subhead" id="overview">
-	<h1>Translations for {{.App.Name}}</h1>
-	<p class="lead">There are {{.App.StringsCount}} strings translated
-		to {{.App.LangsCount}} languages, {{.App.UntranslatedCount}}
-		total untranslated strings (in all languages)</p>
-</header>
-
-{{$appName := .App.Name}}
-{{if len .Langs}}
-<p>Languages:</p>
-<ul>
-  {{range .Langs}}
-  <li><a href="/app/?name={{$appName}}&lang={{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated strings)</li>
-  {{end}}
-</ul>
-{{else}}
-There are no languages!
-{{end}}
+{{.ContentHTML}}
+</div>
 
 <hr style="margin:4px">
 <center style="padding-bottom:12px"><a href="/">App Translator</a>, lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>

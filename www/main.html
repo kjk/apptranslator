@@ -1,28 +1,7 @@
-<!doctype html>
-<html lang="en">
-<head>
-<link href="/static/css/bootstrap.css" rel="stylesheet">	
-<link href="/static/css/bootstrap-responsive.css" rel="stylesheet">
-<!--[if lt IE 9]>
-  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
-<![endif]-->
-</head>
-
-<body>
-
-<div class="container">
 <header class="jumbotron subhead" id="overview">
 	<h1>App Translator</h1>
-	<p class="lead">We help desktop software developers
-translate their apps from English to other languages with the
-help of their users.</p>
+	<p class="lead">Crowd-sourced translations for software.</p>
 </header>
-<!--
-<p><b>Developer?</b> You can add your application, submit
-strings for translation and download user submitted translations.</p>
-<p><b>User?</b> You can help translate your favourite app
-to your language.</p>
--->
 
 {{if len .Apps}}
 <p>Applications:</p>
@@ -78,23 +57,4 @@ There are no applications!
 {{else}}
 <a href="/login">Log in</a> to add your application.
 {{end}}
-</div>
 -->
-
-<hr style="margin:4px">
-<center style="padding-bottom:12px"><a href="/">App Translator</a>, lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>
-
-<!-- placed at the end for faster loading -->
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-<script src="/static/js/bootstrap.js"></script>
-
-<script>
-
-{{if .ErrorMsg}}
-$("#errorMsg").modal('show');
-{{end}}
-
-</script>
-
-</body>
-</html>
