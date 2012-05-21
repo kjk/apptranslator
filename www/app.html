@@ -1,17 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-<link href="/static/css/bootstrap.css" rel="stylesheet">	
-<link href="/static/css/bootstrap-responsive.css" rel="stylesheet">
-<!--[if lt IE 9]>
-  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
-<![endif]-->
-</head>
-
-<body>
-
-<div class="container">
-
 <header class="jumbotron subhead" id="overview">
 	<h1>Translations for {{.App.Name}}</h1>
 	<p class="lead">There are {{.App.StringsCount}} strings translated
@@ -30,13 +16,3 @@
 {{else}}
 There are no languages!
 {{end}}
-
-<hr style="margin:4px">
-<center style="padding-bottom:12px"><a href="/">App Translator</a>, lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>
-
-<!-- placed at the end for faster loading -->
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-<script src="/static/js/bootstrap.js"></script>
-
-</body>
-</html>

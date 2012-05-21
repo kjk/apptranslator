@@ -597,10 +597,17 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("handleApp() appName=%s\n", appName)
 	model := buildModelApp(app)
-	if err := GetTemplates().ExecuteTemplate(w, tmplApp, model); err != nil {
+	tp := &templateParser{}
+	if err := GetTemplates().ExecuteTemplate(tp, tmplApp, model); err != nil {
 		fmt.Print(err.Error(), "\n")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	content := &content{template.HTML(tp.HTML)}
+	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return		
 	}
 }
 
