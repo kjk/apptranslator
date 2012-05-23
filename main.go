@@ -247,7 +247,7 @@ var (
 	tmplMain        = "main.html"
 	tmplApp         = "app.html"
 	tmplAppTrans    = "apptrans.html"
-	tmplBase		= "base.html"
+	tmplBase        = "base.html"
 	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans, tmplBase}
 	templatePaths   = make([]string, 0)
 	templates       *template.Template
@@ -369,16 +369,16 @@ type ModelMain struct {
 }
 
 type content struct {
-    ContentHTML template.HTML
+	ContentHTML template.HTML
 }
 
 type templateParser struct {
-        HTML string
+	HTML string
 }
 
-func (tP *templateParser) Write(p []byte) (n int, err error){
-        tP.HTML += string(p)
-        return len(p), nil
+func (tP *templateParser) Write(p []byte) (n int, err error) {
+	tP.HTML += string(p)
+	return len(p), nil
 }
 
 // handler for url: /
@@ -392,7 +392,7 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 	content := &content{template.HTML(tp.HTML)}
 	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return		
+		return
 	}
 }
 
@@ -607,7 +607,7 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 	content := &content{template.HTML(tp.HTML)}
 	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return		
+		return
 	}
 }
 
@@ -804,6 +804,8 @@ func main() {
 
 	port := ":8890"
 	fmt.Printf("Running on %s\n", port)
-	http.ListenAndServe(port, nil)
+	if err := http.ListenAndServe(port, nil); err != nil {
+		fmt.Printf("http.ListendAndServer() failed with %s\n", err.Error())
+	}
 	fmt.Printf("Exited\n")
 }
