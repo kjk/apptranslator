@@ -160,8 +160,8 @@ type App struct {
 	allStrings map[string]bool
 }
 
-func NewApp(name, url string) *App {
-	app := &App{Name: name, Url: url}
+func NewApp(name, url, admin string) *App {
+	app := &App{Name: name, Url: url, AdminUser: admin}
 	app.UploadSecret = genAppUploadSecret()
 	app.initData()
 	return app
@@ -359,8 +359,9 @@ func readDataAtStartup() error {
 	return nil
 }
 
-func serve404(w http.ResponseWriter) {
-	fmt.Fprint(w, `<html><body>Page Not Found!</body></html>`)
+func serve404(w http.ResponseWriter, r *http.Request) {
+	//fmt.Fprint(w, `<html><body>Page Not Found!</body></html>`)
+	http.NotFound(w, r)
 }
 
 func serverErrorMsg(w http.ResponseWriter, msg string) {
@@ -374,7 +375,7 @@ func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName stri
 		b, err := ioutil.ReadFile(filePath)
 		if err != nil {
 			fmt.Printf("serveFileFromDir() file=%s doesn't exist\n", filePath)
-			serve404(w)
+			serve404(w, r)
 			return
 		}
 		w.Write(b)
@@ -395,9 +396,10 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 type ModelMain struct {
-	Apps     *[]*App
-	LoggedIn bool
-	ErrorMsg string
+	Apps        *[]*App
+	User        string
+	UserIsAdmin bool
+	ErrorMsg    string
 }
 
 type content struct {
@@ -413,9 +415,17 @@ func (tP *templateParser) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+func isTopLevelUrl(url string) bool {
+	return 0 == len(url) || "/" == url
+}
+
 // handler for url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
-	model := &ModelMain{&appState.Apps, true, ""}
+	if !isTopLevelUrl(r.URL.Path) {
+		serve404(w, r)
+		return
+	}
+	model := &ModelMain{&appState.Apps, "", false, ""}
 	tp := &templateParser{}
 	if err := GetTemplates().ExecuteTemplate(tp, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -455,6 +465,7 @@ func addApp(app *App) {
 	saveData()
 }
 
+/*
 // handler for url: /addapp
 // Form with values: appName and appUrl
 func handleAddApp(w http.ResponseWriter, r *http.Request) {
@@ -471,12 +482,13 @@ func handleAddApp(w http.ResponseWriter, r *http.Request) {
 		addApp(app)
 
 	}
-	model := &ModelMain{&appState.Apps, true, errmsg}
+	model := &ModelMain{&appState.Apps, "", false, errmsg}
 	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
+*/
 
 func findApp(name string) *App {
 	for _, app := range appState.Apps {
@@ -532,8 +544,10 @@ func (s SmartString) Less(i, j int) bool {
 }
 
 type ModelApp struct {
-	App   *App
-	Langs []*LangInfo
+	App         *App
+	Langs       []*LangInfo
+	User        string
+	UserIsAdmin bool
 }
 
 // so that we can sort ModelApp.Langs by name
@@ -577,6 +591,8 @@ func buildModelApp(app *App) *ModelApp {
 type ModelAppTranslations struct {
 	App                      *App
 	LangInfo                 *LangInfo
+	User                     string
+	UserIsAdmin              bool
 	StringsCount             int
 	TransProgressPercent     int
 	ShowTranslationEditedMsg bool
@@ -619,7 +635,7 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("name"))
 	app := findApp(appName)
 	if app == nil {
-		serverErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
+		serverErrorMsg(w, fmt.Sprintf("Application \"%s\" doesn't exist", appName))
 		return
 	}
 	lang := strings.TrimSpace(r.FormValue("lang"))
@@ -817,10 +833,6 @@ type SecureCookieValue struct {
 	User string
 }
 
-/* 	value := map[string]string{
-	"foo": "bar",
-}
-*/
 func SetSecureCookie(w http.ResponseWriter, cookieVal SecureCookieValue) {
 	val := make(map[string]string)
 	val["user"] = cookieVal.User
@@ -906,13 +918,13 @@ func main() {
 	fmt.Printf("Read the data from %s\n", dataFileName)
 	// for testing, add a dummy app if no apps exist
 	if len(appState.Apps) == 0 {
-		app := NewApp("SumatraPDF", "http://blog.kowalczyk.info")
+		app := NewApp("SumatraPDF", "http://blog.kowalczyk.info", "kjk")
 		addApp(app)
 		fmt.Printf("Added dummy SumatraPDF app")
 	}
 
 	http.HandleFunc("/static/", handleStatic)
-	http.HandleFunc("/addapp", handleAddApp)
+	//http.HandleFunc("/addapp", handleAddApp)
 	http.HandleFunc("/app/", handleApp)
 	http.HandleFunc("/downloadtranslations", handleDownloadTranslations)
 	http.HandleFunc("/edittranslation", handleEditTranslation)

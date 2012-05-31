@@ -1,5 +1,5 @@
 <header class="jumbotron subhead" id="overview">
-	<h1>App Translator</h1>
+	<h1>App Translator <span style="font-size:50%;float:right;">{{if .User}}Logged in as <b>{{.User}}</b>{{else}}Not logged in. <a href="/login">Log in with Twitter</a>{{end}}</span></h1>
 	<p class="lead">Crowd-sourced translations for software.</p>
 </header>
 
@@ -51,8 +51,8 @@ There are no applications!
 	</div>
 </div>
 
-<!--
-{{if .LoggedIn}}
+<!-- adding an application
+{{if .UserIsAdmin}}
 <a data-toggle="modal" href="#addApp" class="btn btn-primary btn-mini">Add your applications</a> for translation.
 {{else}}
 <a href="/login">Log in</a> to add your application.
