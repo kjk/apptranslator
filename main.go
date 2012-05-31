@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"gorilla/securecookie"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -18,7 +19,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"gorilla/securecookie"
 )
 
 import _ "oauth"
@@ -30,7 +30,7 @@ const (
 	// very small
 	dataDir      = "data"
 	dataFileName = "apptranslator.js"
-	cookieName = "ckie"
+	cookieName   = "ckie"
 )
 
 var (
@@ -54,7 +54,7 @@ var (
 
 	cookieAuthKey []byte
 	cookieEncrKey []byte
-	secureCookie *securecookie.SecureCookie
+	secureCookie  *securecookie.SecureCookie
 
 	configPath = flag.String("config", "config.json", "Path to configuration file")
 	httpAddr   = flag.String("addr", ":8089", "HTTP server address")
@@ -813,12 +813,17 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Ok\n"))
 }
 
-/* 	value := map[string]string{
-		"foo": "bar",
-	}
-*/
-func SetCookie(w http.ResponseWriter, val map[string]string) {
+type SecureCookieValue struct {
+	User string
+}
 
+/* 	value := map[string]string{
+	"foo": "bar",
+}
+*/
+func SetSecureCookie(w http.ResponseWriter, cookieVal SecureCookieValue) {
+	val := make(map[string]string)
+	val["user"] = cookieVal.User
 	if encoded, err := secureCookie.Encode(cookieName, val); err == nil {
 		cookie := &http.Cookie{
 			Name:  cookieName,
@@ -829,13 +834,23 @@ func SetCookie(w http.ResponseWriter, val map[string]string) {
 	}
 }
 
-func ReadCookieHandler(w http.ResponseWriter, r *http.Request) {
+func GetSecureCookie(r *http.Request) *SecureCookieValue {
+	var ret *SecureCookieValue
 	if cookie, err := r.Cookie(cookieName); err == nil {
-		value := make(map[string]string)
-		if err = secureCookie.Decode(cookieName, cookie.Value, &value); err == nil {
-			fmt.Fprintf(w, "The value of foo is %q", value["foo"])
+		val := make(map[string]string)
+		if err = secureCookie.Decode(cookieName, cookie.Value, &val); err == nil {
+			fmt.Printf("Got cookie %q\n", val)
+			ret = new(SecureCookieValue)
+			if user, ok := val["user"]; ok {
+				ret.User = user
+			} else {
+				return nil
+			}
+		} else {
+			fmt.Printf("Error decoding cookie %s\n", err.Error())
 		}
 	}
+	return ret
 }
 
 func genAndPrintCookieKeys() {
