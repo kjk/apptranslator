@@ -2,22 +2,26 @@ package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"oauth"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+	"gorilla/securecookie"
 )
 
-// import _ "gorilla/securecookie"
+import _ "oauth"
 
 const (
 	// this is where we store, in an append-only fashion,
@@ -26,6 +30,34 @@ const (
 	// very small
 	dataDir      = "data"
 	dataFileName = "apptranslator.js"
+	cookieName = "ckie"
+)
+
+var (
+	oauthClient = oauth.Client{
+		TemporaryCredentialRequestURI: "http://api.twitter.com/oauth/request_token",
+		ResourceOwnerAuthorizationURI: "http://api.twitter.com/oauth/authenticate",
+		TokenRequestURI:               "http://api.twitter.com/oauth/access_token",
+	}
+
+	config = struct {
+		AdminUser           *string
+		Credentials         *oauth.Credentials
+		CookieAuthKeyHexStr *string
+		CookieEncrKeyHexStr *string
+	}{
+		nil,
+		&oauthClient.Credentials,
+		nil,
+		nil,
+	}
+
+	cookieAuthKey []byte
+	cookieEncrKey []byte
+	secureCookie *securecookie.SecureCookie
+
+	configPath = flag.String("config", "config.json", "Path to configuration file")
+	httpAddr   = flag.String("addr", ":8089", "HTTP server address")
 )
 
 type User struct {
@@ -781,11 +813,81 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Ok\n"))
 }
 
+/* 	value := map[string]string{
+		"foo": "bar",
+	}
+*/
+func SetCookie(w http.ResponseWriter, val map[string]string) {
+
+	if encoded, err := secureCookie.Encode(cookieName, val); err == nil {
+		cookie := &http.Cookie{
+			Name:  cookieName,
+			Value: encoded,
+			Path:  "/",
+		}
+		http.SetCookie(w, cookie)
+	}
+}
+
+func ReadCookieHandler(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(cookieName); err == nil {
+		value := make(map[string]string)
+		if err = secureCookie.Decode(cookieName, cookie.Value, &value); err == nil {
+			fmt.Fprintf(w, "The value of foo is %q", value["foo"])
+		}
+	}
+}
+
+func genAndPrintCookieKeys() {
+	auth := securecookie.GenerateRandomKey(32)
+	encr := securecookie.GenerateRandomKey(32)
+	fmt.Printf("auth: %s\nencr: %s\n", hex.EncodeToString(auth), hex.EncodeToString(encr))
+}
+
+// readConfiguration reads the configuration file from the path specified by
+// the config command line flag.
+func readConfiguration(configFile string) error {
+	b, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(b, &config)
+	if err != nil {
+		return err
+	}
+	cookieAuthKey, err = hex.DecodeString(*config.CookieAuthKeyHexStr)
+	if err != nil {
+		return err
+	}
+	cookieEncrKey, err = hex.DecodeString(*config.CookieEncrKeyHexStr)
+	if err != nil {
+		return err
+	}
+	secureCookie = securecookie.New(cookieAuthKey, cookieEncrKey)
+	// verify auth/encr keys are correct
+	val := map[string]string{
+		"foo": "bar",
+	}
+	_, err = secureCookie.Encode(cookieName, val)
+	if err != nil {
+		genAndPrintCookieKeys()
+	}
+	return err
+}
+
 func main() {
+	flag.Parse()
+
+	if err := readConfiguration(*configPath); err != nil {
+		fmt.Printf("Failed reading config file %s. %s\n", *configPath, err.Error())
+		return
+	}
+
 	if err := readDataAtStartup(); err != nil {
 		fmt.Printf("Failed to open data file %s. Can't proceed.\n", dataFileName)
 		return
 	}
+
 	fmt.Printf("Read the data from %s\n", dataFileName)
 	// for testing, add a dummy app if no apps exist
 	if len(appState.Apps) == 0 {
@@ -802,9 +904,8 @@ func main() {
 	http.HandleFunc("/uploadstrings", handleUploadStrings)
 	http.HandleFunc("/", handleMain)
 
-	port := ":8890"
-	fmt.Printf("Running on %s\n", port)
-	if err := http.ListenAndServe(port, nil); err != nil {
+	fmt.Printf("Running on %s\n", *httpAddr)
+	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err.Error())
 	}
 	fmt.Printf("Exited\n")
