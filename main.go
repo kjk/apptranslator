@@ -400,6 +400,7 @@ type ModelMain struct {
 	User        string
 	UserIsAdmin bool
 	ErrorMsg    string
+	RedirectUrl string
 }
 
 type content struct {
@@ -425,7 +426,8 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		serve404(w, r)
 		return
 	}
-	model := &ModelMain{&appState.Apps, "", false, ""}
+	user := decodeUserFromCookie(r)
+	model := &ModelMain{Apps: &appState.Apps, User: user, UserIsAdmin: userIsAdmin(user), RedirectUrl: r.URL.String()}
 	tp := &templateParser{}
 	if err := GetTemplates().ExecuteTemplate(tp, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -548,6 +550,7 @@ type ModelApp struct {
 	Langs       []*LangInfo
 	User        string
 	UserIsAdmin bool
+	RedirectUrl string
 }
 
 // so that we can sort ModelApp.Langs by name
@@ -572,9 +575,12 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
-func buildModelApp(app *App) *ModelApp {
-	model := new(ModelApp)
-	model.App = app
+func userIsAdmin(user string) bool {
+	return user == "kjk"
+}
+
+func buildModelApp(app *App, user string) *ModelApp {
+	model := &ModelApp{App: app, User: user, UserIsAdmin: userIsAdmin(user)}
 	// could use App.langInfos directly but it's not
 	// thread safe and really should sort after update
 	// not on every read
@@ -596,11 +602,12 @@ type ModelAppTranslations struct {
 	StringsCount             int
 	TransProgressPercent     int
 	ShowTranslationEditedMsg bool
+	RedirectUrl string
 }
 
-func buildModelAppTranslations(app *App, langCode string) *ModelAppTranslations {
-	model := &ModelAppTranslations{App: app, ShowTranslationEditedMsg: false}
-	modelApp := buildModelApp(app)
+func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTranslations {
+	model := &ModelAppTranslations{App: app, ShowTranslationEditedMsg: false, User: user, UserIsAdmin: userIsAdmin(user)}
+	modelApp := buildModelApp(app, user)
 	for _, langInfo := range modelApp.Langs {
 		if langInfo.Code == langCode {
 			model.LangInfo = langInfo
@@ -622,7 +629,8 @@ func buildModelAppTranslations(app *App, langCode string) *ModelAppTranslations 
 // handler for url: /app/?name=$app&lang=$lang
 func handleAppTranslations(w http.ResponseWriter, r *http.Request, app *App, langCode string) {
 	fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, langCode)
-	model := buildModelAppTranslations(app, langCode)
+	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
+	model.RedirectUrl = r.URL.String()
 	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
 		fmt.Print(err.Error(), "\n")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -644,7 +652,8 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("handleApp() appName=%s\n", appName)
-	model := buildModelApp(app)
+	model := buildModelApp(app, decodeUserFromCookie(r))
+	model.RedirectUrl = r.URL.String()
 	tp := &templateParser{}
 	if err := GetTemplates().ExecuteTemplate(tp, tmplApp, model); err != nil {
 		fmt.Print(err.Error(), "\n")
@@ -732,7 +741,7 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'", str, translation, langCode)
 	app.addTranslation(langCode, str, translation, false)
 	app.writeTranslationToLog(langCode, str, translation)
-	model := buildModelAppTranslations(app, langCode)
+	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
 	model.ShowTranslationEditedMsg = true
 	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
 		fmt.Print(err.Error(), "\n")
@@ -829,14 +838,39 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Ok\n"))
 }
 
+// handler for url: GET /login?redirect=$redirect
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+	redirect := strings.TrimSpace(r.FormValue("redirect"))
+	if redirect == "" {
+		serverErrorMsg(w, fmt.Sprintf("Missing redirect value for /login"))
+		return
+	}
+	// TODO: this needs to be a twitter exchange
+	cookie := &SecureCookieValue{User: "kjk"}
+	setSecureCookie(w, *cookie)
+	http.Redirect(w, r, redirect, 302)
+}
+
+// handler for url: GET /logout?redirect=$redirect
+func handleLogout(w http.ResponseWriter, r *http.Request) {
+	redirect := strings.TrimSpace(r.FormValue("redirect"))
+	if redirect == "" {
+		serverErrorMsg(w, fmt.Sprintf("Missing redirect value for /login"))
+		return
+	}
+	deleteSecureCookie(w)
+	http.Redirect(w, r, redirect, 302)
+}
+
 type SecureCookieValue struct {
 	User string
 }
 
-func SetSecureCookie(w http.ResponseWriter, cookieVal SecureCookieValue) {
+func setSecureCookie(w http.ResponseWriter, cookieVal SecureCookieValue) {
 	val := make(map[string]string)
 	val["user"] = cookieVal.User
 	if encoded, err := secureCookie.Encode(cookieName, val); err == nil {
+		// TODO: set expiration (Expires    time.Time) long time in the future?
 		cookie := &http.Cookie{
 			Name:  cookieName,
 			Value: encoded,
@@ -846,12 +880,28 @@ func SetSecureCookie(w http.ResponseWriter, cookieVal SecureCookieValue) {
 	}
 }
 
-func GetSecureCookie(r *http.Request) *SecureCookieValue {
+// to delete the cookie value (e.g. for logging out), we need to set an
+// invalid value
+func deleteSecureCookie(w http.ResponseWriter) {
+	cookie := &http.Cookie{
+		Name:   cookieName,
+		Value:  "invalid",
+		MaxAge: -1,
+		Path:   "/",
+	}
+	http.SetCookie(w, cookie)
+}
+
+func getSecureCookie(r *http.Request) *SecureCookieValue {
 	var ret *SecureCookieValue
 	if cookie, err := r.Cookie(cookieName); err == nil {
+		// detect a deleted cookie
+		if "invalid" == cookie.Value {
+			return nil
+		}
 		val := make(map[string]string)
 		if err = secureCookie.Decode(cookieName, cookie.Value, &val); err == nil {
-			fmt.Printf("Got cookie %q\n", val)
+			//fmt.Printf("Got cookie %q\n", val)
 			ret = new(SecureCookieValue)
 			if user, ok := val["user"]; ok {
 				ret.User = user
@@ -863,6 +913,14 @@ func GetSecureCookie(r *http.Request) *SecureCookieValue {
 		}
 	}
 	return ret
+}
+
+func decodeUserFromCookie(r *http.Request) string {
+	cookie := getSecureCookie(r)
+	if nil == cookie {
+		return ""
+	}
+	return cookie.User
 }
 
 func genAndPrintCookieKeys() {
@@ -929,6 +987,8 @@ func main() {
 	http.HandleFunc("/downloadtranslations", handleDownloadTranslations)
 	http.HandleFunc("/edittranslation", handleEditTranslation)
 	http.HandleFunc("/uploadstrings", handleUploadStrings)
+	http.HandleFunc("/login", handleLogin)
+	http.HandleFunc("/logout", handleLogout)
 	http.HandleFunc("/", handleMain)
 
 	fmt.Printf("Running on %s\n", *httpAddr)
