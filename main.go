@@ -923,12 +923,6 @@ func decodeUserFromCookie(r *http.Request) string {
 	return cookie.User
 }
 
-func genAndPrintCookieKeys() {
-	auth := securecookie.GenerateRandomKey(32)
-	encr := securecookie.GenerateRandomKey(32)
-	fmt.Printf("auth: %s\nencr: %s\n", hex.EncodeToString(auth), hex.EncodeToString(encr))
-}
-
 // readConfiguration reads the configuration file from the path specified by
 // the config command line flag.
 func readConfiguration(configFile string) error {
@@ -955,7 +949,11 @@ func readConfiguration(configFile string) error {
 	}
 	_, err = secureCookie.Encode(cookieName, val)
 	if err != nil {
-		genAndPrintCookieKeys()
+		// for convenience, if the auth/encr keys are not set,
+		// generate valid, random value for them
+		auth := securecookie.GenerateRandomKey(32)
+		encr := securecookie.GenerateRandomKey(32)
+		fmt.Printf("auth: %s\nencr: %s\n", hex.EncodeToString(auth), hex.EncodeToString(encr))
 	}
 	return err
 }
