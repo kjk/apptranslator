@@ -261,12 +261,6 @@ func (app *App) addTranslation(langCode, str, trans string, allowNew bool) {
 	}
 }
 
-type LogTranslationChange struct {
-	LangCode       string `json:"l"`
-	EnglishStr     string `json:"s"`
-	NewTranslation string `json:"t"`
-}
-
 type AppState struct {
 	Users []*User
 	Apps  []*App
@@ -315,26 +309,11 @@ func buildAppData(app *App) {
 // we ignore errors when reading
 func readTranslationsFromLog(app *App) {
 	fileName := app.Name + "_trans.dat"
-	path := filepath.Join(dataDir, fileName)
-	file, err := os.Open(path)
-	if err != nil {
-		fmt.Printf("readTranslationsFromLog(): file '%s' doesn't exist\n", path)
-		return
-	}
-	defer file.Close()
-	decoder := json.NewDecoder(file)
-	var logentry LogTranslationChange
-	entries := 0
-	for {
-		err := decoder.Decode(&logentry)
-		if err != nil {
-			fmt.Printf("Finished decoding, %s\n", err.Error())
-			break
-		}
-		entries++
+	translations := ReadTranslation(filepath.Join(dataDir, fileName))
+	for _, logentry := range translations {
 		app.addTranslation(logentry.LangCode, logentry.EnglishStr, logentry.NewTranslation, true)
 	}
-	fmt.Printf("Found %d translation log entries for app %s\n", entries, app.Name)
+	fmt.Printf("Found %d translation log entries for app %s\n", len(translations), app.Name)
 }
 
 func readDataAtStartup() error {

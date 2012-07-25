@@ -6,7 +6,6 @@ Must have:
 - user authentication via twitter
 
 Nice to have:
-- add a new string for translation via web page
 - ability to rename original string while preserving the translation
 - only enable 'Submit' in edit translation form if the translation has changed
 - ability to see history of translations for a given string and revert to any past translations
@@ -22,3 +21,4 @@ Nice to have:
 - user authentication via google
 - user authentication via facebook
 - import strings from other formats, like .po files, Cocoa's .nib files etc.
+- add a new string for translation via web page

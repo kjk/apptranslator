@@ -1,2 +1,2 @@
 export GOPATH=$GOPATH:`pwd`/ext
-go run main.go langs.go
+go run langs.go translog.go main.go

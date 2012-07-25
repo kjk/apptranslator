@@ -64,6 +64,7 @@ var (
 		&Lang{"sl", "Slovenian", "Slovenščina"},
 		&Lang{"sn", "Shona", "Shona"},
 		&Lang{"sp-rs", "Serbian", "Latin"},
+		&Lang{"sq", "Albanian", "Shqip"},
 		&Lang{"sr-rs", "Serbian", "Cyrillic"},
 		&Lang{"sv", "Swedish", "Svenska"},
 		&Lang{"ta", "Tamil", "தமிழ்"},

@@ -1,1 +1,1 @@
-go run importsumtrans.go parsesumtrans.go
+go run translog.go util.go langs.go importsumtrans.go
