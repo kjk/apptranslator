@@ -602,7 +602,7 @@ type ModelAppTranslations struct {
 	StringsCount             int
 	TransProgressPercent     int
 	ShowTranslationEditedMsg bool
-	RedirectUrl string
+	RedirectUrl              string
 }
 
 func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTranslations {

@@ -13,15 +13,18 @@ type LogTranslationChange struct {
 	LangCode       string `json:"l"`
 	EnglishStr     string `json:"s"`
 	NewTranslation string `json:"t"`
+	User           string `json:"u"`
 }
 
 func FileExists(path string) bool {
-	file, err := os.Open(path)
-	if err != nil {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
 		return false
 	}
-	file.Close()
-	return true
+	return false
 }
 
 type TranslationLog struct {
