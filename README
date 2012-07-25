@@ -1,12 +1,15 @@
-AppTranslator (http://www.apptranslator.org) is a web service that helps software developers crowd-source translations of their applications.
+AppTranslator (http://www.apptranslator.org) is a web service that helps
+software developers crowd-source translations of their applications.
 
 The way it works is:
 
 1. Developer creates a project for their software
 2. Developer submits strings (in English) to be translated, using web API
 3. Users go to the website to translate the strings from English to their language
-4. Developer periodically downloads translations, using web API, and updates his software with new translations
+4. Developer periodically downloads translations, using web API, and updates 
+   his software with new translations
 
-The software was developed by (and for) SumatraPDF developers but it can be used for any software.
+The software was developed by (and for) SumatraPDF developers but it could be
+used for software.
 
 Translations are in public domain.

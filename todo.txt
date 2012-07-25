@@ -3,9 +3,18 @@ List of things to do for app translator.
 Must have:
 - upload strings to be translated
 - python script to parse translations from app translator
-- user authentication via twitter
+- unsure thread-safety (each web request is in its own goroutine
+  so must be careful to lock when using shared data)
+- deployment scripts
+- a way to backup data to s3 (e.g. every 1hr, if changed)
+- move data from data/apptranslator.js to secrets.js and delete
+  data/apptranslator.js
+ - no need to store Users, as they are always 
+- allow for handleDownloadTranslations (/downloadtranslations) to not re-download
+  translations if they haven't changed
 
 Nice to have:
+- timing of how long a request takes
 - ability to rename original string while preserving the translation
 - only enable 'Submit' in edit translation form if the translation has changed
 - ability to see history of translations for a given string and revert to any past translations
@@ -18,7 +27,15 @@ Nice to have:
   need to translate)
 - ability of anonymous users to edit translation. They would be put in
   a queue and would have to be verified/accepted by a signed in user
-- user authentication via google
-- user authentication via facebook
-- import strings from other formats, like .po files, Cocoa's .nib files etc.
 - add a new string for translation via web page
+
+Deployment:
+* copy source files to the server under src/$SHA1 directory
+* compile binaries on the server
+* copy binary and necessary files (www templates etc.) to
+  bin/$SHA1 directory
+* kill currently running server
+* copy 
+* link www directory to bin/$SHA1
+* start current server
+* if failed

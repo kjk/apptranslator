@@ -19,15 +19,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"net/url"
 )
 
 import _ "oauth"
 
 const (
-	// this is where we store, in an append-only fashion,
-	// information about users and applications. All in
-	// one place because I expect this information to be
-	// very small
+	// this is where we store information about users and translation.
+	// All in one place because I expect this data to be small
 	dataDir      = "data"
 	dataFileName = "apptranslator.js"
 	cookieName   = "ckie"
@@ -35,9 +34,9 @@ const (
 
 var (
 	oauthClient = oauth.Client{
-		TemporaryCredentialRequestURI: "http://api.twitter.com/oauth/request_token",
-		ResourceOwnerAuthorizationURI: "http://api.twitter.com/oauth/authenticate",
-		TokenRequestURI:               "http://api.twitter.com/oauth/access_token",
+		TemporaryCredentialRequestURI: "https://api.twitter.com/oauth/request_token",
+		ResourceOwnerAuthorizationURI: "https://api.twitter.com/oauth/authenticate",
+		TokenRequestURI:               "https://api.twitter.com/oauth/access_token",
 	}
 
 	config = struct {
@@ -56,7 +55,7 @@ var (
 	cookieEncrKey []byte
 	secureCookie  *securecookie.SecureCookie
 
-	configPath = flag.String("config", "config.json", "Path to configuration file")
+	configPath = flag.String("config", "secrets.json", "Path to configuration file")
 	httpAddr   = flag.String("addr", ":8089", "HTTP server address")
 )
 
@@ -605,9 +604,9 @@ func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTransla
 	panic("buildModelAppTranslations() failed")
 }
 
-// handler for url: /app/?name=$app&lang=$lang
+// handler for url: /app?name=$app&lang=$lang
 func handleAppTranslations(w http.ResponseWriter, r *http.Request, app *App, langCode string) {
-	fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, langCode)
+	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, langCode)
 	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
 	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
@@ -617,7 +616,7 @@ func handleAppTranslations(w http.ResponseWriter, r *http.Request, app *App, lan
 	}
 }
 
-// handler for url: /app/?name=$app
+// handler for url: /app?name=$app
 func handleApp(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("name"))
 	app := findApp(appName)
@@ -630,7 +629,7 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 		handleAppTranslations(w, r, app, lang)
 		return
 	}
-	fmt.Printf("handleApp() appName=%s\n", appName)
+	//fmt.Printf("handleApp() appName=%s\n", appName)
 	model := buildModelApp(app, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
 	tp := &templateParser{}
@@ -817,45 +816,25 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Ok\n"))
 }
 
-// handler for url: GET /login?redirect=$redirect
-func handleLogin(w http.ResponseWriter, r *http.Request) {
-	redirect := strings.TrimSpace(r.FormValue("redirect"))
-	if redirect == "" {
-		serverErrorMsg(w, fmt.Sprintf("Missing redirect value for /login"))
-		return
-	}
-	// TODO: this needs to be a twitter exchange
-	cookie := &SecureCookieValue{User: "kjk"}
-	setSecureCookie(w, *cookie)
-	http.Redirect(w, r, redirect, 302)
-}
-
-// handler for url: GET /logout?redirect=$redirect
-func handleLogout(w http.ResponseWriter, r *http.Request) {
-	redirect := strings.TrimSpace(r.FormValue("redirect"))
-	if redirect == "" {
-		serverErrorMsg(w, fmt.Sprintf("Missing redirect value for /login"))
-		return
-	}
-	deleteSecureCookie(w)
-	http.Redirect(w, r, redirect, 302)
-}
-
 type SecureCookieValue struct {
 	User string
+	TwitterTemp string
 }
 
-func setSecureCookie(w http.ResponseWriter, cookieVal SecureCookieValue) {
+func setSecureCookie(w http.ResponseWriter, cookieVal *SecureCookieValue) {
 	val := make(map[string]string)
 	val["user"] = cookieVal.User
+	val["twittertemp"] = cookieVal.TwitterTemp
 	if encoded, err := secureCookie.Encode(cookieName, val); err == nil {
-		// TODO: set expiration (Expires    time.Time) long time in the future?
+	// TODO: set expiration (Expires    time.Time) long time in the future?
 		cookie := &http.Cookie{
 			Name:  cookieName,
 			Value: encoded,
 			Path:  "/",
 		}
 		http.SetCookie(w, cookie)
+	} else {
+		fmt.Printf("setSecureCookie(): error encoding secure cookie %s\n", err.Error())
 	}
 }
 
@@ -864,7 +843,7 @@ func setSecureCookie(w http.ResponseWriter, cookieVal SecureCookieValue) {
 func deleteSecureCookie(w http.ResponseWriter) {
 	cookie := &http.Cookie{
 		Name:   cookieName,
-		Value:  "invalid",
+		Value:  "deleted",
 		MaxAge: -1,
 		Path:   "/",
 	}
@@ -875,20 +854,24 @@ func getSecureCookie(r *http.Request) *SecureCookieValue {
 	var ret *SecureCookieValue
 	if cookie, err := r.Cookie(cookieName); err == nil {
 		// detect a deleted cookie
-		if "invalid" == cookie.Value {
+		if "deleted" == cookie.Value {
 			return nil
 		}
 		val := make(map[string]string)
-		if err = secureCookie.Decode(cookieName, cookie.Value, &val); err == nil {
-			//fmt.Printf("Got cookie %q\n", val)
-			ret = new(SecureCookieValue)
-			if user, ok := val["user"]; ok {
-				ret.User = user
-			} else {
-				return nil
-			}
-		} else {
+		if err = secureCookie.Decode(cookieName, cookie.Value, &val); err != nil {
 			fmt.Printf("Error decoding cookie %s\n", err.Error())
+			return nil
+		}
+		//fmt.Printf("Got cookie %q\n", val)
+		ret = new(SecureCookieValue)
+		var ok bool
+		if ret.User, ok = val["user"]; !ok {
+			fmt.Printf("Error decoding cookie, no 'user' field\n")
+			return nil
+		}
+		if ret.TwitterTemp, ok = val["twittertemp"]; !ok {
+			fmt.Printf("Error decoding cookie, no 'twittertemp' field\n")
+			return nil
 		}
 	}
 	return ret
@@ -902,9 +885,113 @@ func decodeUserFromCookie(r *http.Request) string {
 	return cookie.User
 }
 
-// readConfiguration reads the configuration file from the path specified by
+func decodeTwitterTempFromCookie(r *http.Request) string {
+	cookie := getSecureCookie(r)
+	if nil == cookie {
+		return ""
+	}
+	return cookie.TwitterTemp
+}
+
+// handler for url: GET /login?redirect=$redirect
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+	redirect := strings.TrimSpace(r.FormValue("redirect"))
+	if redirect == "" {
+		serverErrorMsg(w, fmt.Sprintf("Missing redirect value for /login"))
+		return
+	}
+	q := url.Values{
+		"redirect": {redirect},
+	}.Encode()
+
+	cb := "http://" + r.Host + "/oauthtwittercb" + "?" + q
+	//fmt.Printf("handleLogin: cb=%s\n", cb)
+	tempCred, err := oauthClient.RequestTemporaryCredentials(http.DefaultClient, cb, nil)
+	if err != nil {
+		http.Error(w, "Error getting temp cred, "+err.Error(), 500)
+		return
+	}
+	cookie := &SecureCookieValue{TwitterTemp: tempCred.Secret}
+	setSecureCookie(w, cookie)
+	http.Redirect(w, r, oauthClient.AuthorizationURL(tempCred, nil), 302)
+}
+
+// getTwitter gets a resource from the Twitter API and decodes the json response to data.
+func getTwitter(cred *oauth.Credentials, urlStr string, params url.Values, data interface{}) error {
+	if params == nil {
+		params = make(url.Values)
+	}
+	oauthClient.SignParam(cred, "GET", urlStr, params)
+	resp, err := http.Get(urlStr + "?" + params.Encode())
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	bodyData, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("Get %s returned status %d, %s", urlStr, resp.StatusCode, bodyData)
+	}
+	//fmt.Printf("getTwitter(): json: %s\n", string(bodyData))
+	return json.Unmarshal(bodyData, data)
+}
+
+// handler for url: GET /oauthtwittercb?redirect=$redirect
+func handleOauthTwitterCallback(w http.ResponseWriter, r *http.Request) {
+	//fmt.Printf("handleOauthTwitterCallback()\n")
+	redirect := strings.TrimSpace(r.FormValue("redirect"))
+	if redirect == "" {
+		serverErrorMsg(w, fmt.Sprintf("Missing redirect value for /login"))
+		return
+	}
+	tempCred := oauth.Credentials{
+		Token: r.FormValue("oauth_token"),
+	}
+	tempCred.Secret = decodeTwitterTempFromCookie(r)
+	if "" == tempCred.Secret {
+		http.Error(w, "Error getting temp token secret from cookie, ", 500)
+		return
+	}
+	//fmt.Printf("  tempCred.Secret: %s\n", tempCred.Secret)
+	tokenCred, _, err := oauthClient.RequestToken(http.DefaultClient, &tempCred, r.FormValue("oauth_verifier"))
+	if err != nil {
+		http.Error(w, "Error getting request token, "+err.Error(), 500)
+		return
+	}
+
+	//fmt.Printf("  tokenCred.Token: %s\n", tokenCred.Token)
+
+	var info map[string]interface{}
+	if err := getTwitter(
+		tokenCred,
+		"https://api.twitter.com/1/account/verify_credentials.json",
+		nil,
+		&info); err != nil {
+		http.Error(w, "Error getting timeline, "+err.Error(), 500)
+		return
+	}
+	if user, ok := info["screen_name"].(string); ok {
+		//fmt.Printf("  username: %s\n", user)
+		cookie := getSecureCookie(r)
+		cookie.User = user
+		setSecureCookie(w, cookie)
+	}
+	http.Redirect(w, r, redirect, 302)
+}
+
+// handler for url: GET /logout?redirect=$redirect
+func handleLogout(w http.ResponseWriter, r *http.Request) {
+	redirect := strings.TrimSpace(r.FormValue("redirect"))
+	if redirect == "" {
+		serverErrorMsg(w, fmt.Sprintf("Missing redirect value for /logout"))
+		return
+	}
+	deleteSecureCookie(w)
+	http.Redirect(w, r, redirect, 302)
+}
+
+// readSecrets reads the configuration file from the path specified by
 // the config command line flag.
-func readConfiguration(configFile string) error {
+func readSecrets(configFile string) error {
 	b, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return err
@@ -934,13 +1021,14 @@ func readConfiguration(configFile string) error {
 		encr := securecookie.GenerateRandomKey(32)
 		fmt.Printf("auth: %s\nencr: %s\n", hex.EncodeToString(auth), hex.EncodeToString(encr))
 	}
+	// TODO: somehow verify twitter creds
 	return err
 }
 
 func main() {
 	flag.Parse()
 
-	if err := readConfiguration(*configPath); err != nil {
+	if err := readSecrets(*configPath); err != nil {
 		fmt.Printf("Failed reading config file %s. %s\n", *configPath, err.Error())
 		return
 	}
@@ -960,11 +1048,12 @@ func main() {
 
 	http.HandleFunc("/static/", handleStatic)
 	//http.HandleFunc("/addapp", handleAddApp)
-	http.HandleFunc("/app/", handleApp)
+	http.HandleFunc("/app", handleApp)
 	http.HandleFunc("/downloadtranslations", handleDownloadTranslations)
 	http.HandleFunc("/edittranslation", handleEditTranslation)
 	http.HandleFunc("/uploadstrings", handleUploadStrings)
 	http.HandleFunc("/login", handleLogin)
+	http.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
 	http.HandleFunc("/logout", handleLogout)
 	http.HandleFunc("/", handleMain)
 
