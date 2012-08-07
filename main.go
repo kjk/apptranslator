@@ -191,7 +191,7 @@ func (a *App) translationLogFilePath() string {
 	return filepath.Join(filepath.Join(dataDir, a.config.DataDir), "translations.dat")
 }
 
-func (a *App) writeTranslationToLog(langCode, str, trans string) {
+func (a *App) writeTranslationToLog(langCode, str, trans, user string) {
 	//fmt.Printf("writeTranslationToLog %s:%s => %s\n", langCode, str, trans)
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -212,6 +212,7 @@ func (a *App) writeTranslationToLog(langCode, str, trans string) {
 	logentry.LangCode = langCode
 	logentry.EnglishStr = str
 	logentry.NewTranslation = trans
+	logentry.User = user
 	encoder := json.NewEncoder(file)
 	// TODO: handle an error in some way (is there anything we can do)?
 	err = encoder.Encode(logentry)
@@ -692,11 +693,17 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 		serverErrorMsg(w, fmt.Sprintf("Invalid lang code '%s'", langCode))
 		return
 	}
+
+	user := decodeUserFromCookie(r)
+	if user == "" {
+		serverErrorMsg(w, "User doesn't exist")
+		return
+	}
 	str := strings.TrimSpace(r.FormValue("string"))
 	translation := strings.TrimSpace(r.FormValue("translation"))
 	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'", str, translation, langCode)
 	app.addTranslation(langCode, str, translation, false)
-	app.writeTranslationToLog(langCode, str, translation)
+	app.writeTranslationToLog(langCode, str, translation, user)
 	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
 	model.ShowTranslationEditedMsg = true
 	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
