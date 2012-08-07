@@ -273,7 +273,7 @@ type AppState struct {
 
 var (
 	appState  = AppState{}
-	staticDir = filepath.Join("www", "static")
+	staticDir = "static"
 
 	tmplMain        = "main.html"
 	tmplApp         = "app.html"
@@ -340,9 +340,9 @@ func serveFileStatic(w http.ResponseWriter, r *http.Request, fileName string) {
 	serveFileFromDir(w, r, staticDir, fileName)
 }
 
-const lenStatic = len("/static/")
+const lenStatic = len("/s/")
 
-// handler for url: /static/
+// handler for url: /s/
 func handleStatic(w http.ResponseWriter, r *http.Request) {
 	file := r.URL.Path[lenStatic:]
 	serveFileStatic(w, r, file)
@@ -1017,7 +1017,7 @@ func main() {
 		fmt.Printf("Added dummy SumatraPDF app")
 	}
 
-	http.HandleFunc("/static/", handleStatic)
+	http.HandleFunc("/s/", handleStatic)
 	http.HandleFunc("/app", handleApp)
 	http.HandleFunc("/downloadtranslations", handleDownloadTranslations)
 	http.HandleFunc("/edittranslation", handleEditTranslation)
