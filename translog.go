@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 )
@@ -27,7 +26,7 @@ func ReadTranslation(path string) []LogTranslationChange {
 	for {
 		err := decoder.Decode(&e)
 		if err != nil {
-			fmt.Printf("Finished decoding, %s\n", err.Error())
+			//fmt.Printf("Finished decoding, %s\n", err.Error())
 			break
 		}
 		if e.User == "" {

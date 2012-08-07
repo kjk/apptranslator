@@ -4,22 +4,22 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"gorilla/securecookie"
 	"html/template"
 	"io"
 	"io/ioutil"
-	"math/rand"
+	"log"
 	"net/http"
+	"net/url"
 	"oauth"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
-	"time"
-	"net/url"
 )
 
 import _ "oauth"
@@ -27,9 +27,8 @@ import _ "oauth"
 const (
 	// this is where we store information about users and translation.
 	// All in one place because I expect this data to be small
-	dataDir      = "data"
-	dataFileName = "apptranslator.js"
-	cookieName   = "ckie"
+	dataDir    = "data"
+	cookieName = "ckie"
 )
 
 var (
@@ -40,13 +39,13 @@ var (
 	}
 
 	config = struct {
-		AdminUser           *string
-		Credentials         *oauth.Credentials
-		CookieAuthKeyHexStr *string
-		CookieEncrKeyHexStr *string
+		TwitterOAuthCredentials *oauth.Credentials
+		App                     *AppConfig
+		CookieAuthKeyHexStr     *string
+		CookieEncrKeyHexStr     *string
 	}{
-		nil,
 		&oauthClient.Credentials,
+		nil,
 		nil,
 		nil,
 	}
@@ -58,6 +57,20 @@ var (
 	configPath = flag.String("config", "secrets.json", "Path to configuration file")
 	httpAddr   = flag.String("addr", ":8089", "HTTP server address")
 )
+
+// a static configuration of a single app
+type AppConfig struct {
+	Name string
+	// url for the application's website (shown in the UI)
+	Url     string
+	DataDir string
+	// we authenticate only with Twitter, this is the twitter user name
+	// of the admin user
+	AdminTwitterUser string
+	// an arbitrary string, used to protect the API for uploading new strings
+	// for the app
+	UploadSecret string
+}
 
 type User struct {
 	Login string
@@ -146,12 +159,7 @@ func (li *LangInfo) addUntranslatedIfNotExists(str string) {
 }
 
 type App struct {
-	Name      string
-	Url       string
-	AdminUser string // corresponds to User.Login field
-	// a secret value that must be provided when uploading
-	// new strings for translation
-	UploadSecret string
+	config *AppConfig
 
 	// protects writing translations
 	mu         sync.Mutex
@@ -159,9 +167,8 @@ type App struct {
 	allStrings map[string]bool
 }
 
-func NewApp(name, url, admin string) *App {
-	app := &App{Name: name, Url: url, AdminUser: admin}
-	app.UploadSecret = genAppUploadSecret()
+func NewApp(config *AppConfig) *App {
+	app := &App{config: config}
 	app.initData()
 	return app
 }
@@ -177,12 +184,11 @@ func (app *App) initData() {
 			app.langInfos[i] = NewLangInfo(lang.Code)
 		}
 	}
-	fmt.Printf("Created %s app with %d langs\n", app.Name, len(app.langInfos))
+	fmt.Printf("Created %s app with %d langs\n", app.config.Name, len(app.langInfos))
 }
 
 func (a *App) translationLogFilePath() string {
-	name := fmt.Sprintf("%s_trans.dat", a.Name)
-	return filepath.Join(dataDir, name)
+	return filepath.Join(filepath.Join(dataDir, a.config.DataDir), "translations.dat")
 }
 
 func (a *App) writeTranslationToLog(langCode, str, trans string) {
@@ -291,49 +297,18 @@ func GetTemplates() *template.Template {
 	return templates
 }
 
-func saveData() {
-	b, err := json.Marshal(&appState)
-	if err != nil {
-		fmt.Printf("FileStorage.SetJSON, Marshal json failed (%v):%s\n", appState, err)
-		return
-	}
-	path := filepath.Join(dataDir, dataFileName)
-	ioutil.WriteFile(path, b, 0600)
-}
-
-func buildAppData(app *App) {
-	fmt.Printf("buildAppData(): %s\n", app.Name)
-}
-
 // we ignore errors when reading
-func readTranslationsFromLog(app *App) {
-	fileName := app.Name + "_trans.dat"
-	translations := ReadTranslation(filepath.Join(dataDir, fileName))
+func readTranslationsFromLog(app *App) error {
+	path := app.translationLogFilePath()
+	if !FileExists(path) {
+		return errors.New(fmt.Sprintf("Translations log '%s' doesn't exist", path))
+	}
+
+	translations := ReadTranslation(path)
 	for _, logentry := range translations {
 		app.addTranslation(logentry.LangCode, logentry.EnglishStr, logentry.NewTranslation, true)
 	}
-	fmt.Printf("Found %d translation log entries for app %s\n", len(translations), app.Name)
-}
-
-func readDataAtStartup() error {
-	path := filepath.Join(dataDir, dataFileName)
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	err = json.Unmarshal(b, &appState)
-	if err != nil {
-		fmt.Printf("readDataAtStartup(): error json decoding '%s', %s\n", path, err.Error())
-		return err
-	}
-	for _, app := range appState.Apps {
-		app.initData()
-		readTranslationsFromLog(app)
-		buildAppData(app)
-	}
+	fmt.Printf("Found %d translation log entries for app %s\n", len(translations), app.config.Name)
 	return nil
 }
 
@@ -405,7 +380,7 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := decodeUserFromCookie(r)
-	model := &ModelMain{Apps: &appState.Apps, User: user, UserIsAdmin: userIsAdmin(user), RedirectUrl: r.URL.String()}
+	model := &ModelMain{Apps: &appState.Apps, User: user, UserIsAdmin: false, RedirectUrl: r.URL.String()}
 	tp := &templateParser{}
 	if err := GetTemplates().ExecuteTemplate(tp, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -420,59 +395,58 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 
 func appAlreadyExists(appName string) bool {
 	for _, app := range appState.Apps {
-		if app.Name == appName {
+		if app.config.Name == appName {
 			return true
 		}
 	}
 	return false
 }
 
-func genAppUploadSecret() string {
-	t := time.Now()
-	rand.Seed(t.UnixNano())
-	count := 8
-	maxLetter := int('z' - 'a')
-	r := make([]byte, count)
-	for i := 0; i < count; i++ {
-		letter := rand.Intn(maxLetter)
-		r[i] = byte('a' + letter)
+func appInvalidField(app *App) string {
+	app.config.Name = strings.TrimSpace(app.config.Name)
+	if app.config.Name == "" {
+		return "Name"
 	}
-	return string(r)
+	if app.config.DataDir == "" {
+		return "DataDir"
+	}
+	if app.config.AdminTwitterUser == "" {
+		return "AdminTwitterUser"
+	}
+	if app.config.UploadSecret == "" {
+		return "UploadSecret"
+	}
+	return ""
 }
 
-func addApp(app *App) {
+func readAppData(app *App) error {
+	if err := readTranslationsFromLog(app); err != nil {
+		return err
+	}
+	return nil
+}
+
+func addApp(app *App) error {
+	if invalidField := appInvalidField(app); invalidField != "" {
+		return errors.New(fmt.Sprintf("App has invalid field '%s'", invalidField))
+	}
+	if appAlreadyExists(app.config.Name) {
+		return errors.New("App already exists")
+	}
+	if err := readAppData(app); err != nil {
+		return err
+	}
 	appState.Apps = append(appState.Apps, app)
-	saveData()
+	return nil
 }
 
-/*
-// handler for url: /addapp
-// Form with values: appName and appUrl
-func handleAddApp(w http.ResponseWriter, r *http.Request) {
-	appName := strings.TrimSpace(r.FormValue("appName"))
-	appUrl := strings.TrimSpace(r.FormValue("appUrl"))
-	var errmsg string
-	if len(appName) == 0 || len(appUrl) == 0 {
-		errmsg = "Must provide application name and url"
-	} else if appAlreadyExists(appName) {
-		errmsg = fmt.Sprintf("Application %s already exists. Choose a different name.", appName)
-	}
-	if errmsg == "" {
-		app := NewApp(appName, appUrl)
-		addApp(app)
-
-	}
-	model := &ModelMain{&appState.Apps, "", false, errmsg}
-	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+func (app *App) Name() string {
+	return app.config.Name
 }
-*/
 
 func findApp(name string) *App {
 	for _, app := range appState.Apps {
-		if app.Name == name {
+		if app.config.Name == name {
 			return app
 		}
 	}
@@ -553,12 +527,12 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
-func userIsAdmin(user string) bool {
-	return user == "kjk"
+func userIsAdmin(app *App, user string) bool {
+	return user == app.config.AdminTwitterUser
 }
 
 func buildModelApp(app *App, user string) *ModelApp {
-	model := &ModelApp{App: app, User: user, UserIsAdmin: userIsAdmin(user)}
+	model := &ModelApp{App: app, User: user, UserIsAdmin: userIsAdmin(app, user)}
 	// could use App.langInfos directly but it's not
 	// thread safe and really should sort after update
 	// not on every read
@@ -584,7 +558,7 @@ type ModelAppTranslations struct {
 }
 
 func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTranslations {
-	model := &ModelAppTranslations{App: app, ShowTranslationEditedMsg: false, User: user, UserIsAdmin: userIsAdmin(user)}
+	model := &ModelAppTranslations{App: app, ShowTranslationEditedMsg: false, User: user, UserIsAdmin: userIsAdmin(app, user)}
 	modelApp := buildModelApp(app, user)
 	for _, langInfo := range modelApp.Langs {
 		if langInfo.Code == langCode {
@@ -606,7 +580,7 @@ func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTransla
 
 // handler for url: /app?name=$app&lang=$lang
 func handleAppTranslations(w http.ResponseWriter, r *http.Request, app *App, langCode string) {
-	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, langCode)
+	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.config.Name, langCode)
 	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
 	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
@@ -672,7 +646,7 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(w, fmt.Sprintf("AppTranslator: %s\n", app.Name))
+	io.WriteString(w, fmt.Sprintf("AppTranslator: %s\n", app.config.Name))
 	m := make(map[string][]LangTrans)
 	for _, li := range app.langInfos {
 		code := li.Code
@@ -798,7 +772,7 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	secret := strings.TrimSpace(r.FormValue("secret"))
-	if secret != app.UploadSecret {
+	if secret != app.config.UploadSecret {
 		serverErrorMsg(w, fmt.Sprintf("Invalid secret for app '%s'", appName))
 		return
 	}
@@ -817,7 +791,7 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 }
 
 type SecureCookieValue struct {
-	User string
+	User        string
 	TwitterTemp string
 }
 
@@ -826,7 +800,7 @@ func setSecureCookie(w http.ResponseWriter, cookieVal *SecureCookieValue) {
 	val["user"] = cookieVal.User
 	val["twittertemp"] = cookieVal.TwitterTemp
 	if encoded, err := secureCookie.Encode(cookieName, val); err == nil {
-	// TODO: set expiration (Expires    time.Time) long time in the future?
+		// TODO: set expiration (Expires    time.Time) long time in the future?
 		cookie := &http.Cookie{
 			Name:  cookieName,
 			Value: encoded,
@@ -1029,25 +1003,21 @@ func main() {
 	flag.Parse()
 
 	if err := readSecrets(*configPath); err != nil {
-		fmt.Printf("Failed reading config file %s. %s\n", *configPath, err.Error())
+		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err.Error())
+	}
+
+	app := NewApp(config.App)
+	if err := addApp(app); err != nil {
+		log.Fatalf("Failed to add the app: %s, err: %s\n", app.config.Name, err.Error())
 		return
 	}
 
-	if err := readDataAtStartup(); err != nil {
-		fmt.Printf("Failed to open data file %s. Can't proceed.\n", dataFileName)
-		return
-	}
-
-	fmt.Printf("Read the data from %s\n", dataFileName)
 	// for testing, add a dummy app if no apps exist
 	if len(appState.Apps) == 0 {
-		app := NewApp("SumatraPDF", "http://blog.kowalczyk.info", "kjk")
-		addApp(app)
 		fmt.Printf("Added dummy SumatraPDF app")
 	}
 
 	http.HandleFunc("/static/", handleStatic)
-	//http.HandleFunc("/addapp", handleAddApp)
 	http.HandleFunc("/app", handleApp)
 	http.HandleFunc("/downloadtranslations", handleDownloadTranslations)
 	http.HandleFunc("/edittranslation", handleEditTranslation)
