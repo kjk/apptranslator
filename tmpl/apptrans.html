@@ -58,7 +58,7 @@
 			<span style="color:blue">=&gt;</span>
 			<span class="transstr">{{.Current}}</span> <a href="#" class="editbtn" id="idEdit{{$idx}}">Edit</a>
 		{{else}}
-			<a href="#" class="addbtn" id="idEdit{{$idx}}">Add translation...</a>
+			<a href="#" class="addbtn" id="idEdit{{$idx}}">Add a translation...</a>
 		{{end}}
 	</div>
 	{{end}}
@@ -79,6 +79,11 @@
 				<textarea rows=3 name="translation" id="idEditFormTrans" style="width:90%"></textarea>
 				<input type="hidden" name="app" value="{{.App.Name}}">
 				<input type="hidden" name="lang" value="{{.LangInfo.Code}}">
+
+				<p></p>
+				<p>Note: by adding/editing a translation you agree to place your translations
+				into <a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a>.</p>
+
 			</div>
 			<div class="modal-footer">
 				<button type="submit" class="btn btn-primary">Submit</button>
@@ -86,7 +91,7 @@
 			</div>
 		</form>
 	</div>
-</div>
+</div>http://localhost:8089/app?name=SumatraPDF&lang=pl#
 {{else}}
 <div class="modal hide" id="idEditTrans">
 	<div class="modal-header">
@@ -96,11 +101,14 @@
 	<div>
 		<form class="well" action="/edittranslation" method="POST">
 			<div class="modal-body">
-				You must be logged in to edit translations.
-				<a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>
+				<p>You must be logged in to edit translations.
+				<a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>.</p>
+
+				<p>Note: by logging in you agree that your translations
+				are placed into <a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a>.</p>
 			</div>
 			<div class="modal-footer">
-				<a href="#" class="btn"data-dismiss="modal">Ok</a>
+				<a href="#" class="btn"data-dismiss="modal">Close</a>
 			</div>
 		</form>
 	</div>
@@ -118,7 +126,7 @@
 
 $(document).ready(function() {
 	$(".addbtn").click(function() {
-		$("#idEditTransHdr").text("Add translation");
+		$("#idEditTransHdr").text("Add a translation");
 		var el = $(this).parent().find(".origstr");
 		$("#idEditFormString").text(el.text());
 		$("#idEditFormTrans").text("");
