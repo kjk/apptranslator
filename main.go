@@ -289,7 +289,7 @@ func GetTemplates() *template.Template {
 	if reloadTemplates || (nil == templates) {
 		if 0 == len(templatePaths) {
 			for _, name := range templateNames {
-				templatePaths = append(templatePaths, filepath.Join("www", name))
+				templatePaths = append(templatePaths, filepath.Join("tmpl", name))
 			}
 		}
 		templates = template.Must(template.ParseFiles(templatePaths...))
