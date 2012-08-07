@@ -444,6 +444,10 @@ func (app *App) Name() string {
 	return app.config.Name
 }
 
+func (app *App) Url() string {
+	return app.config.Url
+}
+
 func findApp(name string) *App {
 	for _, app := range appState.Apps {
 		if app.config.Name == name {

@@ -9,33 +9,12 @@
 <p>Applications:</p>
 <ul>
   {{range .Apps}}
-  <li><a href="/app?name={{.Name}}">{{.Name}}</a> ({{.LangsCount}} languages, {{.StringsCount}} strings, {{.UntranslatedCount}} untranslated in all languages)</li>
+  <li><a href="/app?name={{.Name}}">{{.Name}}</a> ({{.LangsCount}} languages, {{.StringsCount}} strings, {{.UntranslatedCount}} untranslated in all languages{{if len .Url}}, website: <a href="{{.Url}}">{{.Url}}</a>{{end}})</li>
   {{end}}
 </ul>
 {{else}}
 There are no applications!
 {{end}}
-
-<div class="modal hide fade" id="addApp">
-	<div class="modal-header">
-		<a class="close" data-dismiss="modal">×</a>
-		<h3>Add application to be translated</h3>
-	</div>
-	<div>
-		<form class="well" action="/addapp" method="POST">
-			<div class="modal-body">
-				<label>Application name:</label>
-				<input type="text" name="appName" size="128" placeholder="Enter name...">
-				<label>Application website url:</label>
-				<input type="text" name="appUrl" size="128" placeholder="Enter url...">
-			</div>
-			<div class="modal-footer">
-				<button type="submit" class="btn btn-primary">Add application</button>
-				<a href="#" class="btn"data-dismiss="modal">Cancel</a>
-			</div>
-		</form>
-	</div>
-</div>
 
 <div class="modal hide fade" id="errorMsg">
 	<div class="modal-header">
