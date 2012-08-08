@@ -13,26 +13,10 @@ Must have:
 Nice to have:
 - timing of how long a request takes
 - ability to rename original string while preserving the translation
-- only enable 'Submit' in edit translation form if the translation has changed
 - ability to see history of translations for a given string and revert to any past translations
-- before accepting a translation, verify the order of % escapes is correct
 - view recent translations (next to languages list on the summary page for the application)
 - remember who did what translation, so that we can credit people
 - a page that shows a log of changes (who, what, when)
 - an RSS feed for each app/lang pair which shows currently untranslated
   strings (so that translators have an easy way to be notified about the
   need to translate)
-- ability of anonymous users to edit translation. They would be put in
-  a queue and would have to be verified/accepted by a signed in user
-- add a new string for translation via web page
-
-Deployment:
-* copy source files to the server under src/$SHA1 directory
-* compile binaries on the server
-* copy binary and necessary files (www templates etc.) to
-  bin/$SHA1 directory
-* kill currently running server
-* copy 
-* link www directory to bin/$SHA1
-* start current server
-* if failed

@@ -1,15 +1,12 @@
-AppTranslator (http://www.apptranslator.org) is a web service that helps
-software developers crowd-source translations of their applications.
+AppTranslator is a web app written in Go for making it possible for volounteers
+to provide translations for software.
 
-The way it works is:
+You can see it running at http://www.apptranslator.org.
 
-1. Developer creates a project for their software
-2. Developer submits strings (in English) to be translated, using web API
-3. Users go to the website to translate the strings from English to their language
-4. Developer periodically downloads translations, using web API, and updates 
-   his software with new translations
+The software was developed for SumatraPDF (http://blog.kowalczyk.info/software/sumatrapdf/).
 
-The software was developed by (and for) SumatraPDF developers but it could be
-used for software.
-
-Translations are in public domain.
+You could run it for your own software, but it's a server side software, so
+you would need to figure out your deployment strategy, backup and write a script
+that uploads your strings to the server and a script that downloads the
+translations from the server and updates your code to use those translations.
+In other words, it's complicated.
