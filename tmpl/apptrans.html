@@ -79,19 +79,21 @@
 				<textarea rows=3 name="translation" id="idEditFormTrans" style="width:90%"></textarea>
 				<input type="hidden" name="app" value="{{.App.Name}}">
 				<input type="hidden" name="lang" value="{{.LangInfo.Code}}">
-
+				<p id="mismatchedStringFormattingError" style="color:red;visibility:hidden"><bold>
+					Error: translation cannot be empty and string formatting directive (%s, %d etc.) 
+					must be in the same order.
+				</bold></p>
 				<p></p>
 				<p>Note: by adding/editing a translation you agree to place your translations
 				into <a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a>.</p>
-
 			</div>
 			<div class="modal-footer">
 				<button type="submit" class="btn btn-primary">Submit</button>
-				<a href="#" class="btn"data-dismiss="modal">Cancel</a>
+				<a href="#" class="btn" data-dismiss="modal">Cancel</a>
 			</div>
 		</form>
 	</div>
-</div>http://localhost:8089/app?name=SumatraPDF&lang=pl#
+</div>
 {{else}}
 <div class="modal hide" id="idEditTrans">
 	<div class="modal-header">
@@ -99,7 +101,7 @@
 		<h3><span id="idEditTransHdr"></span></h3>
 	</div>
 	<div>
-		<form class="well" action="/edittranslation" method="POST">
+		<form class="well" action="/nowhere" method="POST">
 			<div class="modal-body">
 				<p>You must be logged in to edit translations.
 				<a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>.</p>
@@ -108,7 +110,7 @@
 				are placed into <a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a>.</p>
 			</div>
 			<div class="modal-footer">
-				<a href="#" class="btn"data-dismiss="modal">Close</a>
+				<a href="#" class="btn" data-dismiss="modal">Close</a>
 			</div>
 		</form>
 	</div>
@@ -121,17 +123,33 @@
 <!-- placed at the end for faster loading -->
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
 <script src="/s/js/bootstrap.js"></script>
+<script src="/s/js/apptranslator.js"></script>
 
 <script>
 
+var prevTranslationValue = "";
+function updateEditTransState() {
+	var txt = $("#idEditFormString").text();
+	prevTranslationValue = $("#idEditFormTrans").val();
+	if (canSubmitTranslation(txt, prevTranslationValue)) {
+		$("button[type=submit]").removeAttr("disabled");
+		$("#mismatchedStringFormattingError").css({"visibility":"hidden"});
+	} else {
+		$("button[type=submit]").attr("disabled", "disabled");
+		$("#mismatchedStringFormattingError").css({"visibility":"visible"});
+	}	
+}
+
 $(document).ready(function() {
+
 	$(".addbtn").click(function() {
 		$("#idEditTransHdr").text("Add a translation");
 		var el = $(this).parent().find(".origstr");
 		$("#idEditFormString").text(el.text());
-		$("#idEditFormTrans").text("");
+		$("#idEditFormTrans").val("");
 		$("#idEditTrans").modal('show');
 		$("#idEditFormTrans").focus();
+		updateEditTransState();
 	});
 
 	$(".editbtn").click(function() {
@@ -139,10 +157,15 @@ $(document).ready(function() {
 		var el = $(this).parent().find(".origstr");
 		$("#idEditFormString").text(el.text());
 		el = $(this).parent().find(".transstr");
-		$("#idEditFormTrans").text(el.text());
+		$("#idEditFormTrans").val(el.text());
 		$("#idEditTrans").modal('show');
 		$("#idEditFormTrans").focus();
+		updateEditTransState();
 	});
+	$("#idEditFormTrans").bind("keyup paste", function(e) {
+		if ($(this).val() == prevTranslationValue) { return; }
+		updateEditTransState();
+});
 
 });
 
