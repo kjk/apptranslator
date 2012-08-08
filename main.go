@@ -22,8 +22,6 @@ import (
 	"sync"
 )
 
-import _ "oauth"
-
 const (
 	// this is where we store information about users and translation.
 	// All in one place because I expect this data to be small
