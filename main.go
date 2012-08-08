@@ -23,9 +23,6 @@ import (
 )
 
 const (
-	// this is where we store information about users and translation.
-	// All in one place because I expect this data to be small
-	dataDir    = "data"
 	cookieName = "ckie"
 )
 
@@ -52,9 +49,30 @@ var (
 	cookieEncrKey []byte
 	secureCookie  *securecookie.SecureCookie
 
+	// this is where we store information about users and translation.
+	// All in one place because I expect this data to be small
+	dataDir string
+
 	configPath = flag.String("config", "secrets.json", "Path to configuration file")
 	httpAddr   = flag.String("addr", ":8089", "HTTP server address")
 )
+
+// data dir is ../data on the server or ../apptranslatordata locally
+func getDataDir() string {
+	if dataDir != "" {
+		return dataDir
+	}
+	dataDir = filepath.Join("..", "apptranslatordata")
+	if FileExists(dataDir) {
+		return dataDir
+	}
+	dataDir = filepath.Join("..", "data")
+	if FileExists(dataDir) {
+		return dataDir
+	}
+	log.Fatal("data directory (../data or ../apptranslatordata) doesn't exist")
+	return ""
+}
 
 // a static configuration of a single app
 type AppConfig struct {
@@ -186,7 +204,7 @@ func (app *App) initData() {
 }
 
 func (a *App) translationLogFilePath() string {
-	return filepath.Join(filepath.Join(dataDir, a.config.DataDir), "translations.dat")
+	return filepath.Join(filepath.Join(getDataDir(), a.config.DataDir), "translations.dat")
 }
 
 func (a *App) writeTranslationToLog(langCode, str, trans, user string) {
