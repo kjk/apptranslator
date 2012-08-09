@@ -341,7 +341,7 @@ func serverErrorMsg(w http.ResponseWriter, msg string) {
 func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName string) {
 	filePath := filepath.Join(dir, fileName)
 	if !FileExists(filePath) {
-		fmt.Printf("serveFileFromDir() file=%s doesn't exist\n", filePath)		
+		fmt.Printf("serveFileFromDir() file=%s doesn't exist\n", filePath)
 	}
 	http.ServeFile(w, r, filePath)
 	/*

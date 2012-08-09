@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
+	_ "encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -196,6 +196,7 @@ func parseSumatraTranslationsFile(fileName string, tl *TranslationLog) error {
 	return nil
 }
 
+/*
 type TranslationLog struct {
 	fileName string
 	file     *os.File
@@ -232,6 +233,7 @@ func (tl *TranslationLog) write(langCode, s, trans string) error {
 	}
 	return nil
 }
+*/
 
 func main() {
 	dir := "../sumatrapdf/strings"
@@ -240,7 +242,7 @@ func main() {
 		fmt.Printf("Error reading dir '%s', %s\n", dir, err.Error())
 		return
 	}
-	translog := NewTranslationLog("SumatraPDF_trans.dat")
+	translog, err := NewTranslationLog("SumatraPDF_trans.dat")
 	if translog == nil {
 		return
 	}

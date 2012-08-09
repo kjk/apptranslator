@@ -1,5 +1,5 @@
-AppTranslator is a web app written in Go for making it possible for volounteers
-to provide translations for software.
+AppTranslator is a web app written in Go for collecting crowd-sourced
+translations for software.
 
 You can see it running at http://www.apptranslator.org.
 
