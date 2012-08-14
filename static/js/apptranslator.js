@@ -24,6 +24,8 @@ function extractFormattingModifiers(s) {
 	return res;
 }
 
+// $translation of a given $text can be submitted if it's not an empty
+// string and if their string formatting instructions (%d, %s etc.) match
 function canSubmitTranslation(text, translation) {
 	var t = $.trim(translation);
 	if (t.length == 0) { return false; }
