@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -1029,6 +1030,19 @@ func readSecrets(configFile string) error {
 	return err
 }
 
+func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.Path
+		startTime := time.Now()
+		fn(w, r)
+		duration := time.Now().Sub(startTime)
+		if duration.Seconds() > 1.0 {
+			// TODO: log this information somewhere else
+			fmt.Printf("'%s' took %f seconds to serve\n", url, duration.Seconds())
+		}
+	}
+}
+
 func main() {
 	flag.Parse()
 
@@ -1047,15 +1061,15 @@ func main() {
 		fmt.Printf("Added dummy SumatraPDF app")
 	}
 
-	http.HandleFunc("/s/", handleStatic)
-	http.HandleFunc("/app", handleApp)
-	http.HandleFunc("/downloadtranslations", handleDownloadTranslations)
-	http.HandleFunc("/edittranslation", handleEditTranslation)
-	http.HandleFunc("/uploadstrings", handleUploadStrings)
+	http.HandleFunc("/s/", makeTimingHandler(handleStatic))
+	http.HandleFunc("/app", makeTimingHandler(handleApp))
+	http.HandleFunc("/downloadtranslations", makeTimingHandler(handleDownloadTranslations))
+	http.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
+	http.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
 	http.HandleFunc("/login", handleLogin)
 	http.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
 	http.HandleFunc("/logout", handleLogout)
-	http.HandleFunc("/", handleMain)
+	http.HandleFunc("/", makeTimingHandler(handleMain))
 
 	fmt.Printf("Running on %s\n", *httpAddr)
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
