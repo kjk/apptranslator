@@ -319,7 +319,7 @@ func (l *TranslationLog) readExistingRecords() error {
 		//lastValidOffset, _ := l.file.Seek(1, 0)
 		// TODO: could explicitly see if this is EOF by comparing lastValidOffset
 		// with file size. that would simplify error handling
-		lenTmp, err := binary.ReadUvarint(r)
+		tmp, err := binary.ReadUvarint(r)
 		if err != nil {
 			if err == io.EOF {
 				// TODO: probably truncate if len != 0, as that might indicate
@@ -327,16 +327,16 @@ func (l *TranslationLog) readExistingRecords() error {
 				return nil
 			}
 		}
-		len := int(lenTmp)
-		if n > cap(buf) {
-			buf = make([]byte, len)
+		recSize := int(tmp)
+		if recSize > cap(buf) {
+			buf = make([]byte, recSize)
 		}
-		n, err = l.file.Read(buf[0:len])
-		if err != nil || n != len {
+		n, err = l.file.Read(buf[0:recSize])
+		if err != nil || n != recSize {
 			// TODO: truncate to lastValidOffset and return nil
 			return err
 		}
-		err = l.decodeRecord(buf[0:len])
+		err = l.decodeRecord(buf[0:recSize])
 		if err != nil {
 			return err
 		}
@@ -345,7 +345,3 @@ func (l *TranslationLog) readExistingRecords() error {
 	return nil
 }
 
-func (l *TranslationLog) write(langCode, s, trans string) error {
-	// TODO: write me
-	return nil
-}
