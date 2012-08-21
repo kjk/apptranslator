@@ -235,6 +235,8 @@ func (tl *TranslationLog) write(langCode, s, trans string) error {
 }
 */
 
+var dataFileName = "SumatraPDF_trans.dat"
+
 func main() {
 	dir := "../sumatrapdf/strings"
 	entries, err := ioutil.ReadDir(dir)
@@ -242,7 +244,11 @@ func main() {
 		fmt.Printf("Error reading dir '%s', %s\n", dir, err.Error())
 		return
 	}
-	translog, err := NewTranslationLog("SumatraPDF_trans.dat")
+	/* TODO: uncomment when reading is working
+	if FileExists(dataFileName) {
+		log.Fatalf("%s already exists", dataFileName)
+	}*/
+	translog, err := NewTranslationLog(dataFileName)
 	if translog == nil {
 		return
 	}
