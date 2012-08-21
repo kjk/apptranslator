@@ -87,15 +87,28 @@ func writeVarintToBuf(b *bytes.Buffer, i int) {
 
 func (l *TranslationLog) writeRecord(rec []byte) error {
 	var buf [32]byte
-	n := binary.PutUvarint(buf[:], uint64(len(rec)))
+	recLen := uint64(len(rec))
+	if 0 == recLen {
+		panic("0 == recLen")
+	}
+	n := binary.PutUvarint(buf[:], recLen)
 	if 0 == n {
 		panic("n == 0")
 	}
-	_, err := l.file.Write(buf[:n])
+	if 0 == buf[0] {
+		panic("0 == buf[0]")
+	}
+	n2, err := l.file.Write(buf[:n])
 	if err != nil {
 		return err
 	}
-	_, err = l.file.Write(rec)
+	if n != n2 {
+		panic("n != n2")
+	}
+	n3, err := l.file.Write(rec)
+	if n3 != len(rec) {
+		panic("n3 != len(rec)")
+	}
 	return err
 }
 
@@ -106,8 +119,7 @@ func (l *TranslationLog) writeStringInternRecord(recId, n int, s string) error {
 	b.WriteByte(byte(recId))
 	writeVarintToBuf(&b, n)
 	b.WriteString(s)
-	_, err := b.WriteTo(l.file)
-	return err
+	return l.writeRecord(b.Bytes())
 }
 
 // returns a unique integer 1..n for a given string
@@ -200,6 +212,7 @@ func (r *ByteReaderForFile) ReadByte() (byte, error) {
 	var buf [1]byte
 	_, err := r.file.Read(buf[0:1])
 	if err != nil {
+		panic("")
 		return 0, err
 	}
 	return buf[0], nil
