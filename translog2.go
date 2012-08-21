@@ -3,13 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"log"
 	"os"
 )
 
 // Translation log is append-only file. It consists of blocks. Each block
-// starts with varint-encoded length followed by block data of that length.
+// starts with uvarint-encoded length followed by block data of that length.
 // This allows to detect and fix a corruption caused by not fully writing the
 // last record (e.g. because of power failure in the middle of the write).
 //
@@ -58,23 +59,33 @@ const (
 	strUndelRec      = 5
 )
 
+type TranslationRec struct {
+	langId      int
+	userId      int
+	stringId    int
+	translation string
+}
+
 type TranslationLog struct {
 	filePath       string
 	file           *os.File
 	langCodeMap    map[string]int
 	userNameMap    map[string]int
 	stringMap      map[string]int
-	deletedStrings map[string]bool
+	deletedStrings map[int]bool
+	translations   []TranslationRec
 }
 
-func (l *TranslationLog) writeRecord(data []byte) error {
+var errorRecordMalformed = errors.New("Record malformed")
+
+func (l *TranslationLog) writeRecord(rec []byte) error {
 	var buf [32]byte
-	n := binary.PutUvarint(buf[:], uint64(len(data)))
+	n := binary.PutUvarint(buf[:], uint64(len(rec)))
 	_, err := l.file.Write(buf[:n])
 	if err != nil {
 		return err
 	}
-	_, err = l.file.Write(data)
+	_, err = l.file.Write(rec)
 	return err
 }
 
@@ -101,29 +112,39 @@ func (l *TranslationLog) uniquifyString(s string, dict map[string]int, recId int
 
 func writeVarintToBuf(b *bytes.Buffer, i int) {
 	var buf [32]byte
-	n := binary.PutUvarint(buf[:], uint64(i))
+	n := binary.PutVarint(buf[:], int64(i))
 	b.Write(buf[:n]) // ignore error, it's always nil
+}
+
+func (l *TranslationLog) addTranslationRec(langId, userId, stringId int, translation string) {
+	t := &TranslationRec{langId, userId, stringId, translation}
+	l.translations = append(l.translations, *t)
 }
 
 func (l *TranslationLog) writeNewTranslation(txt, trans, lang, user string) error {
 	var b bytes.Buffer
-	id, err := l.uniquifyString(lang, l.langCodeMap, newLangIdRec)
+	var userId, stringId int
+	langId, err := l.uniquifyString(lang, l.langCodeMap, newLangIdRec)
 	if err != nil {
 		return err
 	}
-	writeVarintToBuf(&b, id)
-	id, err = l.uniquifyString(user, l.userNameMap, newUserNameIdRec)
+	writeVarintToBuf(&b, langId)
+	userId, err = l.uniquifyString(user, l.userNameMap, newUserNameIdRec)
 	if err != nil {
 		return err
 	}
-	writeVarintToBuf(&b, id)
-	id, err = l.uniquifyString(txt, l.stringMap, newStringIdRec)
+	writeVarintToBuf(&b, userId)
+	stringId, err = l.uniquifyString(txt, l.stringMap, newStringIdRec)
 	if err != nil {
 		return err
 	}
-	writeVarintToBuf(&b, id)
+	writeVarintToBuf(&b, stringId)
 	b.Write([]byte(trans))
-	return l.writeRecord(b.Bytes())
+	if err = l.writeRecord(b.Bytes()); err != nil {
+		return err
+	}
+	l.addTranslationRec(langId, userId, stringId, trans)
+	return nil
 }
 
 func NewTranslationLog(path string) (*TranslationLog, error) {
@@ -142,6 +163,9 @@ func NewTranslationLog(path string) (*TranslationLog, error) {
 	l.langCodeMap = make(map[string]int)
 	l.userNameMap = make(map[string]int)
 	l.stringMap = make(map[string]int)
+	l.translations = make([]TranslationRec, 0)
+	l.deletedStrings = make(map[int]bool)
+
 	if existing {
 		err = l.readExistingRecords()
 		if nil != err {
@@ -158,7 +182,7 @@ func (l *TranslationLog) close() {
 }
 
 // wrap os.File and provide ReadByte() so that we can use
-// binary.ReadUvarint() on it
+// binary.ReadVarint() on it
 // TODO: could just put it directly on TranslationLog, eliminating
 // the need for ByteReaderForFile struct
 type ByteReaderForFile struct {
@@ -174,28 +198,100 @@ func (r *ByteReaderForFile) ReadByte() (byte, error) {
 	return buf[0], nil
 }
 
+func decodeIdString(rec []byte) (int, string, error) {
+	id, n := binary.Varint(rec)
+	if n <= 0 || n == len(rec) {
+		return 0, "", errorRecordMalformed
+	}
+	str := string(rec[n:])
+	return int(id), str, nil
+}
+
+// rec is: varint(langId) string
 func (l *TranslationLog) decodeNewLangIdRecord(rec []byte) error {
+	if id, str, err := decodeIdString(rec); err != nil {
+		return err
+	} else {
+		// TODO: verify doesn't already exist and id is consequitive
+		l.langCodeMap[str] = id
+	}
 	return nil
 }
 
+// rec is: varint(userId) string
 func (l *TranslationLog) decodeNewUserNameRecord(rec []byte) error {
+	if id, str, err := decodeIdString(rec); err != nil {
+		return err
+	} else {
+		// TODO: verify doesn't already exist and id is consequitive
+		l.userNameMap[str] = id
+	}
 	return nil
 }
 
+// rec is: varint(stringId) string
 func (l *TranslationLog) decodeNewStringRecord(rec []byte) error {
+	if id, str, err := decodeIdString(rec); err != nil {
+		return err
+	} else {
+		// TODO: verify doesn't already exist and id is consequitive
+		l.stringMap[str] = id
+	}
 	return nil
 }
 
+// rec is: varint(stringId)
 func (l *TranslationLog) decodeStringDeleteRecord(rec []byte) error {
+	id, n := binary.Varint(rec)
+	if n != len(rec) {
+		return errorRecordMalformed
+	}
+	// TODO: make sure doesn't already exist
+	l.deletedStrings[int(id)] = true
 	return nil
 }
 
+// rec is: varint(stringId)
+func (l *TranslationLog) decodeStringUndeleteRecord(rec []byte) error {
+	id, n := binary.Varint(rec)
+	if n != len(rec) {
+		return errorRecordMalformed
+	}
+	// TODO: make sure exists
+	delete(l.deletedStrings, int(id))
+	return nil
+}
+
+// rec is: varint(stringId) varint(userId) varint(langId) string
 func (l *TranslationLog) decodeNewTranslation(rec []byte) error {
+	var stringId, userId, langId int64
+	var n int
+
+	stringId, n = binary.Varint(rec)
+	if n <= 0 || n == len(rec) {
+		return errorRecordMalformed
+	}
+	rec = rec[n:]
+
+	userId, n = binary.Varint(rec)
+	if n <= 0 || n == len(rec) {
+		return errorRecordMalformed
+	}
+	rec = rec[n:]
+
+	langId, n = binary.Varint(rec)
+	if n <= 0 || n == len(rec) {
+		return errorRecordMalformed
+	}
+	translation := string(rec[n:])
+	l.addTranslationRec(int(langId), int(userId), int(stringId), translation)
 	return nil
 }
 
 func (l *TranslationLog) decodeRecord(rec []byte) error {
-	// TODO: handle gracefully when len(rec) == 0
+	if 0 == len(rec) {
+		return errorRecordMalformed
+	}
 	t := rec[0]
 	switch t {
 	case newLangIdRec:
@@ -207,7 +303,7 @@ func (l *TranslationLog) decodeRecord(rec []byte) error {
 	case strDelRec:
 		return l.decodeStringDeleteRecord(rec[1:])
 	case strUndelRec:
-		return l.decodeStringDeleteRecord(rec[1:])
+		return l.decodeStringUndeleteRecord(rec[1:])
 	default:
 		return l.decodeNewTranslation(rec)
 	}

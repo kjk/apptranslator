@@ -1037,7 +1037,7 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 		fn(w, r)
 		duration := time.Now().Sub(startTime)
 		if duration.Seconds() > 1.0 {
-			// TODO: log this information somewhere else
+			// TODO: log this information somewhere else, like a file
 			fmt.Printf("'%s' took %f seconds to serve\n", url, duration.Seconds())
 		}
 	}
