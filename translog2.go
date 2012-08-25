@@ -140,6 +140,22 @@ func writeStringInternRecord(buf *bytes.Buffer, recId, n int, s string) {
 	writeRecord(buf, b.Bytes())
 }
 
+func writeDeleteStringRecord(w io.Writer, strId int) error {
+	var b bytes.Buffer
+	b.WriteByte(0)
+	b.WriteByte(strDelRec)
+	writeUvarintToBuf(&b, strId)
+	return writeRecord(w, b.Bytes())
+}
+
+func writeUndeleteStringRecord(w io.Writer, strId int) error {
+	var b bytes.Buffer
+	b.WriteByte(0)
+	b.WriteByte(strUndelRec)
+	writeUvarintToBuf(&b, strId)
+	return writeRecord(w, b.Bytes())
+}
+
 // returns a unique integer 1..n for a given string
 // if the id hasn't been seen yet
 func uniquifyString(buf *bytes.Buffer, s string, dict map[string]int, recId int) int {
@@ -155,6 +171,33 @@ func uniquifyString(buf *bytes.Buffer, s string, dict map[string]int, recId int)
 func (s *EncoderDecoderState) addTranslationRec(langId, userId, stringId int, translation string) {
 	t := &TranslationRec{langId, userId, stringId, translation}
 	s.translations = append(s.translations, *t)
+}
+
+func (s *EncoderDecoderState) deleteString(w io.Writer, str string) error {
+	if strId, ok := s.stringMap[str]; !ok {
+		log.Fatalf("deleteString() '%s' doesn't exist in stringMap\n", str)
+	} else {
+		if err := writeDeleteStringRecord(w, strId); err != nil {
+			return err
+		}
+		s.deletedStrings[strId] = true		
+	}
+	return nil
+}
+
+func (s *EncoderDecoderState) undeleteString(w io.Writer, str string) error {
+	if strId, ok := s.stringMap[str]; !ok {
+		log.Fatalf("undeleteString() '%s' doesn't exist in stringMap\n", str)
+	} else {	
+		if _, ok := s.deletedStrings[strId]; !ok {
+			log.Fatalf("undeleteString(): strId=%d doesn't exist in deletedStrings\n", strId)
+		}
+		if err := writeUndeleteStringRecord(w, strId); err != nil {
+			return err
+		}
+		delete(s.deletedStrings, strId)
+	}
+	return nil
 }
 
 func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang, user string) error {

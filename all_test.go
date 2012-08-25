@@ -64,6 +64,30 @@ func TestTransLog(t *testing.T) {
 		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 2")
 	}
 
+	err = s.writeNewTranslation(&buf, "bar", "bar-pl", "pl", "user1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.translations) != 3 {
+		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 3")
+	}
+
+	err = s.deleteString(&buf, "bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.deletedStrings) != 1 {
+		t.Fatal("len(s.deletedStrings)=", len(s.deletedStrings), ", expected: 1")
+	}
+
+	err = s.undeleteString(&buf, "bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.deletedStrings) != 0 {
+		t.Fatal("len(s.deletedStrings)=", len(s.deletedStrings), ", expected: 0")
+	}
+
 	fmt.Printf("buf.Bytes()=%v\n", buf.Bytes())
 	s = NewEncoderDecoderState()
 	r := &ReaderByteReader{&buf}
@@ -81,7 +105,7 @@ func TestTransLog(t *testing.T) {
 	if len(s.userNameMap) != 1 {
 		t.Fatalf("len(s.userNameMap)=%d, expected: 1", len(s.userNameMap))
 	}
-	if len(s.translations) != 2 {
-		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 2")
+	if len(s.translations) != 3 {
+		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 3")
 	}
 }
