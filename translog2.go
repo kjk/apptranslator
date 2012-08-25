@@ -102,12 +102,6 @@ func panicIf(shouldPanic bool, s string) {
 	}
 }
 
-func writeVarintToBuf(b *bytes.Buffer, i int) {
-	var buf [32]byte
-	n := binary.PutVarint(buf[:], int64(i))
-	b.Write(buf[:n]) // ignore error, it's always nil
-}
-
 func writeUvarintToBuf(b *bytes.Buffer, i int) {
 	var buf [32]byte
 	n := binary.PutUvarint(buf[:], uint64(i))
@@ -125,24 +119,22 @@ func readUVarintAsInt(r *ReaderByteReader) (int, error) {
 func encodeRecordData(rec []byte) *bytes.Buffer {
 	var b bytes.Buffer
 	panicIf(0 == len(rec), "0 == recLen")
-	writeVarintToBuf(&b, len(rec))
+	writeUvarintToBuf(&b, len(rec))
 	b.Write(rec) // // ignore error, it's always nil
 	return &b
 }
 
 func writeRecord(w io.Writer, rec []byte) error {
 	b := encodeRecordData(rec)
-	data := b.Bytes()
-	_, err := w.Write(data)
+	_, err := w.Write(b.Bytes())
 	return err
 }
 
 func writeStringInternRecord(w io.Writer, recId, n int, s string) error {
 	var b bytes.Buffer
-	//fmt.Printf("writeStringInternRecord %d %d %s\n", recId, n, s)
 	b.WriteByte(0)
 	b.WriteByte(byte(recId))
-	writeVarintToBuf(&b, n)
+	writeUvarintToBuf(&b, n)
 	b.WriteString(s)
 	return writeRecord(w, b.Bytes())
 }
@@ -164,6 +156,7 @@ func (s *EncoderDecoderState) addTranslationRec(langId, userId, stringId int, tr
 	s.translations = append(s.translations, *t)
 }
 
+// TODO: only one write to io.Writer per writeNewTranslation
 func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang, user string) error {
 	var b bytes.Buffer
 	var userId, stringId int
@@ -172,17 +165,17 @@ func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang,
 	if err != nil {
 		return err
 	}
-	writeVarintToBuf(&b, langId)
+	writeUvarintToBuf(&b, langId)
 	userId, err = uniquifyString(w, user, s.userNameMap, newUserNameIdRec)
 	if err != nil {
 		return err
 	}
-	writeVarintToBuf(&b, userId)
+	writeUvarintToBuf(&b, userId)
 	stringId, err = uniquifyString(w, txt, s.stringMap, newStringIdRec)
 	if err != nil {
 		return err
 	}
-	writeVarintToBuf(&b, stringId)
+	writeUvarintToBuf(&b, stringId)
 	b.Write([]byte(trans))
 	if err = writeRecord(w, b.Bytes()); err != nil {
 		return err
@@ -232,8 +225,8 @@ func (l *TranslationLog) close() {
 }
 
 func decodeIdString(rec []byte) (int, string, error) {
-	id, n := binary.Varint(rec)
-	panicIf(n <= 0 || n == len(rec), "decdeIdString")
+	id, n := binary.Uvarint(rec)
+	panicIf(n <= 0 || n == len(rec), "decodeIdString")
 	str := string(rec[n:])
 	return int(id), str, nil
 }
@@ -243,7 +236,10 @@ func decodeStrIdRecord(rec []byte, dict map[string]int) error {
 	if id, str, err := decodeIdString(rec); err != nil {
 		return err
 	} else {
-		// TODO: verify doesn't already exist and id is consequitive
+		//fmt.Printf("decodeStrIdRecord(): %s -> %d\n", str, id)
+		if _, exists := dict[str]; exists {
+			log.Fatalf("decodeStrIdRecord(): '%s' already exists in dict\n", str)
+		}
 		dict[str] = id
 	}
 	return nil
@@ -251,62 +247,71 @@ func decodeStrIdRecord(rec []byte, dict map[string]int) error {
 
 // rec is: varint(stringId)
 func (s *EncoderDecoderState) decodeStringDeleteRecord(rec []byte) error {
-	id, n := binary.Varint(rec)
+	id, n := binary.Uvarint(rec)
 	panicIf(n != len(rec), "decodeStringDeleteRecord")
-	// TODO: make sure doesn't already exist
+	if _, exists := s.deletedStrings[int(id)]; exists {
+		log.Fatalf("decodeStrIdRecord(): '%d' already exists in deletedString\n", id)
+	}
 	s.deletedStrings[int(id)] = true
 	return nil
 }
 
 // rec is: varint(stringId)
 func (s *EncoderDecoderState) decodeStringUndeleteRecord(rec []byte) error {
-	id, n := binary.Varint(rec)
+	id, n := binary.Uvarint(rec)
 	panicIf(n != len(rec), "decodeStringUndeleteRecord")
-	// TODO: make sure exists
+	if _, exists := s.deletedStrings[int(id)]; !exists {
+		log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
+	}
+
 	delete(s.deletedStrings, int(id))
 	return nil
 }
 
 // rec is: varint(stringId) varint(userId) varint(langId) string
 func (s *EncoderDecoderState) decodeNewTranslation(rec []byte) error {
-	var stringId, userId, langId int64
+	var stringId, userId, langId uint64
 	var n int
 
-	stringId, n = binary.Varint(rec)
-	panicIf(n <= 0 || n == len(rec), "decodeNewTranslation")
+	stringId, n = binary.Uvarint(rec)
+	panicIf(n == 0 || n == len(rec), "decodeNewTranslation")
 
 	rec = rec[n:]
 
-	userId, n = binary.Varint(rec)
-	panicIf(n <= 0 || n == len(rec), "decodeNewTranslation2")
+	userId, n = binary.Uvarint(rec)
+	panicIf(n == len(rec), "decodeNewTranslation2")
 	rec = rec[n:]
 
-	langId, n = binary.Varint(rec)
+	langId, n = binary.Uvarint(rec)
 	panicIf(n <= 0 || n == len(rec), "decodeNewTranslation3")
 	translation := string(rec[n:])
 	s.addTranslationRec(int(langId), int(userId), int(stringId), translation)
 	return nil
 }
 
-var recNo int
+var recNo = 1
 
 func (s *EncoderDecoderState) decodeRecord(rec []byte) error {
 	fmt.Printf("decodeRecord %d\n", recNo)
 	recNo++
-	panicIf(0 == len(rec), "decodeRecord")
-	t := rec[0]
-	switch t {
-	case newLangIdRec:
-		return decodeStrIdRecord(rec[1:], s.langCodeMap)
-	case newUserNameIdRec:
-		return decodeStrIdRecord(rec[1:], s.userNameMap)
-	case newStringIdRec:
-		return decodeStrIdRecord(rec[1:], s.stringMap)
-	case strDelRec:
-		return s.decodeStringDeleteRecord(rec[1:])
-	case strUndelRec:
-		return s.decodeStringUndeleteRecord(rec[1:])
-	default:
+	panicIf(len(rec) < 2, "decodeRecord(), len(rec) < 2")
+	if 0 == rec[0] {
+		t := rec[1]
+		switch t {
+		case newLangIdRec:
+			return decodeStrIdRecord(rec[2:], s.langCodeMap)
+		case newUserNameIdRec:
+			return decodeStrIdRecord(rec[2:], s.userNameMap)
+		case newStringIdRec:
+			return decodeStrIdRecord(rec[2:], s.stringMap)
+		case strDelRec:
+			return s.decodeStringDeleteRecord(rec[2:])
+		case strUndelRec:
+			return s.decodeStringUndeleteRecord(rec[2:])
+		default:
+			log.Fatalf("Unexpected t=%d", t)
+		}
+	} else {
 		return s.decodeNewTranslation(rec)
 	}
 	return nil
@@ -317,10 +322,13 @@ func (s *EncoderDecoderState) decodeRecord(rec []byte) error {
 func readRecord(r *ReaderByteReader) ([]byte, error) {
 	n, err := readUVarintAsInt(r)
 	if err != nil {
+		if err == io.EOF {
+			return nil, nil
+		}
 		log.Fatalf("readRecord(), err: %s", err.Error())
 	}
 	panicIf(0 == n, "recSize is 0")
-	buf := make([]byte, 0, n)
+	buf := make([]byte, n)
 	n, err = r.Read(buf)
 	if err != nil {
 		return nil, err
@@ -338,6 +346,9 @@ func (s *EncoderDecoderState) readExistingRecords(r *ReaderByteReader) error {
 		if err != nil {
 			// TODO: do something on error
 			panic("readExistingRecords")
+		}
+		if buf == nil {
+			return nil
 		}
 		err = s.decodeRecord(buf)
 		if err != nil {

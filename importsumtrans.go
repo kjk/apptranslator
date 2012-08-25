@@ -121,6 +121,7 @@ func parseLang(s string) (id, nameEnglish, nameNative string) {
 }
 
 func parseSumatraTranslationsFile(fileName string, tl *TranslationLog) error {
+	encoder := tl.state
 	reader, err := os.Open(fileName)
 	if err != nil {
 		return err
@@ -174,7 +175,7 @@ func parseSumatraTranslationsFile(fileName string, tl *TranslationLog) error {
 				msg := "Unexpected empty or comment line"
 				return &CantParseError{msg, lineNo}
 			}
-			err := tl.writeNewTranslation(tl.file, currString, s, lt.LangCode, "unknown")
+			err := encoder.writeNewTranslation(tl.file, currString, s, lt.LangCode, "unknown")
 			if nil != err {
 				fmt.Printf("Error in file %s line %d\n", fileName, lineNo)
 			}
