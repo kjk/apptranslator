@@ -130,25 +130,26 @@ func writeRecord(w io.Writer, rec []byte) error {
 	return err
 }
 
-func writeStringInternRecord(w io.Writer, recId, n int, s string) error {
+func writeStringInternRecord(buf *bytes.Buffer, recId, n int, s string) {
 	var b bytes.Buffer
 	b.WriteByte(0)
 	b.WriteByte(byte(recId))
 	writeUvarintToBuf(&b, n)
 	b.WriteString(s)
-	return writeRecord(w, b.Bytes())
+	// ignoring error because writing to bytes.Buffer never fails
+	writeRecord(buf, b.Bytes())
 }
 
 // returns a unique integer 1..n for a given string
 // if the id hasn't been seen yet
-func uniquifyString(w io.Writer, s string, dict map[string]int, recId int) (int, error) {
+func uniquifyString(buf *bytes.Buffer, s string, dict map[string]int, recId int) int {
 	if n, ok := dict[s]; ok {
-		return n, nil
+		return n
 	}
 	n := len(dict) + 1
 	dict[s] = n
-	err := writeStringInternRecord(w, recId, n, s)
-	return n, err
+	writeStringInternRecord(buf, recId, n, s)
+	return n
 }
 
 func (s *EncoderDecoderState) addTranslationRec(langId, userId, stringId int, translation string) {
@@ -156,28 +157,20 @@ func (s *EncoderDecoderState) addTranslationRec(langId, userId, stringId int, tr
 	s.translations = append(s.translations, *t)
 }
 
-// TODO: only one write to io.Writer per writeNewTranslation
 func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang, user string) error {
+	var recs bytes.Buffer
+	langId := uniquifyString(&recs, lang, s.langCodeMap, newLangIdRec)
+	userId := uniquifyString(&recs, user, s.userNameMap, newUserNameIdRec)
+	stringId := uniquifyString(&recs, txt, s.stringMap, newStringIdRec)
+
 	var b bytes.Buffer
-	var userId, stringId int
-	//fmt.Printf("writeNewTranslation\n")
-	langId, err := uniquifyString(w, lang, s.langCodeMap, newLangIdRec)
-	if err != nil {
-		return err
-	}
 	writeUvarintToBuf(&b, langId)
-	userId, err = uniquifyString(w, user, s.userNameMap, newUserNameIdRec)
-	if err != nil {
-		return err
-	}
 	writeUvarintToBuf(&b, userId)
-	stringId, err = uniquifyString(w, txt, s.stringMap, newStringIdRec)
-	if err != nil {
-		return err
-	}
 	writeUvarintToBuf(&b, stringId)
 	b.Write([]byte(trans))
-	if err = writeRecord(w, b.Bytes()); err != nil {
+	writeRecord(&recs, b.Bytes()) // cannot fail
+
+	if _, err := w.Write(recs.Bytes()); err != nil {
 		return err
 	}
 	s.addTranslationRec(langId, userId, stringId, trans)
