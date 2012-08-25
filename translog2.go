@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
-	"fmt"
 )
 
 // Translation log is append-only file. It consists of records. Each record
@@ -67,9 +67,7 @@ type TranslationRec struct {
 	translation string
 }
 
-type TranslationLog struct {
-	filePath       string
-	file           *os.File
+type EncoderDecoderState struct {
 	langCodeMap    map[string]int
 	userNameMap    map[string]int
 	stringMap      map[string]int
@@ -77,7 +75,32 @@ type TranslationLog struct {
 	translations   []TranslationRec
 }
 
+type TranslationLog struct {
+	state    *EncoderDecoderState
+	filePath string
+	file     *os.File
+}
+
 var errorRecordMalformed = errors.New("Record malformed")
+
+type ReaderByteReader struct {
+	io.Reader
+}
+
+func (r *ReaderByteReader) ReadByte() (byte, error) {
+	var buf [1]byte
+	_, err := r.Read(buf[0:1])
+	if err != nil {
+		return 0, err
+	}
+	return buf[0], nil
+}
+
+func panicIf(shouldPanic bool, s string) {
+	if shouldPanic {
+		panic(s)
+	}
+}
 
 func writeVarintToBuf(b *bytes.Buffer, i int) {
 	var buf [32]byte
@@ -85,85 +108,99 @@ func writeVarintToBuf(b *bytes.Buffer, i int) {
 	b.Write(buf[:n]) // ignore error, it's always nil
 }
 
-func (l *TranslationLog) writeRecord(rec []byte) error {
+func writeUvarintToBuf(b *bytes.Buffer, i int) {
 	var buf [32]byte
-	recLen := uint64(len(rec))
-	if 0 == recLen {
+	n := binary.PutUvarint(buf[:], uint64(i))
+	b.Write(buf[:n]) // ignore error, it's always nil
+}
+
+func readUVarintAsInt(r *ReaderByteReader) (int, error) {
+	n, err := binary.ReadUvarint(r)
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
+}
+
+func encodeRecordData(rec []byte) *bytes.Buffer {
+	var b bytes.Buffer
+	if 0 == len(rec) {
 		panic("0 == recLen")
 	}
-	n := binary.PutUvarint(buf[:], recLen)
-	if 0 == n {
-		panic("n == 0")
-	}
-	if 0 == buf[0] {
-		panic("0 == buf[0]")
-	}
-	n2, err := l.file.Write(buf[:n])
-	if err != nil {
-		return err
-	}
-	if n != n2 {
-		panic("n != n2")
-	}
-	n3, err := l.file.Write(rec)
-	if n3 != len(rec) {
-		panic("n3 != len(rec)")
-	}
+	writeVarintToBuf(&b, len(rec))
+	b.Write(rec) // // ignore error, it's always nil
+	return &b
+}
+
+func writeRecord(w io.Writer, rec []byte) error {
+	b := encodeRecordData(rec)
+	data := b.Bytes()
+	_, err := w.Write(data)
 	return err
 }
 
-func (l *TranslationLog) writeStringInternRecord(recId, n int, s string) error {
+func writeStringInternRecord(w io.Writer, recId, n int, s string) error {
 	var b bytes.Buffer
 	//fmt.Printf("writeStringInternRecord %d %d %s\n", recId, n, s)
 	b.WriteByte(0)
 	b.WriteByte(byte(recId))
 	writeVarintToBuf(&b, n)
 	b.WriteString(s)
-	return l.writeRecord(b.Bytes())
+	return writeRecord(w, b.Bytes())
 }
 
 // returns a unique integer 1..n for a given string
 // if the id hasn't been seen yet
-func (l *TranslationLog) uniquifyString(s string, dict map[string]int, recId int) (int, error) {
+func uniquifyString(w io.Writer, s string, dict map[string]int, recId int) (int, error) {
 	if n, ok := dict[s]; ok {
 		return n, nil
 	}
 	n := len(dict) + 1
 	dict[s] = n
-	err := l.writeStringInternRecord(recId, n, s)
+	err := writeStringInternRecord(w, recId, n, s)
 	return n, err
 }
 
-func (l *TranslationLog) addTranslationRec(langId, userId, stringId int, translation string) {
+func (s *EncoderDecoderState) addTranslationRec(langId, userId, stringId int, translation string) {
 	t := &TranslationRec{langId, userId, stringId, translation}
-	l.translations = append(l.translations, *t)
+	s.translations = append(s.translations, *t)
 }
 
-func (l *TranslationLog) writeNewTranslation(txt, trans, lang, user string) error {
+func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang, user string) error {
 	var b bytes.Buffer
 	var userId, stringId int
 	//fmt.Printf("writeNewTranslation\n")
-	langId, err := l.uniquifyString(lang, l.langCodeMap, newLangIdRec)
+	langId, err := uniquifyString(w, lang, s.langCodeMap, newLangIdRec)
 	if err != nil {
 		return err
 	}
 	writeVarintToBuf(&b, langId)
-	userId, err = l.uniquifyString(user, l.userNameMap, newUserNameIdRec)
+	userId, err = uniquifyString(w, user, s.userNameMap, newUserNameIdRec)
 	if err != nil {
 		return err
 	}
 	writeVarintToBuf(&b, userId)
-	stringId, err = l.uniquifyString(txt, l.stringMap, newStringIdRec)
+	stringId, err = uniquifyString(w, txt, s.stringMap, newStringIdRec)
 	if err != nil {
 		return err
 	}
 	writeVarintToBuf(&b, stringId)
 	b.Write([]byte(trans))
-	if err = l.writeRecord(b.Bytes()); err != nil {
+	if err = writeRecord(w, b.Bytes()); err != nil {
 		return err
 	}
-	l.addTranslationRec(langId, userId, stringId, trans)
+	s.addTranslationRec(langId, userId, stringId, trans)
 	return nil
+}
+
+func NewEncoderDecoderState() *EncoderDecoderState {
+	s := &EncoderDecoderState{}
+	s.langCodeMap = make(map[string]int)
+	s.userNameMap = make(map[string]int)
+	s.stringMap = make(map[string]int)
+	s.translations = make([]TranslationRec, 0)
+	s.deletedStrings = make(map[int]bool)
+	return s
 }
 
 func NewTranslationLog(path string) (*TranslationLog, error) {
@@ -179,14 +216,10 @@ func NewTranslationLog(path string) (*TranslationLog, error) {
 		}
 	}
 	l := &TranslationLog{filePath: path, file: file}
-	l.langCodeMap = make(map[string]int)
-	l.userNameMap = make(map[string]int)
-	l.stringMap = make(map[string]int)
-	l.translations = make([]TranslationRec, 0)
-	l.deletedStrings = make(map[int]bool)
-
+	l.state = NewEncoderDecoderState()
 	if existing {
-		err = l.readExistingRecords()
+		r := &ReaderByteReader{file}
+		err = l.state.readExistingRecords(r)
 		if nil != err {
 			l.close()
 			log.Fatalf("Failed to read log '%s', err: %s\n", path, err.Error())
@@ -200,24 +233,6 @@ func (l *TranslationLog) close() {
 	l.file = nil
 }
 
-// wrap os.File and provide ReadByte() so that we can use
-// binary.ReadVarint() on it
-// TODO: could just put it directly on TranslationLog, eliminating
-// the need for ByteReaderForFile struct
-type ByteReaderForFile struct {
-	file *os.File
-}
-
-func (r *ByteReaderForFile) ReadByte() (byte, error) {
-	var buf [1]byte
-	_, err := r.file.Read(buf[0:1])
-	if err != nil {
-		panic("")
-		return 0, err
-	}
-	return buf[0], nil
-}
-
 func decodeIdString(rec []byte) (int, string, error) {
 	id, n := binary.Varint(rec)
 	if n <= 0 || n == len(rec) {
@@ -229,64 +244,42 @@ func decodeIdString(rec []byte) (int, string, error) {
 }
 
 // rec is: varint(langId) string
-func (l *TranslationLog) decodeNewLangIdRecord(rec []byte) error {
+func decodeStrIdRecord(rec []byte, dict map[string]int) error {
 	if id, str, err := decodeIdString(rec); err != nil {
 		return err
 	} else {
 		// TODO: verify doesn't already exist and id is consequitive
-		l.langCodeMap[str] = id
-	}
-	return nil
-}
-
-// rec is: varint(userId) string
-func (l *TranslationLog) decodeNewUserNameRecord(rec []byte) error {
-	if id, str, err := decodeIdString(rec); err != nil {
-		return err
-	} else {
-		// TODO: verify doesn't already exist and id is consequitive
-		l.userNameMap[str] = id
-	}
-	return nil
-}
-
-// rec is: varint(stringId) string
-func (l *TranslationLog) decodeNewStringRecord(rec []byte) error {
-	if id, str, err := decodeIdString(rec); err != nil {
-		return err
-	} else {
-		// TODO: verify doesn't already exist and id is consequitive
-		l.stringMap[str] = id
+		dict[str] = id
 	}
 	return nil
 }
 
 // rec is: varint(stringId)
-func (l *TranslationLog) decodeStringDeleteRecord(rec []byte) error {
+func (s *EncoderDecoderState) decodeStringDeleteRecord(rec []byte) error {
 	id, n := binary.Varint(rec)
 	if n != len(rec) {
 		panic("decodeStringDeleteRecord")
 		return errorRecordMalformed
 	}
 	// TODO: make sure doesn't already exist
-	l.deletedStrings[int(id)] = true
+	s.deletedStrings[int(id)] = true
 	return nil
 }
 
 // rec is: varint(stringId)
-func (l *TranslationLog) decodeStringUndeleteRecord(rec []byte) error {
+func (s *EncoderDecoderState) decodeStringUndeleteRecord(rec []byte) error {
 	id, n := binary.Varint(rec)
 	if n != len(rec) {
 		panic("decodeStringUndeleteRecord")
 		return errorRecordMalformed
 	}
 	// TODO: make sure exists
-	delete(l.deletedStrings, int(id))
+	delete(s.deletedStrings, int(id))
 	return nil
 }
 
 // rec is: varint(stringId) varint(userId) varint(langId) string
-func (l *TranslationLog) decodeNewTranslation(rec []byte) error {
+func (s *EncoderDecoderState) decodeNewTranslation(rec []byte) error {
 	var stringId, userId, langId int64
 	var n int
 
@@ -299,7 +292,7 @@ func (l *TranslationLog) decodeNewTranslation(rec []byte) error {
 
 	userId, n = binary.Varint(rec)
 	if n <= 0 || n == len(rec) {
-		panic("decodeNewTranslation2")		
+		panic("decodeNewTranslation2")
 		return errorRecordMalformed
 	}
 	rec = rec[n:]
@@ -310,13 +303,13 @@ func (l *TranslationLog) decodeNewTranslation(rec []byte) error {
 		return errorRecordMalformed
 	}
 	translation := string(rec[n:])
-	l.addTranslationRec(int(langId), int(userId), int(stringId), translation)
+	s.addTranslationRec(int(langId), int(userId), int(stringId), translation)
 	return nil
 }
 
 var recNo int
 
-func (l *TranslationLog) decodeRecord(rec []byte) error {
+func (s *EncoderDecoderState) decodeRecord(rec []byte) error {
 	fmt.Printf("decodeRecord %d\n", recNo)
 	recNo++
 	if 0 == len(rec) {
@@ -326,52 +319,49 @@ func (l *TranslationLog) decodeRecord(rec []byte) error {
 	t := rec[0]
 	switch t {
 	case newLangIdRec:
-		return l.decodeNewLangIdRecord(rec[1:])
+		return decodeStrIdRecord(rec[1:], s.langCodeMap)
 	case newUserNameIdRec:
-		return l.decodeNewUserNameRecord(rec[1:])
+		return decodeStrIdRecord(rec[1:], s.userNameMap)
 	case newStringIdRec:
-		return l.decodeNewStringRecord(rec[1:])
+		return decodeStrIdRecord(rec[1:], s.stringMap)
 	case strDelRec:
-		return l.decodeStringDeleteRecord(rec[1:])
+		return s.decodeStringDeleteRecord(rec[1:])
 	case strUndelRec:
-		return l.decodeStringUndeleteRecord(rec[1:])
+		return s.decodeStringUndeleteRecord(rec[1:])
 	default:
-		return l.decodeNewTranslation(rec)
+		return s.decodeNewTranslation(rec)
 	}
 	return nil
 }
 
-func (l *TranslationLog) readExistingRecords() error {
-	var n int
-	r := &ByteReaderForFile{l.file}
-	buf := make([]byte, 0, 512)
+// TODO: optimize by passing in a buffer to fill instead of allocating a new
+// one every time?
+func readRecord(r *ReaderByteReader) ([]byte, error) {
+	n, err := readUVarintAsInt(r)
+	if err != nil {
+		log.Fatalf("readRecord(), err: %s", err.Error())
+	}
+	panicIf(0 == n, "recSize is 0")
+	buf := make([]byte, 0, n)
+	n, err = r.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf, err
+}
+
+func (s *EncoderDecoderState) readExistingRecords(r *ReaderByteReader) error {
 	for {
 		// TODO: not sure what to do about an error here
 		//lastValidOffset, _ := l.file.Seek(1, 0)
 		// TODO: could explicitly see if this is EOF by comparing lastValidOffset
 		// with file size. that would simplify error handling
-		tmp, err := binary.ReadUvarint(r)
+		buf, err := readRecord(r)
 		if err != nil {
-			log.Fatalf("readExistingRecords(), err: %s", err.Error())
-			if err == io.EOF {
-				// TODO: probably truncate if len != 0, as that might indicate
-				// EOF in the middle of reading the varint
-				return nil
-			}
+			// TODO: do something on error
+			panic("readExistingRecords")
 		}
-		recSize := int(tmp)
-		if 0 == recSize {
-			panic("recSize is 0")
-		}
-		if recSize > cap(buf) {
-			buf = make([]byte, 0, recSize)
-		}
-		n, err = l.file.Read(buf[0:recSize])
-		if err != nil || n != recSize {
-			// TODO: truncate to lastValidOffset and return nil
-			return err
-		}
-		err = l.decodeRecord(buf[0:recSize])
+		err = s.decodeRecord(buf)
 		if err != nil {
 			return err
 		}
@@ -379,4 +369,3 @@ func (l *TranslationLog) readExistingRecords() error {
 	panic("not reached")
 	return nil
 }
-
