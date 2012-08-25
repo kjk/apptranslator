@@ -185,12 +185,13 @@ func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang,
 }
 
 func NewEncoderDecoderState() *EncoderDecoderState {
-	s := &EncoderDecoderState{}
-	s.langCodeMap = make(map[string]int)
-	s.userNameMap = make(map[string]int)
-	s.stringMap = make(map[string]int)
-	s.translations = make([]TranslationRec, 0)
-	s.deletedStrings = make(map[int]bool)
+	s := &EncoderDecoderState{
+		langCodeMap:    make(map[string]int),
+		userNameMap:    make(map[string]int),
+		stringMap:      make(map[string]int),
+		translations:   make([]TranslationRec, 0),
+		deletedStrings: make(map[int]bool),
+	}
 	return s
 }
 
