@@ -180,7 +180,7 @@ func (s *EncoderDecoderState) deleteString(w io.Writer, str string) error {
 		if err := writeDeleteStringRecord(w, strId); err != nil {
 			return err
 		}
-		s.deletedStrings[strId] = true		
+		s.deletedStrings[strId] = true
 	}
 	return nil
 }
@@ -188,7 +188,7 @@ func (s *EncoderDecoderState) deleteString(w io.Writer, str string) error {
 func (s *EncoderDecoderState) undeleteString(w io.Writer, str string) error {
 	if strId, ok := s.stringMap[str]; !ok {
 		log.Fatalf("undeleteString() '%s' doesn't exist in stringMap\n", str)
-	} else {	
+	} else {
 		if _, ok := s.deletedStrings[strId]; !ok {
 			log.Fatalf("undeleteString(): strId=%d doesn't exist in deletedStrings\n", strId)
 		}
