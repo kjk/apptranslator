@@ -36,7 +36,7 @@ var (
 
 	config = struct {
 		TwitterOAuthCredentials *oauth.Credentials
-		App                     *AppConfig
+		Apps                    []AppConfig
 		CookieAuthKeyHexStr     *string
 		CookieEncrKeyHexStr     *string
 	}{
@@ -1050,10 +1050,12 @@ func main() {
 		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err.Error())
 	}
 
-	app := NewApp(config.App)
-	if err := addApp(app); err != nil {
-		log.Fatalf("Failed to add the app: %s, err: %s\n", app.config.Name, err.Error())
-		return
+	for _, appData := range config.Apps {
+		app := NewApp(&appData)
+		if err := addApp(app); err != nil {
+			log.Fatalf("Failed to add the app: %s, err: %s\n", app.config.Name, err.Error())
+			return
+		}
 	}
 
 	// for testing, add a dummy app if no apps exist
