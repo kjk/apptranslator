@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sync"
 )
 
 // Translation log is append-only file. It consists of records. Each record
@@ -79,6 +80,9 @@ type TranslationLog struct {
 	state    *EncoderDecoderState
 	filePath string
 	file     *os.File
+
+	// protects writing translations
+	mu         sync.Mutex
 }
 
 var errorRecordMalformed = errors.New("Record malformed")
@@ -232,33 +236,43 @@ func NewEncoderDecoderState() *EncoderDecoderState {
 }
 
 func NewTranslationLog(path string) (*TranslationLog, error) {
-	existing := true
-	file, err := os.Open(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			file, err = os.Create(path)
-			if err != nil {
-				return nil, err
-			}
-			existing = false
+	state := NewEncoderDecoderState()
+	if FileExists(path) {
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
 		}
-	}
-	l := &TranslationLog{filePath: path, file: file}
-	l.state = NewEncoderDecoderState()
-	if existing {
-		r := &ReaderByteReader{file}
-		err = l.state.readExistingRecords(r)
-		if nil != err {
-			l.close()
+		err = state.readExistingRecords(&ReaderByteReader{file})
+		file.Close()
+		if err != nil {
 			log.Fatalf("Failed to read log '%s', err: %s\n", path, err.Error())
 		}
+	} else {
+		file, err := os.Create(path)
+		if err != nil {
+			return nil, err
+		}
+		file.Close()
 	}
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Printf("NewTranslationLog(): failed to open file '%s', %s\n", path, err.Error())
+		return nil, err
+	}
+	l := &TranslationLog{filePath: path, file: file}
+	l.state = state
 	return l, nil
 }
 
 func (l *TranslationLog) close() {
 	l.file.Close()
 	l.file = nil
+}
+
+func (l *TranslationLog) writeNewTranslation(txt, trans, lang, user string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.writeNewTranslation(l.file, txt, trans, lang, user)
 }
 
 func decodeIdString(rec []byte) (int, string, error) {

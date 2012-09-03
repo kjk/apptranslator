@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
+	"os"
 )
 
 func errIf(t *testing.T, cond bool, msg string) {
@@ -12,21 +13,16 @@ func errIf(t *testing.T, cond bool, msg string) {
 	}
 }
 
-func TestTransLog(t *testing.T) {
-	var buf bytes.Buffer
-
-	s := NewEncoderDecoderState()
+func ensureStateEmpty(t *testing.T, s *EncoderDecoderState) {
 	if len(s.langCodeMap) != 0 {
 		t.Fatal("len(s.langCodeMap)=", len(s.langCodeMap), ", expected: 0")
 	}
 	if len(s.translations) != 0 {
 		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 0")
 	}
+}
 
-	err := s.writeNewTranslation(&buf, "foo", "foo-us", "us", "user1")
-	if err != nil {
-		t.Fatal(err)
-	}
+func ensureStateAfter1(t *testing.T, s *EncoderDecoderState) {
 	if len(s.langCodeMap) != 1 {
 		t.Fatal("len(s.langCodeMap)=", len(s.langCodeMap), ", expected: 1")
 	}
@@ -46,11 +42,9 @@ func TestTransLog(t *testing.T) {
 	if len(s.translations) != 1 {
 		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 1")
 	}
+}
 
-	err = s.writeNewTranslation(&buf, "foo", "foo-pl", "pl", "user1")
-	if err != nil {
-		t.Fatal(err)
-	}
+func ensureStateAfter2(t *testing.T, s *EncoderDecoderState) {
 	if len(s.langCodeMap) != 2 {
 		t.Fatal("len(s.langCodeMap)=", len(s.langCodeMap), ", expected: 2")
 	}
@@ -63,6 +57,62 @@ func TestTransLog(t *testing.T) {
 	if len(s.translations) != 2 {
 		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 2")
 	}
+}
+
+func NewTranslationLogEnsure(t *testing.T, path string) *TranslationLog {
+	l, err := NewTranslationLog(path)
+	if err != nil {
+		t.Fatal("Failed to create new trans_test.dat")
+	}
+	return l
+}
+
+// test appending to existing translation log works
+func TestTransLog2(t *testing.T) {
+	path := "transtest.dat"
+	os.Remove(path) // just in case
+
+	l := NewTranslationLogEnsure(t, path)
+	ensureStateEmpty(t, l.state)
+	err := l.writeNewTranslation("foo", "foo-us", "us", "user1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ensureStateAfter1(t, l.state)
+	l.close()
+
+	l = NewTranslationLogEnsure(t, path)
+	ensureStateAfter1(t, l.state)
+
+	err = l.writeNewTranslation("foo", "foo-pl", "pl", "user1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ensureStateAfter2(t, l.state)
+	l.close()
+
+	l = NewTranslationLogEnsure(t, path)
+	ensureStateAfter2(t, l.state)
+	l.close()
+}
+
+func TestTransLog(t *testing.T) {
+	var buf bytes.Buffer
+
+	s := NewEncoderDecoderState()
+	ensureStateEmpty(t, s)
+
+	err := s.writeNewTranslation(&buf, "foo", "foo-us", "us", "user1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ensureStateAfter1(t, s)
+
+	err = s.writeNewTranslation(&buf, "foo", "foo-pl", "pl", "user1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ensureStateAfter2(t, s)
 
 	err = s.writeNewTranslation(&buf, "bar", "bar-pl", "pl", "user1")
 	if err != nil {
@@ -89,10 +139,10 @@ func TestTransLog(t *testing.T) {
 	}
 
 	fmt.Printf("buf.Bytes()=%v\n", buf.Bytes())
-	s = NewEncoderDecoderState()
-	r := &ReaderByteReader{&buf}
 
-	err = s.readExistingRecords(r)
+	// test reading from scratch
+	s = NewEncoderDecoderState()
+	err = s.readExistingRecords(&ReaderByteReader{&buf})
 	if err != nil {
 		t.Fatal(err)
 	}
