@@ -303,10 +303,6 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
-func userIsAdmin(app *App, user string) bool {
-	return user == app.config.AdminTwitterUser
-}
-
 func buildModelApp(app *App, user string) *ModelApp {
 	model := &ModelApp{App: app, User: user, UserIsAdmin: userIsAdmin(app, user)}
 	// could use App.langInfos directly but it's not

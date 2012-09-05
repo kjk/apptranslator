@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"sync"
 )
 
@@ -452,6 +453,70 @@ func (s *EncoderDecoderState) readExistingRecords(r *ReaderByteReader) error {
 	return nil
 }
 
+type Translation struct {
+	String string
+	// last string is current translation, previous strings
+	// are a history of how translation changed
+	Translations []string
+}
+
+type LangInfo struct {
+	Code         string
+	Name         string
+	Translations []*Translation
+}
+
+// for sorting by name
+type LangInfoSeq []*LangInfo
+
+func (s LangInfoSeq) Len() int      { return len(s) }
+func (s LangInfoSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+type ByName struct{ LangInfoSeq }
+
+func (s ByName) Less(i, j int) bool { return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name }
+
+// for sorting by untranslated count
+type ByUntranslated struct{ LangInfoSeq }
+
+func (s ByUntranslated) Less(i, j int) bool {
+	l1 := s.LangInfoSeq[i].UntranslatedCount()
+	l2 := s.LangInfoSeq[j].UntranslatedCount()
+	if l1 != l2 {
+		return l1 > l2
+	}
+	// to make sort more stable, we compare by name if counts are the same
+	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
+}
+
+func NewLangInfo(langCode string) *LangInfo {
+	li := &LangInfo{Code: langCode, Name: LangNameByCode(langCode)}
+	return li
+}
+
+func (li *LangInfo) UntranslatedCount() int {
+	// TODO: write me
+	return 0
+}
+
+func (s *EncoderDecoderState) translationsForLang(langId int) []*Translation {
+	res := make([]*Translation, 0)
+	// TODO: write me
+	return res
+}
+
+func (s *EncoderDecoderState) langInfos() []*LangInfo {
+	res := make([]*LangInfo, 0)
+	for langCode, langId := range s.langCodeMap {
+		li := NewLangInfo(langCode)
+		li.Translations = s.translationsForLang(langId)
+		sort.Sort(ByString{li.Translations})
+		res = append(res, li)
+	}
+	sort.Sort(ByUntranslated{res})
+	return res
+}
+
 func NewTranslationLog(path string) (*TranslationLog, error) {
 	state := NewEncoderDecoderState()
 	if FileExists(path) {
@@ -508,4 +573,10 @@ func (l *TranslationLog) UntranslatedCount() int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.state.untranslatedCount()
+}
+
+func (l *TranslationLog) LangInfos() []*LangInfo {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.langInfos()
 }

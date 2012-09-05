@@ -339,6 +339,10 @@ func decodeTwitterTempFromCookie(r *http.Request) string {
 	return cookie.TwitterTemp
 }
 
+func userIsAdmin(app *App, user string) bool {
+	return user == app.config.AdminTwitterUser
+}
+
 // handler for url: GET /login?redirect=$redirect
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	redirect := strings.TrimSpace(r.FormValue("redirect"))
