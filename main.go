@@ -222,47 +222,6 @@ func readTranslationsFromLog(app *App) error {
 	return nil
 }
 
-type ModelMain struct {
-	Apps        *[]*App
-	User        string
-	UserIsAdmin bool
-	ErrorMsg    string
-	RedirectUrl string
-}
-
-type content struct {
-	ContentHTML template.HTML
-}
-
-type templateParser struct {
-	HTML string
-}
-
-func (tP *templateParser) Write(p []byte) (n int, err error) {
-	tP.HTML += string(p)
-	return len(p), nil
-}
-
-// handler for url: /
-func handleMain(w http.ResponseWriter, r *http.Request) {
-	if !isTopLevelUrl(r.URL.Path) {
-		serve404(w, r)
-		return
-	}
-	user := decodeUserFromCookie(r)
-	model := &ModelMain{Apps: &appState.Apps, User: user, UserIsAdmin: false, RedirectUrl: r.URL.String()}
-	tp := &templateParser{}
-	if err := GetTemplates().ExecuteTemplate(tp, tmplMain, model); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	content := &content{template.HTML(tp.HTML)}
-	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
 func readAppData(app *App) error {
 	if err := readTranslationsFromLog(app); err != nil {
 		return err

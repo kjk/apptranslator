@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"testing"
+	"io"
 	"os"
+	"testing"
 )
 
 func errIf(t *testing.T, cond bool, msg string) {
@@ -31,6 +32,13 @@ func ensureStringsCount(t *testing.T, s *EncoderDecoderState, expected int) {
 	}
 }
 
+func ensureUndeletedStringsCount(t *testing.T, s *EncoderDecoderState, expected int) {
+	n := s.stringsCount()
+	if n != expected {
+		t.Fatalf("len(s.stringsCount())=%d, expected: %d", s.stringsCount(), expected)
+	}
+}
+
 func ensureTranslationsCount(t *testing.T, s *EncoderDecoderState, expected int) {
 	if len(s.translations) != expected {
 		t.Fatalf("len(s.translations)=%d, expected: %d", len(s.translations), expected)
@@ -52,6 +60,12 @@ func ensureUserCode(t *testing.T, s *EncoderDecoderState, name string, expected 
 func ensureStringCode(t *testing.T, s *EncoderDecoderState, name string, expected int) {
 	if s.stringMap[name] != expected {
 		t.Fatalf("s.stringMap['%s']=%d, expected: %d", s.stringMap[name], expected)
+	}
+}
+
+func ensureDeletedCount(t *testing.T, s *EncoderDecoderState, expected int) {
+	if len(s.deletedStrings) != expected {
+		t.Fatalf("len(s.deletedStrings)=%d, expected: %d", len(s.deletedStrings), expected)
 	}
 }
 
@@ -83,7 +97,7 @@ func ensureStateAfter3(t *testing.T, s *EncoderDecoderState) {
 	ensureLangCode(t, s, "us", 1)
 	ensureUserCode(t, s, "user1", 1)
 	ensureLangCode(t, s, "pl", 2)
-	ensureTranslationsCount(t, s, 3)	
+	ensureTranslationsCount(t, s, 3)
 }
 
 func NewTranslationLogEnsure(t *testing.T, path string) *TranslationLog {
@@ -123,45 +137,42 @@ func TestTransLog2(t *testing.T) {
 	l.close()
 }
 
+func writeNewTranslationEnsure(t *testing.T, s *EncoderDecoderState, w io.Writer, s1, s2, s3, s4 string) {
+	err := s.writeNewTranslation(w, s1, s2, s3, s4)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTransLog(t *testing.T) {
 	var buf bytes.Buffer
+	var err error
 
 	s := NewEncoderDecoderState()
 	ensureStateEmpty(t, s)
 
-	err := s.writeNewTranslation(&buf, "foo", "foo-us", "us", "user1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	writeNewTranslationEnsure(t, s, &buf, "foo", "foo-us", "us", "user1")
 	ensureStateAfter1(t, s)
 
-	err = s.writeNewTranslation(&buf, "foo", "foo-pl", "pl", "user1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	writeNewTranslationEnsure(t, s, &buf, "foo", "foo-pl", "pl", "user1")
 	ensureStateAfter2(t, s)
 
-	err = s.writeNewTranslation(&buf, "bar", "bar-pl", "pl", "user1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	writeNewTranslationEnsure(t, s, &buf, "bar", "bar-pl", "pl", "user1")
 	ensureStateAfter3(t, s)
 
 	err = s.deleteString(&buf, "bar")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.deletedStrings) != 1 {
-		t.Fatal("len(s.deletedStrings)=", len(s.deletedStrings), ", expected: 1")
-	}
+	ensureDeletedCount(t, s, 1)
+	ensureUndeletedStringsCount(t, s, 1)
 
 	err = s.undeleteString(&buf, "bar")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.deletedStrings) != 0 {
-		t.Fatal("len(s.deletedStrings)=", len(s.deletedStrings), ", expected: 0")
-	}
+	ensureDeletedCount(t, s, 0)
+	ensureUndeletedStringsCount(t, s, 2)
 
 	fmt.Printf("buf.Bytes()=%v\n", buf.Bytes())
 

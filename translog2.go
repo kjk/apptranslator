@@ -63,7 +63,7 @@ const (
 
 var (
 	logging = false
-	recNo = 1
+	recNo   = 1
 )
 
 type TranslationRec struct {
@@ -79,6 +79,57 @@ type EncoderDecoderState struct {
 	stringMap      map[string]int
 	deletedStrings map[int]bool
 	translations   []TranslationRec
+}
+
+func (s *EncoderDecoderState) langsCount() int {
+	return len(s.langCodeMap)
+}
+
+func (s *EncoderDecoderState) stringsCount() int {
+	return len(s.stringMap) - len(s.deletedStrings)
+}
+
+func (s *EncoderDecoderState) isDeleted(strId int) bool {
+	_, exists := s.deletedStrings[strId]
+	return exists
+}
+
+func (s *EncoderDecoderState) translatedCountForLangs() map[int]int {
+	m := make(map[int][]bool)
+	totalStrings := len(s.stringMap)
+	for _, langId := range s.langCodeMap {
+		arr := make([]bool, totalStrings)
+		for i := 0; i < totalStrings; i++ {
+			arr[i] = false
+		}
+		m[langId] = arr
+	}
+	res := make(map[int]int)
+	for _, trec := range s.translations {
+		if !s.isDeleted(trec.stringId) {
+			arr := m[trec.langId]
+			arr[trec.stringId-1] = true
+		}
+	}
+	for langId, arr := range m {
+		count := 0
+		for _, isTranslated := range arr {
+			if isTranslated {
+				count += 1
+			}
+		}
+		res[langId] = count
+	}
+	return res
+}
+
+func (s *EncoderDecoderState) untranslatedCount() int {
+	n := 0
+	totalStrings := s.stringsCount()
+	for _, translatedCount := range s.translatedCountForLangs() {
+		n += (totalStrings - translatedCount)
+	}
+	return n
 }
 
 func (s *EncoderDecoderState) validLangId(id int) bool {
@@ -99,7 +150,7 @@ type TranslationLog struct {
 	file     *os.File
 
 	// protects writing translations
-	mu         sync.Mutex
+	mu sync.Mutex
 }
 
 var errorRecordMalformed = errors.New("Record malformed")
@@ -210,7 +261,7 @@ func (s *EncoderDecoderState) undeleteString(w io.Writer, str string) error {
 	if strId, ok := s.stringMap[str]; !ok {
 		log.Fatalf("undeleteString() '%s' doesn't exist in stringMap\n", str)
 	} else {
-		if _, ok := s.deletedStrings[strId]; !ok {
+		if !s.isDeleted(strId) {
 			log.Fatalf("undeleteString(): strId=%d doesn't exist in deletedStrings\n", strId)
 		}
 		if err := writeUndeleteStringRecord(w, strId); err != nil {
@@ -252,51 +303,11 @@ func NewEncoderDecoderState() *EncoderDecoderState {
 	return s
 }
 
-func NewTranslationLog(path string) (*TranslationLog, error) {
-	state := NewEncoderDecoderState()
-	if FileExists(path) {
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-		err = state.readExistingRecords(&ReaderByteReader{file})
-		file.Close()
-		if err != nil {
-			log.Fatalf("Failed to read log '%s', err: %s\n", path, err.Error())
-		}
-	} else {
-		file, err := os.Create(path)
-		if err != nil {
-			return nil, err
-		}
-		file.Close()
-	}
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_RDWR, 0666)
-	if err != nil {
-		fmt.Printf("NewTranslationLog(): failed to open file '%s', %s\n", path, err.Error())
-		return nil, err
-	}
-	l := &TranslationLog{filePath: path, file: file}
-	l.state = state
-	return l, nil
-}
-
-func (l *TranslationLog) close() {
-	l.file.Close()
-	l.file = nil
-}
-
-func (l *TranslationLog) writeNewTranslation(txt, trans, lang, user string) error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.state.writeNewTranslation(l.file, txt, trans, lang, user)
-}
-
 func decodeIdString(rec []byte) (int, string, error) {
 	id, n := binary.Uvarint(rec)
 	panicIf(n <= 0 || n == len(rec), "decodeIdString")
 	str := string(rec[n:])
-	if (logging) {
+	if logging {
 		fmt.Printf("decodeIdString(): rec %d, %s -> %d\n", recNo, str, id)
 	}
 	return int(id), str, nil
@@ -307,8 +318,8 @@ func decodeStrIdRecord(rec []byte, dict map[string]int, tp string) error {
 	if id, str, err := decodeIdString(rec); err != nil {
 		return err
 	} else {
-		if (logging) {
-			fmt.Printf("decode%sIdRecord(): rec %d, %s -> %v\n", recNo, tp, str, id)			
+		if logging {
+			fmt.Printf("decode%sIdRecord(): rec %d, %s -> %v\n", recNo, tp, str, id)
 		}
 		if _, exists := dict[str]; exists {
 			log.Fatalf("decodeStrIdRecord(): '%s' already exists in dict\n", str)
@@ -322,10 +333,10 @@ func decodeStrIdRecord(rec []byte, dict map[string]int, tp string) error {
 func (s *EncoderDecoderState) decodeStringDeleteRecord(rec []byte) error {
 	id, n := binary.Uvarint(rec)
 	panicIf(n != len(rec), "decodeStringDeleteRecord")
-	if _, exists := s.deletedStrings[int(id)]; exists {
+	if s.isDeleted(int(id)) {
 		log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
 	}
-	if (logging) {
+	if logging {
 		fmt.Printf("decodeStringDeleteRecord(): rec %d, %d\n", recNo, id)
 	}
 	s.deletedStrings[int(id)] = true
@@ -336,10 +347,10 @@ func (s *EncoderDecoderState) decodeStringDeleteRecord(rec []byte) error {
 func (s *EncoderDecoderState) decodeStringUndeleteRecord(rec []byte) error {
 	id, n := binary.Uvarint(rec)
 	panicIf(n != len(rec), "decodeStringUndeleteRecord")
-	if _, exists := s.deletedStrings[int(id)]; !exists {
+	if !s.isDeleted(int(id)) {
 		log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
 	}
-	if (logging) {
+	if logging {
 		fmt.Printf("decodeStringUndeleteRecord(): rec %d, %d\n", recNo, id)
 	}
 	delete(s.deletedStrings, int(id))
@@ -368,8 +379,8 @@ func (s *EncoderDecoderState) decodeNewTranslation(rec []byte) error {
 
 	translation := string(rec)
 	s.addTranslationRec(int(langId), int(userId), int(stringId), translation)
-	if (logging) {
-		fmt.Printf("decodeNewTranslation(): rec %d, %v, %v, %v, %s\n", recNo, langId, userId, stringId, translation)		
+	if logging {
+		fmt.Printf("decodeNewTranslation(): rec %d, %v, %v, %v, %s\n", recNo, langId, userId, stringId, translation)
 	}
 	return nil
 }
@@ -439,4 +450,62 @@ func (s *EncoderDecoderState) readExistingRecords(r *ReaderByteReader) error {
 	}
 	panic("not reached")
 	return nil
+}
+
+func NewTranslationLog(path string) (*TranslationLog, error) {
+	state := NewEncoderDecoderState()
+	if FileExists(path) {
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		err = state.readExistingRecords(&ReaderByteReader{file})
+		file.Close()
+		if err != nil {
+			log.Fatalf("Failed to read log '%s', err: %s\n", path, err.Error())
+		}
+	} else {
+		file, err := os.Create(path)
+		if err != nil {
+			return nil, err
+		}
+		file.Close()
+	}
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Printf("NewTranslationLog(): failed to open file '%s', %s\n", path, err.Error())
+		return nil, err
+	}
+	l := &TranslationLog{filePath: path, file: file}
+	l.state = state
+	return l, nil
+}
+
+func (l *TranslationLog) close() {
+	l.file.Close()
+	l.file = nil
+}
+
+func (l *TranslationLog) writeNewTranslation(txt, trans, lang, user string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.writeNewTranslation(l.file, txt, trans, lang, user)
+}
+
+func (l *TranslationLog) LangsCount() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.langsCount()
+}
+
+func (l *TranslationLog) StringsCount() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.stringsCount()
+}
+
+func (l *TranslationLog) UntranslatedCount() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.untranslatedCount()
 }

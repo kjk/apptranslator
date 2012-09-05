@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
-	"fmt"
 )
 
 var (
@@ -12,7 +12,7 @@ var (
 )
 
 type App struct {
-	config *AppConfig
+	config         *AppConfig
 	translationLog *TranslationLog
 }
 
@@ -29,6 +29,21 @@ func readAppData(app *App) error {
 	}
 	app.translationLog = l
 	return nil
+}
+
+// used in templates
+func (a *App) LangsCount() int {
+	return a.translationLog.LangsCount()
+}
+
+// used in templates
+func (a *App) StringsCount() int {
+	return a.translationLog.StringsCount()
+}
+
+// used in templates
+func (a *App) UntranslatedCount() int {
+	return a.translationLog.UntranslatedCount()
 }
 
 func main() {
@@ -55,6 +70,7 @@ func main() {
 	http.HandleFunc("/login", handleLogin)
 	http.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
 	http.HandleFunc("/logout", handleLogout)
+	http.HandleFunc("/", makeTimingHandler(handleMain))
 
 	fmt.Printf("Running on %s\n", *httpAddr)
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {

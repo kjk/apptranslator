@@ -3,19 +3,19 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"gorilla/securecookie"
+	"html/template"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
-	"html/template"
-	"strings"
-	"errors"
-	"fmt"
-	"time"
-	"flag"
-	"io/ioutil"
 	"oauth"
-	"log"
 	"path/filepath"
-	"gorilla/securecookie"
+	"strings"
+	"time"
 )
 
 const (
@@ -72,11 +72,11 @@ var (
 	// All in one place because I expect this data to be small
 	dataDir string
 
-	httpAddr   = flag.String("addr", ":8089", "HTTP server address")
+	httpAddr = flag.String("addr", ":8089", "HTTP server address")
 
 	staticDir = "static"
 
-	appState  = AppState{}
+	appState = AppState{}
 
 	tmplMain        = "main.html"
 	tmplApp         = "app.html"
@@ -86,7 +86,6 @@ var (
 	templatePaths   = make([]string, 0)
 	templates       *template.Template
 	reloadTemplates = true
-
 )
 
 // data dir is ../data on the server or ../apptranslatordata locally
@@ -167,6 +166,19 @@ func findApp(name string) *App {
 	return nil
 }
 
+type content struct {
+	ContentHTML template.HTML
+}
+
+type templateParser struct {
+	HTML string
+}
+
+func (tP *templateParser) Write(p []byte) (n int, err error) {
+	tP.HTML += string(p)
+	return len(p), nil
+}
+
 func GetTemplates() *template.Template {
 	if reloadTemplates || (nil == templates) {
 		if 0 == len(templatePaths) {
@@ -222,6 +234,33 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 	serveFileStatic(w, r, file)
 }
 
+type ModelMain struct {
+	Apps        *[]*App
+	User        string
+	UserIsAdmin bool
+	ErrorMsg    string
+	RedirectUrl string
+}
+
+// handler for url: /
+func handleMain(w http.ResponseWriter, r *http.Request) {
+	if !isTopLevelUrl(r.URL.Path) {
+		serve404(w, r)
+		return
+	}
+	user := decodeUserFromCookie(r)
+	model := &ModelMain{Apps: &appState.Apps, User: user, UserIsAdmin: false, RedirectUrl: r.URL.String()}
+	tp := &templateParser{}
+	if err := GetTemplates().ExecuteTemplate(tp, tmplMain, model); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	content := &content{template.HTML(tp.HTML)}
+	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
 
 type SecureCookieValue struct {
 	User        string
