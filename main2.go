@@ -8,29 +8,26 @@ import (
 )
 
 var (
-	configPath = flag.String("config", "secrets.json", "Path to configuration file")
+	configPath = flag.String("config", "secrets2.json", "Path to configuration file")
 )
 
 type App struct {
 	config *AppConfig
-
+	translationLog *TranslationLog
 }
 
 func NewApp(config *AppConfig) *App {
 	app := &App{config: config}
-	app.initData()
+	fmt.Printf("Created %s app\n", app.config.Name)
 	return app
 }
 
-func (app *App) initData() {
-	fmt.Printf("Created %s app\n", app.config.Name)
-}
-
 func readAppData(app *App) error {
-	//TODO: write me
-	//if err := readTranslationsFromLog(app); err != nil {
-	//	return err
-	//}
+	l, err := NewTranslationLog(app.translationLogFilePath())
+	if err != nil {
+		return err
+	}
+	app.translationLog = l
 	return nil
 }
 

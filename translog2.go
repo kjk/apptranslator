@@ -46,7 +46,7 @@ import (
 //
 // - record defining a single translation, format:
 //
-//   varint(stringId) varint(userId) varint(langId) string
+//   varint(langId) varint(userId) varint(stringId) string
 //
 //   TODO: remember time?
 //
@@ -74,6 +74,18 @@ type EncoderDecoderState struct {
 	stringMap      map[string]int
 	deletedStrings map[int]bool
 	translations   []TranslationRec
+}
+
+func (s *EncoderDecoderState) validLangId(id int) bool {
+	return (id >= 0) && (id <= len(s.langCodeMap))
+}
+
+func (s *EncoderDecoderState) validUserId(id int) bool {
+	return (id >= 0) && (id <= len(s.userNameMap))
+}
+
+func (s *EncoderDecoderState) validStringId(id int) bool {
+	return (id >= 0) && (id <= len(s.stringMap))
 }
 
 type TranslationLog struct {
@@ -279,15 +291,16 @@ func decodeIdString(rec []byte) (int, string, error) {
 	id, n := binary.Uvarint(rec)
 	panicIf(n <= 0 || n == len(rec), "decodeIdString")
 	str := string(rec[n:])
+	//fmt.Printf("decodeIdString(): %s -> %d\n", str, id)
 	return int(id), str, nil
 }
 
 // rec is: varint(langId) string
-func decodeStrIdRecord(rec []byte, dict map[string]int) error {
+func decodeStrIdRecord(rec []byte, dict map[string]int, tp string) error {
 	if id, str, err := decodeIdString(rec); err != nil {
 		return err
 	} else {
-		//fmt.Printf("decodeStrIdRecord(): %s -> %d\n", str, id)
+		fmt.Printf("decode%sIdRecord(): %s -> %v\n", tp, str, id)
 		if _, exists := dict[str]; exists {
 			log.Fatalf("decodeStrIdRecord(): '%s' already exists in dict\n", str)
 		}
@@ -301,8 +314,9 @@ func (s *EncoderDecoderState) decodeStringDeleteRecord(rec []byte) error {
 	id, n := binary.Uvarint(rec)
 	panicIf(n != len(rec), "decodeStringDeleteRecord")
 	if _, exists := s.deletedStrings[int(id)]; exists {
-		log.Fatalf("decodeStrIdRecord(): '%d' already exists in deletedString\n", id)
+		log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
 	}
+	fmt.Printf("decodeStringDeleteRecord(): %d\n", id)
 	s.deletedStrings[int(id)] = true
 	return nil
 }
@@ -314,7 +328,7 @@ func (s *EncoderDecoderState) decodeStringUndeleteRecord(rec []byte) error {
 	if _, exists := s.deletedStrings[int(id)]; !exists {
 		log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
 	}
-
+	fmt.Printf("decodeStringUndeleteRecord(): %d\n", id)
 	delete(s.deletedStrings, int(id))
 	return nil
 }
@@ -324,19 +338,24 @@ func (s *EncoderDecoderState) decodeNewTranslation(rec []byte) error {
 	var stringId, userId, langId uint64
 	var n int
 
-	stringId, n = binary.Uvarint(rec)
-	panicIf(n == 0 || n == len(rec), "decodeNewTranslation")
-
+	langId, n = binary.Uvarint(rec)
+	panicIf(n <= 0 || n == len(rec), "decodeNewTranslation3")
+	panicIf(!s.validLangId(int(langId)), "decodeNewTranslation(): !s.validLangId()")
 	rec = rec[n:]
 
 	userId, n = binary.Uvarint(rec)
 	panicIf(n == len(rec), "decodeNewTranslation2")
+	panicIf(!s.validUserId(int(userId)), "decodeNewTranslation(): !s.validUserId()")
 	rec = rec[n:]
 
-	langId, n = binary.Uvarint(rec)
-	panicIf(n <= 0 || n == len(rec), "decodeNewTranslation3")
-	translation := string(rec[n:])
+	stringId, n = binary.Uvarint(rec)
+	panicIf(n == 0 || n == len(rec), "decodeNewTranslation")
+	panicIf(!s.validStringId(int(stringId)), fmt.Sprintf("decodeNewTranslation(): !s.validStringId(%v)", stringId))
+	rec = rec[n:]
+
+	translation := string(rec)
 	s.addTranslationRec(int(langId), int(userId), int(stringId), translation)
+	fmt.Printf("decodeNewTranslation(): %v, %v, %v, %s\n", langId, userId, stringId, translation)
 	return nil
 }
 
@@ -350,11 +369,11 @@ func (s *EncoderDecoderState) decodeRecord(rec []byte) error {
 		t := rec[1]
 		switch t {
 		case newLangIdRec:
-			return decodeStrIdRecord(rec[2:], s.langCodeMap)
+			return decodeStrIdRecord(rec[2:], s.langCodeMap, "Lang")
 		case newUserNameIdRec:
-			return decodeStrIdRecord(rec[2:], s.userNameMap)
+			return decodeStrIdRecord(rec[2:], s.userNameMap, "User")
 		case newStringIdRec:
-			return decodeStrIdRecord(rec[2:], s.stringMap)
+			return decodeStrIdRecord(rec[2:], s.stringMap, "String")
 		case strDelRec:
 			return s.decodeStringDeleteRecord(rec[2:])
 		case strUndelRec:

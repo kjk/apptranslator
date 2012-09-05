@@ -154,6 +154,10 @@ func (app *App) Url() string {
 	return app.config.Url
 }
 
+func (a *App) translationLogFilePath() string {
+	return filepath.Join(filepath.Join(getDataDir(), a.config.DataDir), "translations.dat")
+}
+
 func findApp(name string) *App {
 	for _, app := range appState.Apps {
 		if app.config.Name == name {

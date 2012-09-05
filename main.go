@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -130,10 +129,6 @@ func (app *App) initData() {
 		}
 	}
 	fmt.Printf("Created %s app with %d langs\n", app.config.Name, len(app.langInfos))
-}
-
-func (a *App) translationLogFilePath() string {
-	return filepath.Join(filepath.Join(getDataDir(), a.config.DataDir), "translations.dat")
 }
 
 func (a *App) writeTranslationToLog(langCode, str, trans, user string) {
