@@ -339,17 +339,17 @@ func (s *EncoderDecoderState) decodeNewTranslation(rec []byte) error {
 	var n int
 
 	langId, n = binary.Uvarint(rec)
-	panicIf(n <= 0 || n == len(rec), "decodeNewTranslation3")
+	panicIf(n <= 0 || n == len(rec), "decodeNewTranslation() langId")
 	panicIf(!s.validLangId(int(langId)), "decodeNewTranslation(): !s.validLangId()")
 	rec = rec[n:]
 
 	userId, n = binary.Uvarint(rec)
-	panicIf(n == len(rec), "decodeNewTranslation2")
+	panicIf(n == len(rec), "decodeNewTranslation() userId")
 	panicIf(!s.validUserId(int(userId)), "decodeNewTranslation(): !s.validUserId()")
 	rec = rec[n:]
 
 	stringId, n = binary.Uvarint(rec)
-	panicIf(n == 0 || n == len(rec), "decodeNewTranslation")
+	panicIf(n == 0 || n == len(rec), "decodeNewTranslation() stringId")
 	panicIf(!s.validStringId(int(stringId)), fmt.Sprintf("decodeNewTranslation(): !s.validStringId(%v)", stringId))
 	rec = rec[n:]
 

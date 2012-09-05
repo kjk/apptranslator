@@ -13,50 +13,77 @@ func errIf(t *testing.T, cond bool, msg string) {
 	}
 }
 
+func ensureLangCount(t *testing.T, s *EncoderDecoderState, expected int) {
+	if len(s.langCodeMap) != expected {
+		t.Fatalf("len(s.langCodeMap)=%d, expected: %d", len(s.langCodeMap), expected)
+	}
+}
+
+func ensureUserCount(t *testing.T, s *EncoderDecoderState, expected int) {
+	if len(s.userNameMap) != expected {
+		t.Fatalf("len(s.userNameMap)=%d, expected: %d", len(s.userNameMap), expected)
+	}
+}
+
+func ensureStringsCount(t *testing.T, s *EncoderDecoderState, expected int) {
+	if len(s.stringMap) != expected {
+		t.Fatalf("len(s.stringMap)=%d, expected: %d", len(s.stringMap), expected)
+	}
+}
+
+func ensureTranslationsCount(t *testing.T, s *EncoderDecoderState, expected int) {
+	if len(s.translations) != expected {
+		t.Fatalf("len(s.translations)=%d, expected: %d", len(s.translations), expected)
+	}
+}
+
+func ensureLangCode(t *testing.T, s *EncoderDecoderState, name string, expected int) {
+	if s.langCodeMap[name] != expected {
+		t.Fatalf("s.langCodeMap['%s']=%d, expected: %d", s.langCodeMap[name], expected)
+	}
+}
+
+func ensureUserCode(t *testing.T, s *EncoderDecoderState, name string, expected int) {
+	if s.userNameMap[name] != expected {
+		t.Fatalf("s.userNameMap['%s']=%d, expected: %d", s.userNameMap[name], expected)
+	}
+}
+
+func ensureStringCode(t *testing.T, s *EncoderDecoderState, name string, expected int) {
+	if s.stringMap[name] != expected {
+		t.Fatalf("s.stringMap['%s']=%d, expected: %d", s.stringMap[name], expected)
+	}
+}
+
 func ensureStateEmpty(t *testing.T, s *EncoderDecoderState) {
-	if len(s.langCodeMap) != 0 {
-		t.Fatal("len(s.langCodeMap)=", len(s.langCodeMap), ", expected: 0")
-	}
-	if len(s.translations) != 0 {
-		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 0")
-	}
+	ensureLangCount(t, s, 0)
+	ensureUserCount(t, s, 0)
+	ensureStringsCount(t, s, 0)
 }
 
 func ensureStateAfter1(t *testing.T, s *EncoderDecoderState) {
-	if len(s.langCodeMap) != 1 {
-		t.Fatal("len(s.langCodeMap)=", len(s.langCodeMap), ", expected: 1")
-	}
-	if s.langCodeMap["us"] != 1 {
-		t.Fatal("s.langCodeMap['us']=", s.langCodeMap["us"], ", expected: 1")
-	}
-	if len(s.userNameMap) != 1 {
-		t.Fatalf("len(s.userNameMap)=%d, expected: 1", len(s.userNameMap))
-	}
-	if s.userNameMap["user1"] != 1 {
-		t.Fatalf("s.userNameMap['user1'], expected: 1", s.userNameMap["user1"])
-	}
-	if len(s.stringMap) != 1 {
-		t.Fatalf("len(s.stringMap)=%d, expected: 1", len(s.stringMap))
-	}
-
-	if len(s.translations) != 1 {
-		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 1")
-	}
+	ensureLangCount(t, s, 1)
+	ensureLangCode(t, s, "us", 1)
+	ensureUserCount(t, s, 1)
+	ensureUserCode(t, s, "user1", 1)
+	ensureStringsCount(t, s, 1)
+	ensureTranslationsCount(t, s, 1)
 }
 
 func ensureStateAfter2(t *testing.T, s *EncoderDecoderState) {
-	if len(s.langCodeMap) != 2 {
-		t.Fatal("len(s.langCodeMap)=", len(s.langCodeMap), ", expected: 2")
-	}
-	if s.langCodeMap["pl"] != 2 {
-		t.Fatal("s.langCodeMap['pl']=", s.langCodeMap["pl"], ", expected: 2")
-	}
-	if len(s.userNameMap) != 1 {
-		t.Fatalf("len(s.userNameMap)=%d, expected: 1", len(s.userNameMap))
-	}
-	if len(s.translations) != 2 {
-		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 2")
-	}
+	ensureLangCount(t, s, 2)
+	ensureLangCode(t, s, "pl", 2)
+	ensureUserCount(t, s, 1)
+	ensureTranslationsCount(t, s, 2)
+}
+
+func ensureStateAfter3(t *testing.T, s *EncoderDecoderState) {
+	ensureLangCount(t, s, 2)
+	ensureUserCount(t, s, 1)
+	ensureLangCode(t, s, "us", 1)
+	ensureUserCode(t, s, "user1", 1)
+	ensureLangCode(t, s, "pl", 2)
+	ensureTranslationsCount(t, s, 3)	
 }
 
 func NewTranslationLogEnsure(t *testing.T, path string) *TranslationLog {
@@ -118,9 +145,7 @@ func TestTransLog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.translations) != 3 {
-		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 3")
-	}
+	ensureStateAfter3(t, s)
 
 	err = s.deleteString(&buf, "bar")
 	if err != nil {
@@ -146,16 +171,5 @@ func TestTransLog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.langCodeMap) != 2 {
-		t.Fatal("len(s.langCodeMap)=", len(s.langCodeMap), ", expected: 2")
-	}
-	if s.langCodeMap["pl"] != 2 {
-		t.Fatal("s.langCodeMap['pl']=", s.langCodeMap["pl"], ", expected: 2")
-	}
-	if len(s.userNameMap) != 1 {
-		t.Fatalf("len(s.userNameMap)=%d, expected: 1", len(s.userNameMap))
-	}
-	if len(s.translations) != 3 {
-		t.Fatal("len(s.translations)=", len(s.translations), ", expected: 3")
-	}
+	ensureStateAfter3(t, s)
 }
