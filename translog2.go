@@ -61,6 +61,11 @@ const (
 	strUndelRec      = 5
 )
 
+var (
+	logging = false
+	recNo = 1
+)
+
 type TranslationRec struct {
 	langId      int
 	userId      int
@@ -291,7 +296,9 @@ func decodeIdString(rec []byte) (int, string, error) {
 	id, n := binary.Uvarint(rec)
 	panicIf(n <= 0 || n == len(rec), "decodeIdString")
 	str := string(rec[n:])
-	//fmt.Printf("decodeIdString(): %s -> %d\n", str, id)
+	if (logging) {
+		fmt.Printf("decodeIdString(): rec %d, %s -> %d\n", recNo, str, id)
+	}
 	return int(id), str, nil
 }
 
@@ -300,7 +307,9 @@ func decodeStrIdRecord(rec []byte, dict map[string]int, tp string) error {
 	if id, str, err := decodeIdString(rec); err != nil {
 		return err
 	} else {
-		fmt.Printf("decode%sIdRecord(): %s -> %v\n", tp, str, id)
+		if (logging) {
+			fmt.Printf("decode%sIdRecord(): rec %d, %s -> %v\n", recNo, tp, str, id)			
+		}
 		if _, exists := dict[str]; exists {
 			log.Fatalf("decodeStrIdRecord(): '%s' already exists in dict\n", str)
 		}
@@ -316,7 +325,9 @@ func (s *EncoderDecoderState) decodeStringDeleteRecord(rec []byte) error {
 	if _, exists := s.deletedStrings[int(id)]; exists {
 		log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
 	}
-	fmt.Printf("decodeStringDeleteRecord(): %d\n", id)
+	if (logging) {
+		fmt.Printf("decodeStringDeleteRecord(): rec %d, %d\n", recNo, id)
+	}
 	s.deletedStrings[int(id)] = true
 	return nil
 }
@@ -328,7 +339,9 @@ func (s *EncoderDecoderState) decodeStringUndeleteRecord(rec []byte) error {
 	if _, exists := s.deletedStrings[int(id)]; !exists {
 		log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
 	}
-	fmt.Printf("decodeStringUndeleteRecord(): %d\n", id)
+	if (logging) {
+		fmt.Printf("decodeStringUndeleteRecord(): rec %d, %d\n", recNo, id)
+	}
 	delete(s.deletedStrings, int(id))
 	return nil
 }
@@ -355,14 +368,13 @@ func (s *EncoderDecoderState) decodeNewTranslation(rec []byte) error {
 
 	translation := string(rec)
 	s.addTranslationRec(int(langId), int(userId), int(stringId), translation)
-	fmt.Printf("decodeNewTranslation(): %v, %v, %v, %s\n", langId, userId, stringId, translation)
+	if (logging) {
+		fmt.Printf("decodeNewTranslation(): rec %d, %v, %v, %v, %s\n", recNo, langId, userId, stringId, translation)		
+	}
 	return nil
 }
 
-var recNo = 1
-
 func (s *EncoderDecoderState) decodeRecord(rec []byte) error {
-	fmt.Printf("decodeRecord %d\n", recNo)
 	recNo++
 	panicIf(len(rec) < 2, "decodeRecord(), len(rec) < 2")
 	if 0 == rec[0] {

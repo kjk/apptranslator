@@ -245,10 +245,9 @@ func main() {
 		fmt.Printf("Error reading dir '%s', %s\n", dir, err.Error())
 		return
 	}
-	/* TODO: uncomment when reading is working
 	if FileExists(dataFileName) {
 		log.Fatalf("%s already exists", dataFileName)
-	}*/
+	}
 	translog, err := NewTranslationLog(dataFileName)
 	if translog == nil {
 		return
