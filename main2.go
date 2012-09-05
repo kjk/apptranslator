@@ -48,39 +48,6 @@ func (a *App) UntranslatedCount() int {
 	return a.translationLog.UntranslatedCount()
 }
 
-const (
-	stringCmpRemoveSet = ";,:()[]&_ "
-)
-
-func transStringLess(s1, s2 string) bool {
-	s1 = strings.Trim(s1, stringCmpRemoveSet)
-	s2 = strings.Trim(s2, stringCmpRemoveSet)
-	s1 = strings.ToLower(s1)
-	s2 = strings.ToLower(s2)
-	return s1 < s2
-}
-
-type TranslationSeq []*Translation
-
-func (s TranslationSeq) Len() int      { return len(s) }
-func (s TranslationSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-type ByString struct{ TranslationSeq }
-
-func (s ByString) Less(i, j int) bool {
-	s1 := s.TranslationSeq[i].String
-	s2 := s.TranslationSeq[j].String
-	trans1 := s.TranslationSeq[i].Current()
-	trans2 := s.TranslationSeq[j].Current()
-	if trans1 == "" && trans2 != "" {
-		return true
-	}
-	if trans2 == "" && trans1 != "" {
-		return false
-	}
-	return transStringLess(s1, s2)
-}
-
 type StringsSeq []string
 
 func (s StringsSeq) Len() int      { return len(s) }
@@ -90,26 +57,6 @@ type SmartString struct{ StringsSeq }
 
 func (s SmartString) Less(i, j int) bool {
 	return transStringLess(s.StringsSeq[i], s.StringsSeq[j])
-}
-
-func NewTranslation(s, trans string) *Translation {
-	t := &Translation{String: s}
-	t.Translations = make([]string, 0)
-	if trans != "" {
-		t.Translations = append(t.Translations, trans)
-	}
-	return t
-}
-
-func (t *Translation) Current() string {
-	if 0 == len(t.Translations) {
-		return ""
-	}
-	return t.Translations[len(t.Translations)-1]
-}
-
-func (t *Translation) updateTranslation(trans string) {
-	t.Translations = append(t.Translations, trans)
 }
 
 type ModelApp struct {
