@@ -1,23 +1,96 @@
 package main
 
 import (
-	"bufio"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"gorilla/securecookie"
 	"html/template"
-	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"oauth"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
 	configPath = flag.String("config", "secrets.json", "Path to configuration file")
+	cookieName = "ckie"
 )
+
+var (
+	oauthClient = oauth.Client{
+		TemporaryCredentialRequestURI: "https://api.twitter.com/oauth/request_token",
+		ResourceOwnerAuthorizationURI: "https://api.twitter.com/oauth/authenticate",
+		TokenRequestURI:               "https://api.twitter.com/oauth/access_token",
+	}
+
+	config = struct {
+		TwitterOAuthCredentials *oauth.Credentials
+		Apps                    []AppConfig
+		CookieAuthKeyHexStr     *string
+		CookieEncrKeyHexStr     *string
+	}{
+		&oauthClient.Credentials,
+		nil,
+		nil,
+		nil,
+	}
+
+	cookieAuthKey []byte
+	cookieEncrKey []byte
+	secureCookie  *securecookie.SecureCookie
+
+	// this is where we store information about users and translation.
+	// All in one place because I expect this data to be small
+	dataDir string
+
+	httpAddr = flag.String("addr", ":8089", "HTTP server address")
+
+	staticDir = "static"
+
+	appState = AppState{}
+
+	tmplMain        = "main.html"
+	tmplApp         = "app.html"
+	tmplAppTrans    = "apptrans.html"
+	tmplBase        = "base.html"
+	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans, tmplBase}
+	templatePaths   = make([]string, 0)
+	templates       *template.Template
+	reloadTemplates = true
+)
+
+// a static configuration of a single app
+type AppConfig struct {
+	Name string
+	// url for the application's website (shown in the UI)
+	Url     string
+	DataDir string
+	// we authenticate only with Twitter, this is the twitter user name
+	// of the admin user
+	AdminTwitterUser string
+	// an arbitrary string, used to protect the API for uploading new strings
+	// for the app
+	UploadSecret string
+}
+
+type User struct {
+	Login string
+}
 
 type App struct {
 	config         *AppConfig
 	translationLog *TranslationLog
+}
+
+type AppState struct {
+	Users []*User
+	Apps  []*App
 }
 
 func NewApp(config *AppConfig) *App {
@@ -50,6 +123,7 @@ func (a *App) UntranslatedCount() int {
 	return a.translationLog.UntranslatedCount()
 }
 
+/*
 type StringsSeq []string
 
 func (s StringsSeq) Len() int      { return len(s) }
@@ -60,274 +134,175 @@ type SmartString struct{ StringsSeq }
 func (s SmartString) Less(i, j int) bool {
 	return transStringLess(s.StringsSeq[i], s.StringsSeq[j])
 }
-
-type ModelAppTranslations struct {
-	App                      *App
-	LangInfo                 *LangInfo
-	User                     string
-	UserIsAdmin              bool
-	StringsCount             int
-	TransProgressPercent     int
-	ShowTranslationEditedMsg bool
-	RedirectUrl              string
-}
-
-func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTranslations {
-	model := &ModelAppTranslations{App: app, ShowTranslationEditedMsg: false, User: user, UserIsAdmin: userIsAdmin(app, user)}
-	modelApp := buildModelApp(app, user)
-	for _, langInfo := range modelApp.Langs {
-		if langInfo.Code == langCode {
-			model.LangInfo = langInfo
-			model.StringsCount = len(langInfo.Translations)
-			if 0 == model.StringsCount {
-				model.TransProgressPercent = 100
-			} else {
-				total := float32(model.StringsCount)
-				translated := float32(model.StringsCount - langInfo.UntranslatedCount())
-				perc := (100. * translated) / total
-				model.TransProgressPercent = int(perc)
-			}
-			return model
-		}
-	}
-	panic("buildModelAppTranslations() failed")
-}
-
-// handler for url: /app?name=$app&lang=$lang
-func handleAppTranslations(w http.ResponseWriter, r *http.Request, app *App, langCode string) {
-	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.config.Name, langCode)
-	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
-	model.RedirectUrl = r.URL.String()
-	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
-		fmt.Print(err.Error(), "\n")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-type ModelApp struct {
-	App         *App
-	Langs       []*LangInfo
-	User        string
-	UserIsAdmin bool
-	RedirectUrl string
-}
-
-func buildModelApp(app *App, user string) *ModelApp {
-	model := &ModelApp{App: app, User: user, UserIsAdmin: userIsAdmin(app, user)}
-	model.Langs = app.translationLog.LangInfos()
-	return model
-}
-
-// handler for url: /app?name=$app
-func handleApp(w http.ResponseWriter, r *http.Request) {
-	appName := strings.TrimSpace(r.FormValue("name"))
-	app := findApp(appName)
-	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application \"%s\" doesn't exist", appName))
-		return
-	}
-	lang := strings.TrimSpace(r.FormValue("lang"))
-	if IsValidLangCode(lang) {
-		handleAppTranslations(w, r, app, lang)
-		return
-	}
-
-	//fmt.Printf("handleApp() appName=%s\n", appName)
-	model := buildModelApp(app, decodeUserFromCookie(r))
-	model.RedirectUrl = r.URL.String()
-	tp := &templateParser{}
-	if err := GetTemplates().ExecuteTemplate(tp, tmplApp, model); err != nil {
-		fmt.Print(err.Error(), "\n")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	content := &content{template.HTML(tp.HTML)}
-	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-// handler for url: /edittranslation
-func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
-	appName := strings.TrimSpace(r.FormValue("app"))
-	app := findApp(appName)
-	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
-		return
-	}
-	langCode := strings.TrimSpace(r.FormValue("lang"))
-	if !IsValidLangCode(langCode) {
-		serveErrorMsg(w, fmt.Sprintf("Invalid lang code '%s'", langCode))
-		return
-	}
-	user := decodeUserFromCookie(r)
-	if user == "" {
-		serveErrorMsg(w, "User doesn't exist")
-		return
-	}
-	str := strings.TrimSpace(r.FormValue("string"))
-	translation := strings.TrimSpace(r.FormValue("translation"))
-	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'", str, translation, langCode)
-
-	if err := app.translationLog.writeNewTranslation(str, translation, langCode, user); err != nil {
-		serveErrorMsg(w, fmt.Sprintf("Failed to add a translation '%s'", err.Error()))
-		return
-	}
-	// TODO: use a redirect with message passed in as an argument
-	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
-	model.ShowTranslationEditedMsg = true
-	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
-		fmt.Print(err.Error(), "\n")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-type LangTrans struct {
-	lang  string
-	trans string
-}
-
-// handler for url: /downloadtranslations?name=$app
-// Returns plain/text response in the format:
-/*
-AppTranslator: $appName
-:string 1
-cv:translation for cv language
-pl:translation for pl language
-:string 2
-pl:translation for pl language
 */
-// This format is designed for easy parsing
-// TODO: allow for avoiding re-downloading of translations if they didn't
-// change via some ETag-like or content hash functionality
-func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
-	appName := strings.TrimSpace(r.FormValue("name"))
-	app := findApp(appName)
-	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
-		return
+
+// data dir is ../data on the server or ../apptranslatordata locally
+func getDataDir() string {
+	if dataDir != "" {
+		return dataDir
 	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(w, fmt.Sprintf("AppTranslator: %s\n", app.config.Name))
-	m := make(map[string][]LangTrans)
-	langInfos := app.translationLog.LangInfos()
-	for _, li := range langInfos {
-		code := li.Code
-		for _, t := range li.Translations {
-			if "" == t.Current() {
-				continue
-			}
-			s := t.String
-			l, exists := m[s]
-			if !exists {
-				l = make([]LangTrans, 0)
-			}
-			var lt LangTrans
-			lt.lang = code
-			lt.trans = t.Current()
-			l = append(l, lt)
-			m[s] = l
+	dataDir = filepath.Join("..", "apptranslatordata")
+	if FileExists(dataDir) {
+		return dataDir
+	}
+	dataDir = filepath.Join("..", "data")
+	if FileExists(dataDir) {
+		return dataDir
+	}
+	log.Fatal("data directory (../data or ../apptranslatordata) doesn't exist")
+	return ""
+}
+
+func appAlreadyExists(appName string) bool {
+	for _, app := range appState.Apps {
+		if app.config.Name == appName {
+			return true
 		}
 	}
+	return false
+}
 
-	for s, ltarr := range m {
-		io.WriteString(w, fmt.Sprintf(":%s\n", s))
-		for _, lt := range ltarr {
-			io.WriteString(w, fmt.Sprintf("%s:%s\n", lt.lang, lt.trans))
+func appInvalidField(app *App) string {
+	app.config.Name = strings.TrimSpace(app.config.Name)
+	if app.config.Name == "" {
+		return "Name"
+	}
+	if app.config.DataDir == "" {
+		return "DataDir"
+	}
+	if app.config.AdminTwitterUser == "" {
+		return "AdminTwitterUser"
+	}
+	if app.config.UploadSecret == "" {
+		return "UploadSecret"
+	}
+	return ""
+}
+
+func addApp(app *App) error {
+	if invalidField := appInvalidField(app); invalidField != "" {
+		return errors.New(fmt.Sprintf("App has invalid field '%s'", invalidField))
+	}
+	if appAlreadyExists(app.config.Name) {
+		return errors.New("App already exists")
+	}
+	if err := readAppData(app); err != nil {
+		return err
+	}
+	appState.Apps = append(appState.Apps, app)
+	return nil
+}
+
+func (app *App) Name() string {
+	return app.config.Name
+}
+
+func (app *App) Url() string {
+	return app.config.Url
+}
+
+func (a *App) translationLogFilePath() string {
+	return filepath.Join(filepath.Join(getDataDir(), a.config.DataDir), "translations.dat")
+}
+
+func findApp(name string) *App {
+	for _, app := range appState.Apps {
+		if app.config.Name == name {
+			return app
 		}
 	}
+	return nil
 }
 
-type CantParseError struct {
-	Msg    string
-	LineNo int
+type content struct {
+	ContentHTML template.HTML
 }
 
-func (e *CantParseError) Error() string {
-	return fmt.Sprintf("Error: %s on line %d", e.Msg, e.LineNo)
+type templateParser struct {
+	HTML string
 }
 
-func myReadLine(r *bufio.Reader) (string, error) {
-	line, isPrefix, err := r.ReadLine()
+func (tP *templateParser) Write(p []byte) (n int, err error) {
+	tP.HTML += string(p)
+	return len(p), nil
+}
+
+func GetTemplates() *template.Template {
+	if reloadTemplates || (nil == templates) {
+		if 0 == len(templatePaths) {
+			for _, name := range templateNames {
+				templatePaths = append(templatePaths, filepath.Join("tmpl", name))
+			}
+		}
+		templates = template.Must(template.ParseFiles(templatePaths...))
+	}
+	return templates
+}
+
+func isTopLevelUrl(url string) bool {
+	return 0 == len(url) || "/" == url
+}
+
+func serve404(w http.ResponseWriter, r *http.Request) {
+	//fmt.Fprint(w, `<html><body>Page Not Found!</body></html>`)
+	http.NotFound(w, r)
+}
+
+func serveErrorMsg(w http.ResponseWriter, msg string) {
+	fmt.Fprintf(w, `<html><body>Error: %s</body></html>`, msg)
+}
+
+func userIsAdmin(app *App, user string) bool {
+	return user == app.config.AdminTwitterUser
+}
+
+// readSecrets reads the configuration file from the path specified by
+// the config command line flag.
+func readSecrets(configFile string) error {
+	b, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		return "", err
+		return err
 	}
-	if isPrefix {
-		return "", &CantParseError{"Line too long", -1}
-	}
-	return string(line), nil
-}
-
-// returns nil on error
-func parseUploadedStrings(reader io.Reader) []string {
-	r := bufio.NewReaderSize(reader, 4*1024)
-	res := make([]string, 0)
-	parsedHeader := false
-	for {
-		line, err := myReadLine(r)
-		if err != nil {
-			if err == io.EOF {
-				if 0 == len(res) {
-					return nil
-				}
-				return res
-			}
-			return nil
-		}
-		if !parsedHeader {
-			// first line must be: AppTranslator strings
-			if line != "AppTranslator strings" {
-				fmt.Printf("parseUploadedStrings(): invalid first line: '%s'\n", line)
-				return nil
-			}
-			parsedHeader = true
-		} else {
-			if 0 == len(line) {
-				fmt.Printf("parseUploadedStrings(): encountered empty line\n")
-				return nil
-			}
-			res = append(res, line)
-		}
-	}
-	return res
-}
-
-// handler for url: POST /handleUploadStrings?app=$appName&secret=$uploadSecret
-// POST data is in the format:
-/*
-AppTranslator strings
-string to translate 1
-string to translate 2
-...
-*/
-func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
-	appName := strings.TrimSpace(r.FormValue("app"))
-	app := findApp(appName)
-	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
-		return
-	}
-	secret := strings.TrimSpace(r.FormValue("secret"))
-	if secret != app.config.UploadSecret {
-		serveErrorMsg(w, fmt.Sprintf("Invalid secret for app '%s'", appName))
-		return
-	}
-	file, _, err := r.FormFile("strings")
+	err = json.Unmarshal(b, &config)
 	if err != nil {
-		serveErrorMsg(w, fmt.Sprintf("No file with strings %s", err.Error()))
-		return
+		return err
 	}
-	defer file.Close()
-	newStrings := parseUploadedStrings(file)
-	if nil == newStrings {
-		serveErrorMsg(w, "Error parsing uploaded strings")
-		return
+	cookieAuthKey, err = hex.DecodeString(*config.CookieAuthKeyHexStr)
+	if err != nil {
+		return err
 	}
-	w.Write([]byte("Ok\n"))
+	cookieEncrKey, err = hex.DecodeString(*config.CookieEncrKeyHexStr)
+	if err != nil {
+		return err
+	}
+	secureCookie = securecookie.New(cookieAuthKey, cookieEncrKey)
+	// verify auth/encr keys are correct
+	val := map[string]string{
+		"foo": "bar",
+	}
+	_, err = secureCookie.Encode(cookieName, val)
+	if err != nil {
+		// for convenience, if the auth/encr keys are not set,
+		// generate valid, random value for them
+		auth := securecookie.GenerateRandomKey(32)
+		encr := securecookie.GenerateRandomKey(32)
+		fmt.Printf("auth: %s\nencr: %s\n", hex.EncodeToString(auth), hex.EncodeToString(encr))
+	}
+	// TODO: somehow verify twitter creds
+	return err
+}
+
+func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.Path
+		startTime := time.Now()
+		fn(w, r)
+		duration := time.Now().Sub(startTime)
+		if duration.Seconds() > 1.0 {
+			// TODO: log this information somewhere else, like a file
+			fmt.Printf("'%s' took %f seconds to serve\n", url, duration.Seconds())
+		}
+	}
 }
 
 func main() {
