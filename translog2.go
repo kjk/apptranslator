@@ -575,13 +575,22 @@ func (s *EncoderDecoderState) translationsForLang(langId int) ([]*Translation, i
 			translations[str] = t
 		}
 	}
+	translatedCount := len(translations)
+	// add records for untranslated strings
+	for str, strId := range s.stringMap {
+		if !s.isDeleted(strId) {
+			if _, exists := translations[str]; !exists {
+				translations[str] = &Translation{str, make([]string, 0)}
+			}
+		}
+	}
 	res := make([]*Translation, len(translations))
 	i := 0
 	for _, t := range translations {
 		res[i] = t
 		i++
 	}
-	return res, s.stringsCount() - len(translations)
+	return res, s.stringsCount() - translatedCount
 }
 
 func (s *EncoderDecoderState) langInfos() []*LangInfo {
