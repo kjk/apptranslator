@@ -2,264 +2,52 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"sort"
 	"strings"
-	"sync"
 )
 
 var (
 	configPath = flag.String("config", "secrets.json", "Path to configuration file")
 )
 
-type Translation struct {
-	String string
-	// last string is current translation, previous strings
-	// are a history of how translation changed
-	Translations []string
-}
-
-func NewTranslation(s, trans string) *Translation {
-	t := &Translation{String: s}
-	t.Translations = make([]string, 0)
-	if trans != "" {
-		t.Translations = append(t.Translations, trans)
-	}
-	return t
-}
-
-func (t *Translation) Current() string {
-	if 0 == len(t.Translations) {
-		return ""
-	}
-	return t.Translations[len(t.Translations)-1]
-}
-
-func (t *Translation) updateTranslation(trans string) {
-	t.Translations = append(t.Translations, trans)
-}
-
-type LangInfo struct {
-	Code         string
-	Name         string
-	Translations []*Translation
-
-	untranslatedCount int
-}
-
-func NewLangInfo(langCode string) *LangInfo {
-	li := &LangInfo{Code: langCode, Name: LangNameByCode(langCode)}
-	li.Translations = make([]*Translation, 0)
-	return li
-}
-
-func (li *LangInfo) updateUntranslatedCount() {
-	n := 0
-	for _, t := range li.Translations {
-		if len(t.Translations) == 0 {
-			n++
-		}
-	}
-	li.untranslatedCount = n
-}
-
-func (li *LangInfo) UntranslatedCount() int {
-	return li.untranslatedCount
-}
-
-func (li *LangInfo) appendTranslation(str, trans string) {
-	t := NewTranslation(str, trans)
-	li.Translations = append(li.Translations, t)
-	li.updateUntranslatedCount()
-}
-
-func (li *LangInfo) addTranslation(str, translation string) {
-	for _, t := range li.Translations {
-		if str == t.String {
-			t.updateTranslation(translation)
-			li.updateUntranslatedCount()
-			return
-		}
-	}
-	li.appendTranslation(str, translation)
-	li.updateUntranslatedCount()
-}
-
-func (li *LangInfo) addUntranslatedIfNotExists(str string) {
-	for _, t := range li.Translations {
-		if str == t.String {
-			return
-		}
-	}
-	li.appendTranslation(str, "")
-}
-
 type App struct {
-	config *AppConfig
-
-	// protects writing translations
-	mu         sync.Mutex
-	langInfos  []*LangInfo
-	allStrings map[string]bool
+	config         *AppConfig
+	translationLog *TranslationLog
 }
 
 func NewApp(config *AppConfig) *App {
 	app := &App{config: config}
-	app.initData()
+	fmt.Printf("Created %s app\n", app.config.Name)
 	return app
 }
 
-func (app *App) initData() {
-	if nil == app.allStrings {
-		app.allStrings = make(map[string]bool)
-	}
-	langsCount := len(Languages)
-	if nil == app.langInfos {
-		app.langInfos = make([]*LangInfo, langsCount, langsCount)
-		for i, lang := range Languages {
-			app.langInfos[i] = NewLangInfo(lang.Code)
-		}
-	}
-	fmt.Printf("Created %s app with %d langs\n", app.config.Name, len(app.langInfos))
-}
-
-func (a *App) writeTranslationToLog(langCode, str, trans, user string) {
-	//fmt.Printf("writeTranslationToLog %s:%s => %s\n", langCode, str, trans)
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	p := a.translationLogFilePath()
-	file, err := os.OpenFile(p, os.O_APPEND|os.O_RDWR, 0666)
+func readAppData(app *App) error {
+	l, err := NewTranslationLog(app.translationLogFilePath())
 	if err != nil {
-		fmt.Printf("writeTranslationToLog(): failed to open file '%s', %s\n", p, err.Error())
-		return
+		return err
 	}
-	defer file.Close()
-
-	/*_, err = file.Seek(0, 2)
-	if err != nil {
-		fmt.Printf("writeTranslationToLog(): seek failed %s\n", err.Error())
-		return
-	}*/
-	var logentry LogTranslationChange
-	logentry.LangCode = langCode
-	logentry.EnglishStr = str
-	logentry.NewTranslation = trans
-	logentry.User = user
-	encoder := json.NewEncoder(file)
-	// TODO: handle an error in some way (is there anything we can do)?
-	err = encoder.Encode(logentry)
-	if err != nil {
-		fmt.Printf("writeTranslationToLog(): encoder.Encode() failed %s\n", err.Error())
-		return
-	}
+	app.translationLog = l
+	return nil
 }
 
 // used in templates
 func (a *App) LangsCount() int {
-	return len(a.langInfos)
+	return a.translationLog.LangsCount()
 }
 
 // used in templates
 func (a *App) StringsCount() int {
-	if len(a.langInfos) == 0 {
-		return 0
-	}
-	return len(a.langInfos[0].Translations)
+	return a.translationLog.StringsCount()
 }
 
 // used in templates
 func (a *App) UntranslatedCount() int {
-	n := 0
-	for _, langInfo := range a.langInfos {
-		n += langInfo.UntranslatedCount()
-	}
-	return n
-}
-
-func (app *App) addTranslation(langCode, str, trans string, allowNew bool) {
-	obsolete, exists := app.allStrings[str]
-	if !exists {
-		if !allowNew {
-			fmt.Printf("addTranslation(): skipped %s because not allowing adding strings\n", str)
-			return
-		}
-		// if adding new, it's not obsolete, otherwise we preserve the
-		// previous value
-		obsolete = false
-	}
-	for _, li := range app.langInfos {
-		if li.Code == langCode {
-			li.addTranslation(str, trans)
-		} else {
-			li.addUntranslatedIfNotExists(str)
-		}
-	}
-	if !exists {
-		app.allStrings[str] = obsolete
-	}
-}
-
-// we ignore errors when reading
-func readTranslationsFromLog(app *App) error {
-	path := app.translationLogFilePath()
-	if !FileExists(path) {
-		return errors.New(fmt.Sprintf("Translations log '%s' doesn't exist", path))
-	}
-
-	translations := ReadTranslation(path)
-	for _, logentry := range translations {
-		app.addTranslation(logentry.LangCode, logentry.EnglishStr, logentry.NewTranslation, true)
-	}
-	fmt.Printf("Found %d translation log entries for app %s\n", len(translations), app.config.Name)
-	return nil
-}
-
-func readAppData(app *App) error {
-	if err := readTranslationsFromLog(app); err != nil {
-		return err
-	}
-	return nil
-}
-
-const (
-	stringCmpRemoveSet = ";,:()[]&_ "
-)
-
-func transStringLess(s1, s2 string) bool {
-	s1 = strings.Trim(s1, stringCmpRemoveSet)
-	s2 = strings.Trim(s2, stringCmpRemoveSet)
-	s1 = strings.ToLower(s1)
-	s2 = strings.ToLower(s2)
-	return s1 < s2
-}
-
-type TranslationSeq []*Translation
-
-func (s TranslationSeq) Len() int      { return len(s) }
-func (s TranslationSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-type ByString struct{ TranslationSeq }
-
-func (s ByString) Less(i, j int) bool {
-	s1 := s.TranslationSeq[i].String
-	s2 := s.TranslationSeq[j].String
-	trans1 := s.TranslationSeq[i].Current()
-	trans2 := s.TranslationSeq[j].Current()
-	if trans1 == "" && trans2 != "" {
-		return true
-	}
-	if trans2 == "" && trans1 != "" {
-		return false
-	}
-	return transStringLess(s1, s2)
+	return a.translationLog.UntranslatedCount()
 }
 
 type StringsSeq []string
@@ -271,51 +59,6 @@ type SmartString struct{ StringsSeq }
 
 func (s SmartString) Less(i, j int) bool {
 	return transStringLess(s.StringsSeq[i], s.StringsSeq[j])
-}
-
-type ModelApp struct {
-	App         *App
-	Langs       []*LangInfo
-	User        string
-	UserIsAdmin bool
-	RedirectUrl string
-}
-
-// so that we can sort ModelApp.Langs by name
-type LangInfoSeq []*LangInfo
-
-func (s LangInfoSeq) Len() int      { return len(s) }
-func (s LangInfoSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-type ByName struct{ LangInfoSeq }
-
-func (s ByName) Less(i, j int) bool { return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name }
-
-type ByUntranslated struct{ LangInfoSeq }
-
-func (s ByUntranslated) Less(i, j int) bool {
-	l1 := s.LangInfoSeq[i].UntranslatedCount()
-	l2 := s.LangInfoSeq[j].UntranslatedCount()
-	if l1 != l2 {
-		return l1 > l2
-	}
-	// to make sort more stable, we compare by name if counts are the same
-	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
-}
-
-func buildModelApp(app *App, user string) *ModelApp {
-	model := &ModelApp{App: app, User: user, UserIsAdmin: userIsAdmin(app, user)}
-	// could use App.langInfos directly but it's not
-	// thread safe and really should sort after update
-	// not on every read
-	model.Langs = make([]*LangInfo, 0)
-	for _, li := range app.langInfos {
-		// TODO: sort on insert
-		sort.Sort(ByString{li.Translations})
-		model.Langs = append(model.Langs, li)
-	}
-	sort.Sort(ByUntranslated{model.Langs})
-	return model
 }
 
 type ModelAppTranslations struct {
@@ -362,6 +105,20 @@ func handleAppTranslations(w http.ResponseWriter, r *http.Request, app *App, lan
 	}
 }
 
+type ModelApp struct {
+	App         *App
+	Langs       []*LangInfo
+	User        string
+	UserIsAdmin bool
+	RedirectUrl string
+}
+
+func buildModelApp(app *App, user string) *ModelApp {
+	model := &ModelApp{App: app, User: user, UserIsAdmin: userIsAdmin(app, user)}
+	model.Langs = app.translationLog.LangInfos()
+	return model
+}
+
 // handler for url: /app?name=$app
 func handleApp(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("name"))
@@ -375,6 +132,7 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 		handleAppTranslations(w, r, app, lang)
 		return
 	}
+
 	//fmt.Printf("handleApp() appName=%s\n", appName)
 	model := buildModelApp(app, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
@@ -387,6 +145,42 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 
 	content := &content{template.HTML(tp.HTML)}
 	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// handler for url: /edittranslation
+func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
+	appName := strings.TrimSpace(r.FormValue("app"))
+	app := findApp(appName)
+	if app == nil {
+		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
+		return
+	}
+	langCode := strings.TrimSpace(r.FormValue("lang"))
+	if !IsValidLangCode(langCode) {
+		serveErrorMsg(w, fmt.Sprintf("Invalid lang code '%s'", langCode))
+		return
+	}
+	user := decodeUserFromCookie(r)
+	if user == "" {
+		serveErrorMsg(w, "User doesn't exist")
+		return
+	}
+	str := strings.TrimSpace(r.FormValue("string"))
+	translation := strings.TrimSpace(r.FormValue("translation"))
+	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'", str, translation, langCode)
+
+	if err := app.translationLog.writeNewTranslation(str, translation, langCode, user); err != nil {
+		serveErrorMsg(w, fmt.Sprintf("Failed to add a translation '%s'", err.Error()))
+		return
+	}
+	// TODO: use a redirect with message passed in as an argument
+	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
+	model.ShowTranslationEditedMsg = true
+	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
+		fmt.Print(err.Error(), "\n")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -420,7 +214,8 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	io.WriteString(w, fmt.Sprintf("AppTranslator: %s\n", app.config.Name))
 	m := make(map[string][]LangTrans)
-	for _, li := range app.langInfos {
+	langInfos := app.translationLog.LangInfos()
+	for _, li := range langInfos {
 		code := li.Code
 		for _, t := range li.Translations {
 			if "" == t.Current() {
@@ -444,39 +239,6 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 		for _, lt := range ltarr {
 			io.WriteString(w, fmt.Sprintf("%s:%s\n", lt.lang, lt.trans))
 		}
-	}
-}
-
-// handler for url: /edittranslation
-func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
-	appName := strings.TrimSpace(r.FormValue("app"))
-	app := findApp(appName)
-	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
-		return
-	}
-	langCode := strings.TrimSpace(r.FormValue("lang"))
-	if !IsValidLangCode(langCode) {
-		serveErrorMsg(w, fmt.Sprintf("Invalid lang code '%s'", langCode))
-		return
-	}
-
-	user := decodeUserFromCookie(r)
-	if user == "" {
-		serveErrorMsg(w, "User doesn't exist")
-		return
-	}
-	str := strings.TrimSpace(r.FormValue("string"))
-	translation := strings.TrimSpace(r.FormValue("translation"))
-	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'", str, translation, langCode)
-	app.addTranslation(langCode, str, translation, false)
-	app.writeTranslationToLog(langCode, str, translation, user)
-	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
-	model.ShowTranslationEditedMsg = true
-	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
-		fmt.Print(err.Error(), "\n")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 }
 
@@ -587,15 +349,15 @@ func main() {
 		log.Fatalf("No apps defined in secrets.json")
 	}
 
+	http.HandleFunc("/s/", makeTimingHandler(handleStatic))
 	http.HandleFunc("/app", makeTimingHandler(handleApp))
-	http.HandleFunc("/downloadtranslations", makeTimingHandler(handleDownloadTranslations))
 	http.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
+	http.HandleFunc("/downloadtranslations", makeTimingHandler(handleDownloadTranslations))
 	http.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
 
 	http.HandleFunc("/login", handleLogin)
 	http.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
 	http.HandleFunc("/logout", handleLogout)
-
 	http.HandleFunc("/", makeTimingHandler(handleMain))
 
 	fmt.Printf("Running on %s\n", *httpAddr)
@@ -603,4 +365,5 @@ func main() {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err.Error())
 	}
 	fmt.Printf("Exited\n")
+
 }
