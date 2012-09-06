@@ -9,8 +9,8 @@ import (
 	"log"
 	"os"
 	"sort"
-	"sync"
 	"strings"
+	"sync"
 )
 
 // Translation log is append-only file. It consists of records. Each record
@@ -518,6 +518,7 @@ type LangInfo struct {
 	Code         string
 	Name         string
 	Translations []*Translation
+	untranslated int
 }
 
 // for sorting by name
@@ -543,28 +544,51 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
-
 func NewLangInfo(langCode string) *LangInfo {
 	li := &LangInfo{Code: langCode, Name: LangNameByCode(langCode)}
 	return li
 }
 
 func (li *LangInfo) UntranslatedCount() int {
-	// TODO: write me
-	return 0
+	return li.untranslated
 }
 
-func (s *EncoderDecoderState) translationsForLang(langId int) []*Translation {
-	res := make([]*Translation, 0)
-	// TODO: write me
-	return res
+func (s *EncoderDecoderState) translationsForLang(langId int) ([]*Translation, int) {
+	// for speed, create an id -> string map once to avoid traversing stringMap
+	// many times
+	idToStr := make(map[int]string)
+	for str, id := range s.stringMap {
+		idToStr[id] = str
+	}
+
+	translations := make(map[string]*Translation)
+	for _, rec := range s.translations {
+		if langId != rec.langId || s.isDeleted(rec.stringId) {
+			continue
+		}
+		str := idToStr[rec.stringId]
+		if tr, ok := translations[str]; ok {
+			tr.Translations = append(tr.Translations, rec.translation)
+		} else {
+			t := &Translation{str, make([]string, 1)}
+			t.Translations[0] = rec.translation
+			translations[str] = t
+		}
+	}
+	res := make([]*Translation, len(translations))
+	i := 0
+	for _, t := range translations {
+		res[i] = t
+		i++
+	}
+	return res, s.stringsCount() - len(translations)
 }
 
 func (s *EncoderDecoderState) langInfos() []*LangInfo {
 	res := make([]*LangInfo, 0)
 	for langCode, langId := range s.langCodeMap {
 		li := NewLangInfo(langCode)
-		li.Translations = s.translationsForLang(langId)
+		li.Translations, li.untranslated = s.translationsForLang(langId)
 		sort.Sort(ByString{li.Translations})
 		res = append(res, li)
 	}
