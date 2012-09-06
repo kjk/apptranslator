@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -184,6 +186,150 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type LangTrans struct {
+	lang  string
+	trans string
+}
+
+// handler for url: /downloadtranslations?name=$app
+// Returns plain/text response in the format:
+/*
+AppTranslator: $appName
+:string 1
+cv:translation for cv language
+pl:translation for pl language
+:string 2
+pl:translation for pl language
+*/
+// This format is designed for easy parsing
+// TODO: allow for avoiding re-downloading of translations if they didn't
+// change via some ETag-like or content hash functionality
+func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
+	appName := strings.TrimSpace(r.FormValue("name"))
+	app := findApp(appName)
+	if app == nil {
+		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	io.WriteString(w, fmt.Sprintf("AppTranslator: %s\n", app.config.Name))
+	m := make(map[string][]LangTrans)
+	langInfos := app.translationLog.LangInfos()
+	for _, li := range langInfos {
+		code := li.Code
+		for _, t := range li.Translations {
+			if "" == t.Current() {
+				continue
+			}
+			s := t.String
+			l, exists := m[s]
+			if !exists {
+				l = make([]LangTrans, 0)
+			}
+			var lt LangTrans
+			lt.lang = code
+			lt.trans = t.Current()
+			l = append(l, lt)
+			m[s] = l
+		}
+	}
+
+	for s, ltarr := range m {
+		io.WriteString(w, fmt.Sprintf(":%s\n", s))
+		for _, lt := range ltarr {
+			io.WriteString(w, fmt.Sprintf("%s:%s\n", lt.lang, lt.trans))
+		}
+	}
+}
+
+type CantParseError struct {
+	Msg    string
+	LineNo int
+}
+
+func (e *CantParseError) Error() string {
+	return fmt.Sprintf("Error: %s on line %d", e.Msg, e.LineNo)
+}
+
+func myReadLine(r *bufio.Reader) (string, error) {
+	line, isPrefix, err := r.ReadLine()
+	if err != nil {
+		return "", err
+	}
+	if isPrefix {
+		return "", &CantParseError{"Line too long", -1}
+	}
+	return string(line), nil
+}
+
+// returns nil on error
+func parseUploadedStrings(reader io.Reader) []string {
+	r := bufio.NewReaderSize(reader, 4*1024)
+	res := make([]string, 0)
+	parsedHeader := false
+	for {
+		line, err := myReadLine(r)
+		if err != nil {
+			if err == io.EOF {
+				if 0 == len(res) {
+					return nil
+				}
+				return res
+			}
+			return nil
+		}
+		if !parsedHeader {
+			// first line must be: AppTranslator strings
+			if line != "AppTranslator strings" {
+				fmt.Printf("parseUploadedStrings(): invalid first line: '%s'\n", line)
+				return nil
+			}
+			parsedHeader = true
+		} else {
+			if 0 == len(line) {
+				fmt.Printf("parseUploadedStrings(): encountered empty line\n")
+				return nil
+			}
+			res = append(res, line)
+		}
+	}
+	return res
+}
+
+// handler for url: POST /handleUploadStrings?app=$appName&secret=$uploadSecret
+// POST data is in the format:
+/*
+AppTranslator strings
+string to translate 1
+string to translate 2
+...
+*/
+func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
+	appName := strings.TrimSpace(r.FormValue("app"))
+	app := findApp(appName)
+	if app == nil {
+		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
+		return
+	}
+	secret := strings.TrimSpace(r.FormValue("secret"))
+	if secret != app.config.UploadSecret {
+		serveErrorMsg(w, fmt.Sprintf("Invalid secret for app '%s'", appName))
+		return
+	}
+	file, _, err := r.FormFile("strings")
+	if err != nil {
+		serveErrorMsg(w, fmt.Sprintf("No file with strings %s", err.Error()))
+		return
+	}
+	defer file.Close()
+	newStrings := parseUploadedStrings(file)
+	if nil == newStrings {
+		serveErrorMsg(w, "Error parsing uploaded strings")
+		return
+	}
+	w.Write([]byte("Ok\n"))
+}
+
 func main() {
 	flag.Parse()
 
@@ -206,6 +352,8 @@ func main() {
 	http.HandleFunc("/s/", makeTimingHandler(handleStatic))
 	http.HandleFunc("/app", makeTimingHandler(handleApp))
 	http.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
+	http.HandleFunc("/downloadtranslations", makeTimingHandler(handleDownloadTranslations))
+	http.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
 
 	http.HandleFunc("/login", handleLogin)
 	http.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
