@@ -656,3 +656,10 @@ func (l *TranslationLog) LangInfos() []*LangInfo {
 	defer l.mu.Unlock()
 	return l.state.langInfos()
 }
+
+// TODO: we ignore write errors
+func (l *TranslationLog) updateStringsList(newStrings []string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	// TODO: delete strings that no longer exists, un-delete if were deleted	
+}

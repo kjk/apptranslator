@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -62,7 +63,7 @@ func parseUploadedStrings(reader io.Reader) []string {
 	return res
 }
 
-// handler for url: POST /handleUploadStrings?app=$appName&secret=$uploadSecret
+// handler for url: POST /uploadstrings?app=$appName&secret=$uploadSecret
 // POST data is in the format:
 /*
 AppTranslator strings
@@ -71,6 +72,7 @@ string to translate 2
 ...
 */
 func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
+	//fmt.Printf("handleUploadStrings\n")
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)
 	if app == nil {
@@ -82,16 +84,12 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 		serveErrorMsg(w, fmt.Sprintf("Invalid secret for app '%s'", appName))
 		return
 	}
-	file, _, err := r.FormFile("strings")
-	if err != nil {
-		serveErrorMsg(w, fmt.Sprintf("No file with strings %s", err.Error()))
-		return
-	}
-	defer file.Close()
-	newStrings := parseUploadedStrings(file)
+	s := r.FormValue("strings")
+	//fmt.Printf("file:\n%s\n", file)
+	newStrings := parseUploadedStrings(bytes.NewBufferString(s))
 	if nil == newStrings {
 		serveErrorMsg(w, "Error parsing uploaded strings")
 		return
 	}
-	w.Write([]byte("Ok\n"))
+	app.translationLog.updateStringsList(newStrings)
 }

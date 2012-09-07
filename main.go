@@ -244,12 +244,11 @@ func isTopLevelUrl(url string) bool {
 }
 
 func serve404(w http.ResponseWriter, r *http.Request) {
-	//fmt.Fprint(w, `<html><body>Page Not Found!</body></html>`)
 	http.NotFound(w, r)
 }
 
 func serveErrorMsg(w http.ResponseWriter, msg string) {
-	fmt.Fprintf(w, `<html><body>Error: %s</body></html>`, msg)
+	http.Error(w, msg, http.StatusBadRequest)
 }
 
 func userIsAdmin(app *App, user string) bool {
@@ -340,5 +339,4 @@ func main() {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err.Error())
 	}
 	fmt.Printf("Exited\n")
-
 }
