@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"fmt"
+	_ "fmt"
 	"io"
 	"os"
 	"testing"
@@ -24,31 +24,65 @@ func (ts *TestState) getEncoderDecoderState() *EncoderDecoderState {
 	return ts.l.state
 }
 
+func (ts *TestState) getWriter() io.Writer {
+	if nil != ts.l {
+		return ts.l.file
+	}
+	return ts.w
+}
+
+func (ts *TestState) getStateWriter() (*EncoderDecoderState, io.Writer) {
+	return ts.getEncoderDecoderState(), ts.getWriter()
+}
+
+func (ts *TestState) writeNewTranslation(s1, s2, s3, s4 string) {
+	s, w := ts.getStateWriter()
+	if err := s.writeNewTranslation(w, s1, s2, s3, s4); err != nil {
+		ts.t.Fatal(err)
+	}
+}
+
+func (ts *TestState) deleteString(str string) {
+	s, w := ts.getStateWriter()
+	if err := s.deleteString(w, str); err != nil {
+		ts.t.Fatal(err)
+	}
+}
+
+func (ts *TestState) undeleteString(str string) {
+	s, w := ts.getStateWriter()
+	if err := s.undeleteString(w, str); err != nil {
+		ts.t.Fatal(err)
+	}
+}
+
+func (ts *TestState) updateStringsList(s []string) {
+	if err := ts.l.updateStringsList(s); err != nil {
+		ts.t.Fatal(err)
+	}
+}
+
 func (ts *TestState) ensureLangCount(expected int) {
-	s := ts.getEncoderDecoderState()
-	if len(s.langCodeMap) != expected {
+	if s := ts.getEncoderDecoderState(); len(s.langCodeMap) != expected {
 		ts.t.Fatalf("len(s.langCodeMap)=%d, expected: %d", len(s.langCodeMap), expected)
 	}
 }
 
 func (ts *TestState) ensureUserCount(expected int) {
-	s := ts.getEncoderDecoderState()
-	if len(s.userNameMap) != expected {
+	if s := ts.getEncoderDecoderState(); len(s.userNameMap) != expected {
 		ts.t.Fatalf("len(s.userNameMap)=%d, expected: %d", len(s.userNameMap), expected)
 	}
 }
 
 func (ts *TestState) ensureStringsCount(expected int) {
-	s := ts.getEncoderDecoderState()
-	if len(s.stringMap) != expected {
+	if s := ts.getEncoderDecoderState(); len(s.stringMap) != expected {
 		ts.t.Fatalf("len(s.stringMap)=%d, expected: %d", len(s.stringMap), expected)
 	}
 }
 
 func (ts *TestState) ensureUndeletedStringsCount(expected int) {
 	s := ts.getEncoderDecoderState()
-	n := s.stringsCount()
-	if n != expected {
+	if n := s.stringsCount(); n != expected {
 		ts.t.Fatalf("len(s.stringsCount())=%d, expected: %d", s.stringsCount(), expected)
 	}
 }
@@ -61,29 +95,25 @@ func (ts *TestState) ensureTranslationsCount(expected int) {
 }
 
 func (ts *TestState) ensureLangCode(name string, expected int) {
-	s := ts.getEncoderDecoderState()
-	if s.langCodeMap[name] != expected {
+	if s := ts.getEncoderDecoderState(); s.langCodeMap[name] != expected {
 		ts.t.Fatalf("s.langCodeMap['%s']=%d, expected: %d", s.langCodeMap[name], expected)
 	}
 }
 
 func (ts *TestState) ensureUserCode(name string, expected int) {
-	s := ts.getEncoderDecoderState()
-	if s.userNameMap[name] != expected {
+	if s := ts.getEncoderDecoderState(); s.userNameMap[name] != expected {
 		ts.t.Fatalf("s.userNameMap['%s']=%d, expected: %d", s.userNameMap[name], expected)
 	}
 }
 
 func (ts *TestState) ensureStringCode(name string, expected int) {
-	s := ts.getEncoderDecoderState()
-	if s.stringMap[name] != expected {
+	if s := ts.getEncoderDecoderState(); s.stringMap[name] != expected {
 		ts.t.Fatalf("s.stringMap['%s']=%d, expected: %d", s.stringMap[name], expected)
 	}
 }
 
 func (ts *TestState) ensureDeletedCount(expected int) {
-	s := ts.getEncoderDecoderState()
-	if len(s.deletedStrings) != expected {
+	if s := ts.getEncoderDecoderState(); len(s.deletedStrings) != expected {
 		ts.t.Fatalf("len(s.deletedStrings)=%d, expected: %d", len(s.deletedStrings), expected)
 	}
 }
@@ -119,52 +149,24 @@ func (ts *TestState) ensureStateAfter3() {
 	ts.ensureTranslationsCount(3)
 }
 
-func NewTranslationLogEnsure(t *testing.T, path string) *TranslationLog {
-	l, err := NewTranslationLog(path)
-	if err != nil {
+func (ts *TestState) ensureStringsAre(strs []string) {
+	ts.ensureUndeletedStringsCount(len(strs))
+	s := ts.getEncoderDecoderState()
+	for _, str := range strs {
+		if _, exist := s.stringMap[str]; !exist {
+			ts.t.Fatalf("'%s' doesn't exist in s.stringMap", str)
+		}
+	}
+
+}
+
+func NewTranslationLogTestState(t *testing.T, path string) *TestState {
+	if l, err := NewTranslationLog(path); err != nil {
 		t.Fatal("Failed to create new trans_test.dat")
+	} else {
+		return &TestState{t, l, nil, nil}
 	}
-	return l
-}
-
-// test appending to existing translation log works
-func TestTransLog2(t *testing.T) {
-	path := "transtest.dat"
-	os.Remove(path) // just in case
-
-	l := NewTranslationLogEnsure(t, path)
-	ts := &TestState{t, l, nil, nil}
-
-	ts.ensureStateEmpty()
-
-	err := l.writeNewTranslation("foo", "foo-us", "us", "user1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	ts.ensureStateAfter1()
-	l.close()
-
-	l = NewTranslationLogEnsure(t, path)
-	ts = &TestState{t, l, nil, nil}
-	ts.ensureStateAfter1()
-
-	err = l.writeNewTranslation("foo", "foo-pl", "pl", "user1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	ts.ensureStateAfter2()
-	l.close()
-
-	l = NewTranslationLogEnsure(t, path)
-	ts.ensureStateAfter2()
-	l.close()
-}
-
-func writeNewTranslationEnsure(t *testing.T, s *EncoderDecoderState, w io.Writer, s1, s2, s3, s4 string) {
-	err := s.writeNewTranslation(w, s1, s2, s3, s4)
-	if err != nil {
-		t.Fatal(err)
-	}
+	return nil
 }
 
 func TestTransLog(t *testing.T) {
@@ -175,39 +177,55 @@ func TestTransLog(t *testing.T) {
 	ts := &TestState{t, nil, s, &buf}
 	ts.ensureStateEmpty()
 
-	writeNewTranslationEnsure(t, s, &buf, "foo", "foo-us", "us", "user1")
+	ts.writeNewTranslation("foo", "foo-us", "us", "user1")
 	ts.ensureStateAfter1()
 
-	writeNewTranslationEnsure(t, s, &buf, "foo", "foo-pl", "pl", "user1")
+	ts.writeNewTranslation("foo", "foo-pl", "pl", "user1")
 	ts.ensureStateAfter2()
 
-	writeNewTranslationEnsure(t, s, &buf, "bar", "bar-pl", "pl", "user1")
+	ts.writeNewTranslation("bar", "bar-pl", "pl", "user1")
 	ts.ensureStateAfter3()
 
-	err = s.deleteString(&buf, "bar")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ts.deleteString("bar")
 	ts.ensureDeletedCount(1)
 	ts.ensureUndeletedStringsCount(1)
 
-	err = s.undeleteString(&buf, "bar")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ts.undeleteString("bar")
 	ts.ensureDeletedCount(0)
 	ts.ensureUndeletedStringsCount(2)
 
-	//newStrings := []string{"foo", "bar", "go"}
-	//ts.updateStringsListEnsure(newStrings)
-
-	fmt.Printf("buf.Bytes()=%v\n", buf.Bytes())
-
 	// test reading from scratch
 	s = NewEncoderDecoderState()
-	err = s.readExistingRecords(&ReaderByteReader{&buf})
-	if err != nil {
+	if err = s.readExistingRecords(&ReaderByteReader{&buf}); err != nil {
 		t.Fatal(err)
 	}
 	ts.ensureStateAfter3()
+}
+
+// test appending to existing translation log works
+func TestTransLog2(t *testing.T) {
+	path := "transtest.dat"
+	os.Remove(path) // just in case
+
+	ts := NewTranslationLogTestState(t, path)
+	ts.ensureStateEmpty()
+
+	ts.writeNewTranslation("foo", "foo-us", "us", "user1")
+	ts.ensureStateAfter1()
+	ts.l.close()
+
+	ts = NewTranslationLogTestState(t, path)
+	ts.ensureStateAfter1()
+
+	ts.writeNewTranslation("foo", "foo-pl", "pl", "user1")
+	ts.ensureStateAfter2()
+	ts.l.close()
+
+	ts = NewTranslationLogTestState(t, path)
+	ts.ensureStateAfter2()
+
+	ts.updateStringsList([]string{"foo", "bar", "go"})
+	ts.ensureStringsAre([]string{"foo", "bar", "go"})
+
+	ts.l.close()
 }

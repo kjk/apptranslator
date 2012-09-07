@@ -231,7 +231,7 @@ func writeUndeleteStringRecord(w io.Writer, strId int) error {
 
 // returns a unique integer 1..n for a given string
 // if the id hasn't been seen yet
-func uniquifyString(buf *bytes.Buffer, s string, dict map[string]int, recId int) int {
+func writeUniquifyStringRecord(buf *bytes.Buffer, s string, dict map[string]int, recId int) int {
 	if n, ok := dict[s]; ok {
 		return n
 	}
@@ -275,9 +275,9 @@ func (s *EncoderDecoderState) undeleteString(w io.Writer, str string) error {
 
 func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang, user string) error {
 	var recs bytes.Buffer
-	langId := uniquifyString(&recs, lang, s.langCodeMap, newLangIdRec)
-	userId := uniquifyString(&recs, user, s.userNameMap, newUserNameIdRec)
-	stringId := uniquifyString(&recs, txt, s.stringMap, newStringIdRec)
+	langId := writeUniquifyStringRecord(&recs, lang, s.langCodeMap, newLangIdRec)
+	userId := writeUniquifyStringRecord(&recs, user, s.userNameMap, newUserNameIdRec)
+	stringId := writeUniquifyStringRecord(&recs, txt, s.stringMap, newStringIdRec)
 
 	var b bytes.Buffer
 	writeUvarintToBuf(&b, langId)
@@ -291,6 +291,17 @@ func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang,
 	}
 	s.addTranslationRec(langId, userId, stringId, trans)
 	return nil
+}
+
+func (s *EncoderDecoderState) writeNewStringRecord(w io.Writer, str string) error {
+	var recs bytes.Buffer
+	writeUniquifyStringRecord(&recs, str, s.stringMap, newStringIdRec)
+	//fmt.Printf("%v\n", recs.Bytes())
+	_, err := w.Write(recs.Bytes())
+	if err != nil && logging {
+		fmt.Printf("writeNewStringRecord() failed with %s\n", err.Error())
+	}
+	return err
 }
 
 func NewEncoderDecoderState() *EncoderDecoderState {
@@ -657,9 +668,56 @@ func (l *TranslationLog) LangInfos() []*LangInfo {
 	return l.state.langInfos()
 }
 
-// TODO: we ignore write errors
-func (l *TranslationLog) updateStringsList(newStrings []string) {
+func (l *TranslationLog) updateStringsList(newStrings []string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	// TODO: delete strings that no longer exists, un-delete if were deleted	
+
+	// for faster detection if string exists in newStrings, build a hash
+	stringsHash := make(map[string]bool)
+	for _, s := range newStrings {
+		stringsHash[s] = true
+	}
+
+	toUndelete := make([]string, 0)
+	for _, s := range newStrings {
+		if strId, ok := l.state.stringMap[s]; ok {
+			if l.state.isDeleted(strId) {
+				toUndelete = append(toUndelete, s)
+			}
+		}
+	}
+
+	toDelete := make([]string, 0)
+	for str, _ := range l.state.stringMap {
+		if _, ok := stringsHash[str]; !ok {
+			toDelete = append(toDelete, str)
+		}
+	}
+
+	toAdd := make([]string, 0)
+	for str, _ := range stringsHash {
+		if _, ok := l.state.stringMap[str]; !ok {
+			toAdd = append(toAdd, str)
+		}
+	}
+
+	for _, str := range toUndelete {
+		fmt.Printf("updateStringsList(): undelete %s\n", str)
+		if err := l.state.undeleteString(l.file, str); err != nil {
+			return err
+		}
+	}
+	for _, str := range toDelete {
+		fmt.Printf("updateStringsList(): delete %s\n", str)
+		if err := l.state.deleteString(l.file, str); err != nil {
+			return err
+		}
+	}
+	for _, str := range toAdd {
+		fmt.Printf("updateStringsList(): add %s\n", str)
+		if err := l.state.writeNewStringRecord(l.file, str); err != nil {
+			return err
+		}
+	}
+	return nil
 }
