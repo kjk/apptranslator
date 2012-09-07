@@ -55,13 +55,15 @@ func setSecureCookie(w http.ResponseWriter, cookieVal *SecureCookieValue) {
 	}
 }
 
+const WeekInSeconds = 60*60*24*7
+
 // to delete the cookie value (e.g. for logging out), we need to set an
 // invalid value
 func deleteSecureCookie(w http.ResponseWriter) {
 	cookie := &http.Cookie{
 		Name:   cookieName,
 		Value:  "deleted",
-		MaxAge: -1,
+		MaxAge: WeekInSeconds,
 		Path:   "/",
 	}
 	http.SetCookie(w, cookie)
@@ -76,7 +78,10 @@ func getSecureCookie(r *http.Request) *SecureCookieValue {
 		}
 		val := make(map[string]string)
 		if err = secureCookie.Decode(cookieName, cookie.Value, &val); err != nil {
-			fmt.Printf("Error decoding cookie %s\n", err.Error())
+			// most likely expired cookie, so ignore. Ideally should delete the
+			// cookie, but that requires access to http.ResponseWriter, so not
+			// convenient for us
+			//fmt.Printf("Error decoding cookie %s\n", err.Error())
 			return nil
 		}
 		//fmt.Printf("Got cookie %q\n", val)
