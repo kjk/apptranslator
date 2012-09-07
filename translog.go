@@ -25,15 +25,15 @@ import (
 // We have several types of records:
 // - record interning a new language string, format:
 //
-//   byte(0) byte(1) varint(langId) string
+//   byte(0) byte(1) string
 //
 // - record interning a new user name string, format:
 //
-//   byte(0) byte(2) varint(userId) string
+//   byte(0) byte(2) string
 //
 // - record interning a new string for translation, format:
 //
-//   byte(0) byte(3) varint(stringId) string
+//   byte(0) byte(3) string
 //
 // - record denoting a given string has been "deleted" i.e. the app no longer
 //   needs the translation of that string. We don't delete past translations
@@ -204,11 +204,10 @@ func writeRecord(w io.Writer, rec []byte) error {
 	return err
 }
 
-func writeStringInternRecord(buf *bytes.Buffer, recId, n int, s string) {
+func writeStringInternRecord(buf *bytes.Buffer, recId int, s string) {
 	var b bytes.Buffer
 	b.WriteByte(0)
 	b.WriteByte(byte(recId))
-	writeUvarintToBuf(&b, n)
 	b.WriteString(s)
 	// ignoring error because writing to bytes.Buffer never fails
 	writeRecord(buf, b.Bytes())
@@ -238,7 +237,7 @@ func uniquifyString(buf *bytes.Buffer, s string, dict map[string]int, recId int)
 	}
 	n := len(dict) + 1
 	dict[s] = n
-	writeStringInternRecord(buf, recId, n, s)
+	writeStringInternRecord(buf, recId, s)
 	return n
 }
 
@@ -305,29 +304,18 @@ func NewEncoderDecoderState() *EncoderDecoderState {
 	return s
 }
 
-func decodeIdString(rec []byte) (int, string, error) {
-	id, n := binary.Uvarint(rec)
-	panicIf(n <= 0 || n == len(rec), "decodeIdString")
-	str := string(rec[n:])
+// rec is: string
+func decodeStrRecord(rec []byte, dict map[string]int, tp string) error {
+	str := string(rec)
+	// id is inferred from the order, starts at 1
+	id := len(dict) + 1
 	if logging {
-		fmt.Printf("decodeIdString(): rec %d, %s -> %d\n", recNo, str, id)
+		fmt.Printf("decodeStrRecord(): rec %d, %s -> %v in %s\n", recNo, str, id, tp)
 	}
-	return int(id), str, nil
-}
-
-// rec is: varint(langId) string
-func decodeStrIdRecord(rec []byte, dict map[string]int, tp string) error {
-	if id, str, err := decodeIdString(rec); err != nil {
-		return err
-	} else {
-		if logging {
-			fmt.Printf("decode%sIdRecord(): rec %d, %s -> %v\n", recNo, tp, str, id)
-		}
-		if _, exists := dict[str]; exists {
-			log.Fatalf("decodeStrIdRecord(): '%s' already exists in dict\n", str)
-		}
-		dict[str] = id
+	if _, exists := dict[str]; exists {
+		log.Fatalf("decodeStrRecord(): '%s' already exists in dict %s\n", str, tp)
 	}
+	dict[str] = id
 	return nil
 }
 
@@ -394,11 +382,11 @@ func (s *EncoderDecoderState) decodeRecord(rec []byte) error {
 		t := rec[1]
 		switch t {
 		case newLangIdRec:
-			return decodeStrIdRecord(rec[2:], s.langCodeMap, "Lang")
+			return decodeStrRecord(rec[2:], s.langCodeMap, "langCodeMap")
 		case newUserNameIdRec:
-			return decodeStrIdRecord(rec[2:], s.userNameMap, "User")
+			return decodeStrRecord(rec[2:], s.userNameMap, "userNameMap")
 		case newStringIdRec:
-			return decodeStrIdRecord(rec[2:], s.stringMap, "String")
+			return decodeStrRecord(rec[2:], s.stringMap, "stringMap")
 		case strDelRec:
 			return s.decodeStringDeleteRecord(rec[2:])
 		case strUndelRec:
