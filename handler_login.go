@@ -55,7 +55,7 @@ func setSecureCookie(w http.ResponseWriter, cookieVal *SecureCookieValue) {
 	}
 }
 
-const WeekInSeconds = 60*60*24*7
+const WeekInSeconds = 60 * 60 * 24 * 7
 
 // to delete the cookie value (e.g. for logging out), we need to set an
 // invalid value

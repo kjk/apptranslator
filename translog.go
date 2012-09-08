@@ -75,12 +75,67 @@ type TranslationRec struct {
 	translation string
 }
 
+type Edit struct {
+	Lang        string
+	User        string
+	Text        string
+	Translation string
+}
+
 type EncoderDecoderState struct {
 	langCodeMap    map[string]int
 	userNameMap    map[string]int
 	stringMap      map[string]int
 	deletedStrings map[int]bool
 	translations   []TranslationRec
+}
+
+// TODO: speed up by keeping all langs in array
+func (s *EncoderDecoderState) langById(langId int) string {
+	for str, id := range s.langCodeMap {
+		if id == langId {
+			return str
+		}
+	}
+	panic("didn't find the lang")
+}
+
+// TODO: speed up by keeping all users in array
+func (s *EncoderDecoderState) userById(userId int) string {
+	for str, id := range s.userNameMap {
+		if id == userId {
+			return str
+		}
+	}
+	panic("didn't find the user")
+}
+
+func (s *EncoderDecoderState) stringById(strId int) string {
+	for str, id := range s.stringMap {
+		if id == strId {
+			return str
+		}
+	}
+	panic("didn't find the string")
+}
+
+func (s *EncoderDecoderState) recentEdits(max int) []Edit {
+	n := max
+	transCount := len(s.translations)
+	if n > transCount {
+		n = transCount
+	}
+	res := make([]Edit, n, n)
+	for i := 0; i < n; i++ {
+		tr := &(s.translations[transCount-i-1])
+		var e Edit
+		e.Lang = s.langById(tr.langId)
+		e.User = s.userById(tr.userId)
+		e.Text = s.stringById(tr.stringId)
+		e.Translation = tr.translation
+		res[i] = e
+	}
+	return res
 }
 
 func (s *EncoderDecoderState) langsCount() int {
@@ -666,6 +721,12 @@ func (l *TranslationLog) LangInfos() []*LangInfo {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.state.langInfos()
+}
+
+func (l *TranslationLog) recentEdits(max int) []Edit {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.recentEdits(max)
 }
 
 func (l *TranslationLog) updateStringsList(newStrings []string) error {

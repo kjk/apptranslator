@@ -10,6 +10,7 @@ import (
 type ModelApp struct {
 	App         *App
 	Langs       []*LangInfo
+	RecentEdits []Edit
 	User        string
 	UserIsAdmin bool
 	RedirectUrl string
@@ -18,6 +19,7 @@ type ModelApp struct {
 func buildModelApp(app *App, user string) *ModelApp {
 	model := &ModelApp{App: app, User: user, UserIsAdmin: userIsAdmin(app, user)}
 	model.Langs = app.translationLog.LangInfos()
+	model.RecentEdits = app.translationLog.recentEdits(10)
 	return model
 }
 

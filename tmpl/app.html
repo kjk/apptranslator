@@ -8,13 +8,29 @@
 </header>
 
 {{$appName := .App.Name}}
-{{if len .Langs}}
-<p>Languages:</p>
-<ul>
-  {{range .Langs}}
-  <li><a href="/app?name={{$appName}}&lang={{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated strings)</li>
-  {{end}}
-</ul>
-{{else}}
-There are no languages!
-{{end}}
+
+<div>
+	<div id="langs" style="display: inline-block;">
+	{{if len .Langs}}
+	<p>Languages:</p>
+	<ul>
+	  {{range .Langs}}
+	  <li><a href="/app?name={{$appName}}&lang={{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated)</li>
+	  {{end}}
+	</ul>
+	{{else}}
+	There are no languages!
+	{{end}}
+	</div>
+
+	{{if len .RecentEdits}}
+	<div id="recentEdits" style="display: inline-block;vertical-align:top;">
+	<p>Recent translations:</p>
+	<ul>
+		{{range .RecentEdits}}
+		<li><a href="/user?name={{.User}}">{{.User}}</a>, translated '{{.Text}}' in <a href="/app?name={{$appName}}&lang={{.Lang}}">{{.Lang}}</a></li>
+		{{end}}
+	</ul>
+	</div>
+	{{end}}
+</div>
