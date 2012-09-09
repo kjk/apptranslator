@@ -82,6 +82,11 @@ type Edit struct {
 	Translation string
 }
 
+type Translator struct {
+	Name              string
+	TranslationsCount int
+}
+
 type EncoderDecoderState struct {
 	langCodeMap    map[string]int
 	userNameMap    map[string]int
@@ -134,6 +139,29 @@ func (s *EncoderDecoderState) recentEdits(max int) []Edit {
 		e.Text = s.stringById(tr.stringId)
 		e.Translation = tr.translation
 		res[i] = e
+	}
+	return res
+}
+
+func (s *EncoderDecoderState) translators() []Translator {
+	m := make(map[int]Translator)
+	for _, tr := range s.translations {
+		userId := tr.userId
+		if t, ok := m[userId]; ok {
+			t.TranslationsCount += 1
+		} else {
+			var t Translator
+			t.Name = s.userById(userId)
+			t.TranslationsCount = 1
+			m[userId] = t
+		}
+	}
+	n := len(m)
+	res := make([]Translator, n, n)
+	i := 0
+	for _, t := range m {
+		res[i] = t
+		i += 1
 	}
 	return res
 }
@@ -727,6 +755,12 @@ func (l *TranslationLog) recentEdits(max int) []Edit {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.state.recentEdits(max)
+}
+
+func (l *TranslationLog) translators() []Translator {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.translators()
 }
 
 func (l *TranslationLog) updateStringsList(newStrings []string) error {

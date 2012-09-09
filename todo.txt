@@ -1,8 +1,6 @@
 List of things to do for app translator.
 
 Must have:
-- ensure thread-safety (each web request is in its own goroutine
-  so must be careful to lock when using shared data)
 - deployment scripts
 - upload strings to be translated
 - python script to parse translations from app translator
