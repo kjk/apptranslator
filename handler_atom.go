@@ -38,7 +38,7 @@ func getRss(app *App, lang string) string {
 	return atomfeedgen.GenerateAtomFeed(feed)
 }
 
-// handler for url: /rss?app=$app&[lang=$lang]
+// handler for url: /atom?app=$app&[lang=$lang]
 func handleAtom(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)
