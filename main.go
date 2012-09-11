@@ -328,6 +328,7 @@ func main() {
 	http.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
 	http.HandleFunc("/downloadtranslations", makeTimingHandler(handleDownloadTranslations))
 	http.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
+	http.HandleFunc("/atom", makeTimingHandler(handleAtom))
 
 	http.HandleFunc("/login", handleLogin)
 	http.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
