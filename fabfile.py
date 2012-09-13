@@ -92,7 +92,7 @@ def deploy():
 			run('mv current prev')
 
 	with cd('www/app'):
-		run("ls -s %s current" % sha1)
+		run("ln -s %s current" % sha1)
 	with cd(curr_dir):
 		run("/sbin/start-stop-daemon -start --background --name apptranslator -a apptranslator")
 
