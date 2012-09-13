@@ -14,12 +14,14 @@ import (
 	"oauth"
 	"path/filepath"
 	"strings"
+	"os"
 	"time"
 )
 
 var (
 	configPath = flag.String("config", "secrets.json", "Path to configuration file")
 	httpAddr = flag.String("addr", ":5000", "HTTP server address")
+	logPath = flag.String("log", "stdout", "where to log")
 	cookieName = "ckie"
 )
 
@@ -41,7 +43,7 @@ var (
 		nil,
 		nil,
 	}
-
+	logger *log.Logger
 	cookieAuthKey []byte
 	cookieEncrKey []byte
 	secureCookie  *securecookie.SecureCookie
@@ -94,7 +96,7 @@ type AppState struct {
 
 func NewApp(config *AppConfig) *App {
 	app := &App{config: config}
-	fmt.Printf("Created %s app\n", app.config.Name)
+	logger.Printf("Created %s app\n", app.config.Name)
 	return app
 }
 
@@ -297,14 +299,23 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 		fn(w, r)
 		duration := time.Now().Sub(startTime)
 		if duration.Seconds() > 1.0 {
-			// TODO: log this information somewhere else, like a file
-			fmt.Printf("'%s' took %f seconds to serve\n", url, duration.Seconds())
+			logger.Printf("'%s' took %f seconds to serve\n", url, duration.Seconds())
 		}
 	}
 }
 
 func main() {
 	flag.Parse()
+	if *logPath == "stdout" {
+		logger = log.New(os.Stdout, "", 0)
+	} else {
+		loggerFile, err := os.OpenFile(*logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+		if err != nil {
+			log.Fatalf("Failed to open log file '%s', %s\n", *logPath, err.Error())
+		}
+		defer loggerFile.Close()
+		logger = log.New(loggerFile, "", 0)
+	}
 
 	if err := readSecrets(*configPath); err != nil {
 		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err.Error())
@@ -334,7 +345,7 @@ func main() {
 	http.HandleFunc("/logout", handleLogout)
 	http.HandleFunc("/", makeTimingHandler(handleMain))
 
-	fmt.Printf("Running on %s\n", *httpAddr)
+	logger.Printf("Running on %s\n", *httpAddr)
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err.Error())
 	}
