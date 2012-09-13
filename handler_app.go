@@ -12,14 +12,14 @@ type ModelApp struct {
 	App         *App
 	Langs       []*LangInfo
 	RecentEdits []Edit
-	Translators []Translator
+	Translators []*Translator
 	User        string
 	UserIsAdmin bool
 	RedirectUrl string
 }
 
 // for sorting by name
-type TranslatorsSeq []Translator
+type TranslatorsSeq []*Translator
 
 func (s TranslatorsSeq) Len() int      { return len(s) }
 func (s TranslatorsSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
@@ -30,7 +30,7 @@ func (s ByCount) Less(i, j int) bool {
 	return s.TranslatorsSeq[i].TranslationsCount > s.TranslatorsSeq[j].TranslationsCount
 }
 
-func sortTranslatorsByCount(t []Translator) {
+func sortTranslatorsByCount(t []*Translator) {
 	sort.Sort(ByCount{t})
 }
 

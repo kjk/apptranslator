@@ -143,21 +143,24 @@ func (s *EncoderDecoderState) recentEdits(max int) []Edit {
 	return res
 }
 
-func (s *EncoderDecoderState) translators() []Translator {
-	m := make(map[int]Translator)
+func (s *EncoderDecoderState) translators() []*Translator {
+	m := make(map[int]*Translator)
+	unknownUserId := 1
 	for _, tr := range s.translations {
 		userId := tr.userId
+		// filter out edits by the dummy 'unknown' user (used for translations
+		// imported from the code before we had apptranslator)
+		if userId == unknownUserId {
+			continue
+		}
 		if t, ok := m[userId]; ok {
 			t.TranslationsCount += 1
 		} else {
-			var t Translator
-			t.Name = s.userById(userId)
-			t.TranslationsCount = 1
-			m[userId] = t
+			m[userId] = &Translator{Name: s.userById(userId), TranslationsCount: 1}
 		}
 	}
 	n := len(m)
-	res := make([]Translator, n, n)
+	res := make([]*Translator, n, n)
 	i := 0
 	for _, t := range m {
 		res[i] = t
@@ -757,7 +760,7 @@ func (l *TranslationLog) recentEdits(max int) []Edit {
 	return l.state.recentEdits(max)
 }
 
-func (l *TranslationLog) translators() []Translator {
+func (l *TranslationLog) translators() []*Translator {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.state.translators()

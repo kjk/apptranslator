@@ -145,11 +145,11 @@ func getDataDir() string {
 	if FileExists(dataDir) {
 		return dataDir
 	}
-	dataDir = filepath.Join("..", "data")
+	dataDir = filepath.Join("..", "..", "data")
 	if FileExists(dataDir) {
 		return dataDir
 	}
-	log.Fatal("data directory (../data or ../apptranslatordata) doesn't exist")
+	log.Fatal("data directory (../../data or ../apptranslatordata) doesn't exist")
 	return ""
 }
 
@@ -328,6 +328,7 @@ func main() {
 	http.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
 	http.HandleFunc("/downloadtranslations", makeTimingHandler(handleDownloadTranslations))
 	http.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
+	http.HandleFunc("/atom", makeTimingHandler(handleAtom))
 
 	http.HandleFunc("/login", handleLogin)
 	http.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
