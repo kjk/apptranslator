@@ -19,6 +19,7 @@ import (
 
 var (
 	configPath = flag.String("config", "secrets.json", "Path to configuration file")
+	httpAddr = flag.String("addr", ":5000", "HTTP server address")
 	cookieName = "ckie"
 )
 
@@ -48,8 +49,6 @@ var (
 	// this is where we store information about users and translation.
 	// All in one place because I expect this data to be small
 	dataDir string
-
-	httpAddr = flag.String("addr", ":8089", "HTTP server address")
 
 	staticDir = "static"
 
