@@ -85,7 +85,7 @@ def deploy():
 	if files.exists(curr_dir):
 		# shut-down currently running instance
 		with cd(curr_dir):
-			run("/sbin/start-stop-daemon --stop --signal HUP --oknodo --name apptranslator")
+			run("/sbin/start-stop-daemon --stop --signal HUP --oknodo --name apptranslator_app")
 		# rename old current as prev for easy rollback of bad deploy
 		with cd('www/app'):
 			run('rm -f prev')
@@ -94,6 +94,6 @@ def deploy():
 	with cd('www/app'):
 		run("ln -s %s current" % sha1)
 	with cd(curr_dir):
-		run("/sbin/start-stop-daemon --start --background --name apptranslator -a apptranslator")
+		run("/sbin/start-stop-daemon --start --background --name apptranslator_app -a apptranslator_app")
 
 	#run('uname -a')

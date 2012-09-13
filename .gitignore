@@ -1,6 +1,6 @@
 .DS_Store
 ext/pkg/
-apptranslator
+apptranslator_app
 secrets.json
 SumatraPDF_trans.dat
 transtest.dat
