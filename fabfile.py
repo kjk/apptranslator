@@ -54,6 +54,8 @@ def zip_files(zip_path):
 	zf.write("build.sh")
 	zf.write("secrets.json")
 	add_dir_files(zf, "ext")
+	add_dir_files(zf, "tmpl")
+	add_dir_files(zf, "static")
 	zf.close()
 
 def deploy():
