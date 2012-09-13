@@ -145,11 +145,11 @@ func getDataDir() string {
 	if FileExists(dataDir) {
 		return dataDir
 	}
-	dataDir = filepath.Join("..", "data")
+	dataDir = filepath.Join("..", "..", "data")
 	if FileExists(dataDir) {
 		return dataDir
 	}
-	log.Fatal("data directory (../data or ../apptranslatordata) doesn't exist")
+	log.Fatal("data directory (../../data or ../apptranslatordata) doesn't exist")
 	return ""
 }
 
