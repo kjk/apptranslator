@@ -292,7 +292,7 @@ func readSecrets(configFile string) error {
 
 func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		url := r.URL.Path
+		url := fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery)
 		startTime := time.Now()
 		fn(w, r)
 		duration := time.Now().Sub(startTime)

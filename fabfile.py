@@ -51,8 +51,8 @@ def zip_files(zip_path):
 	blacklist = ["importsumtrans.go"]
 	files = [f for f in os.listdir(".") if f.endswith(".go") and not f in blacklist]
 	for f in files: zf.write(f)
-	zf.write("build.sh")
 	zf.write("secrets.json")
+	add_dir_files(zf, "scripts")
 	add_dir_files(zf, "ext")
 	add_dir_files(zf, "tmpl")
 	add_dir_files(zf, "static")
@@ -60,9 +60,9 @@ def zip_files(zip_path):
 
 def deploy():
 	if not os.path.exists("secrets.json"): abort("secrets.json doesn't exist locally")
-	#git_ensure_clean()
 	#git_pull()
-	local("./build.sh")
+	git_ensure_clean()
+	local("./scripts/build.sh")
 	ensure_remote_dir_exists('www/app')
 	ensure_remote_file_exists('www/data/SumatraPDF/translations.dat')
 	sha1 = git_trunk_sha1()
@@ -70,14 +70,30 @@ def deploy():
 	if files.exists(code_path_remote):
 		abort('code for revision %s already exists on the server' % sha1)
 	zip_path = sha1 + ".zip"
-	delete_file(zip_path)
 	zip_files(zip_path)
 	zip_path_remote = 'www/app/' + zip_path
 	put(zip_path, zip_path_remote)
+	delete_file(zip_path)
 	with cd('www/app'):
 		run('unzip -q -x %s -d %s' % (zip_path, sha1))
-		run('rm -rf %s' % zip_path)
+		run('rm -f %s' % zip_path)
+	# make sure it can build
 	with cd(code_path_remote):
-		run("./build.sh")
-	#run('uname -a')
+		run("./scripts/build.sh")
 
+	curr_dir = 'www/app/current'
+	if files.exists(curr_dir):
+		# shut-down currently running instance
+		with cd(curr_dir):
+			run("/sbin/start-stop-daemon -stop --signal HUP --oknodo --name apptranslator")
+		# rename old current as prev for easy rollback of bad deploy
+		with cd('www/app'):
+			run('rm -f prev')
+			run('mv current prev')
+
+	with cd('www/app'):
+		run("ls -s %s current" % sha1)
+	with cd(curr_dir):
+		run("/sbin/start-stop-daemon -start --background --name apptranslator -a apptranslator")
+
+	#run('uname -a')
