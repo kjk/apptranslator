@@ -35,7 +35,7 @@ var (
 		&Lang{"fy-nl", "Frisian", "Frysk"},
 		&Lang{"ga", "Irish", "Gaeilge"},
 		&Lang{"gl", "Galician", "Galego"},
-		&Lang{"gr", "Greek", "Ελληνικά"},
+		&Lang{"el", "Greek", "Ελληνικά"},
 		&Lang{"he", "Hebrew", "עברית"},
 		&Lang{"hi", "Hindi", "हिंदी"},
 		&Lang{"hr", "Croatian", "Hrvatski"},
