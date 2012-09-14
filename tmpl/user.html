@@ -1,0 +1,19 @@
+<header class="jumbotron subhead" id="overview">
+	<h2><a href="/">Home</a> : Translations of user <a href="http://twitter.com/{{.Name}}">{{.Name}}</a>
+		<span style="font-size:50%;float:right;">{{if .User}}Logged in as {{.User}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
+	</h2>
+	<p class="lead">{{.TranslatedCount}} strings translated</p>
+</header>
+
+{{if len .Edits}}
+<div id="edits">
+<p>Translations edited by {{.Name}}:</p>
+<ul>
+	{{range .Edits}}
+	<li>translated '{{.Text}}' in <a href="/app/{{.App}}">{{.App}}</a> / <a href="/app/{{.App}}/{{.Lang}}">{{.Lang}}</a></li>
+	{{end}}
+</ul>
+</div>
+{{else}}
+User {{.Name}} didn't provide any translations yet.
+{{end}}

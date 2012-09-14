@@ -1,28 +1,28 @@
 package main
 
 import (
+	"code.google.com/p/gorilla/mux"
+	"code.google.com/p/gorilla/securecookie"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"code.google.com/p/gorilla/securecookie"
-	_ "code.google.com/p/gorilla/mux"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"oauth"
+	"os"
 	"path/filepath"
 	"strings"
-	"os"
 	"time"
 )
 
 var (
 	configPath = flag.String("config", "secrets.json", "Path to configuration file")
-	httpAddr = flag.String("addr", ":5000", "HTTP server address")
-	logPath = flag.String("log", "stdout", "where to log")
+	httpAddr   = flag.String("addr", ":5000", "HTTP server address")
+	logPath    = flag.String("log", "stdout", "where to log")
 	cookieName = "ckie"
 )
 
@@ -44,7 +44,7 @@ var (
 		nil,
 		nil,
 	}
-	logger *log.Logger
+	logger        *log.Logger
 	cookieAuthKey []byte
 	cookieEncrKey []byte
 	secureCookie  *securecookie.SecureCookie
@@ -61,7 +61,8 @@ var (
 	tmplApp         = "app.html"
 	tmplAppTrans    = "apptrans.html"
 	tmplBase        = "base.html"
-	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans, tmplBase}
+	tmplUser        = "user.html"
+	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans, tmplUser, tmplBase}
 	templatePaths   = make([]string, 0)
 	templates       *template.Template
 	reloadTemplates = true
@@ -334,17 +335,22 @@ func main() {
 		log.Fatalf("No apps defined in secrets.json")
 	}
 
-	http.HandleFunc("/s/", makeTimingHandler(handleStatic))
-	http.HandleFunc("/app", makeTimingHandler(handleApp))
-	http.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
-	http.HandleFunc("/downloadtranslations", makeTimingHandler(handleDownloadTranslations))
-	http.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
-	http.HandleFunc("/atom", makeTimingHandler(handleAtom))
+	r := mux.NewRouter()
+	r.HandleFunc("/app/{appname}", makeTimingHandler(handleApp))
+	r.HandleFunc("/app/{appname}/{lang}", makeTimingHandler(handleAppTranslations))
+	r.HandleFunc("/user/{user}", makeTimingHandler(handleUser))
+	r.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
+	r.HandleFunc("/downloadtranslations", makeTimingHandler(handleDownloadTranslations))
+	r.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
+	r.HandleFunc("/atom", makeTimingHandler(handleAtom))
 
-	http.HandleFunc("/login", handleLogin)
-	http.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
-	http.HandleFunc("/logout", handleLogout)
-	http.HandleFunc("/", makeTimingHandler(handleMain))
+	r.HandleFunc("/login", handleLogin)
+	r.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
+	r.HandleFunc("/logout", handleLogout)
+	r.HandleFunc("/", makeTimingHandler(handleMain))
+
+	http.HandleFunc("/s/", makeTimingHandler(handleStatic))
+	http.Handle("/", r)
 
 	logger.Printf("Running on %s\n", *httpAddr)
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {

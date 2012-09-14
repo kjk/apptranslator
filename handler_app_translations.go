@@ -1,6 +1,7 @@
 package main
 
 import (
+	"code.google.com/p/gorilla/mux"
 	"fmt"
 	"net/http"
 )
@@ -37,10 +38,24 @@ func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTransla
 	panic("buildModelAppTranslations() failed")
 }
 
-// handler for url: /app?name=$app&lang=$lang
-func handleAppTranslations(w http.ResponseWriter, r *http.Request, app *App, langCode string) {
-	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.config.Name, langCode)
-	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
+// handler for url: /app/{appname}/{lang}
+func handleAppTranslations(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appName := vars["appname"]
+	app := findApp(appName)
+	if app == nil {
+		serveErrorMsg(w, fmt.Sprintf("Application \"%s\" doesn't exist", appName))
+		return
+	}
+
+	lang := vars["lang"]
+	if !IsValidLangCode(lang) {
+		serveErrorMsg(w, fmt.Sprintf("Invalid language: '%s'", lang))
+		return
+	}
+
+	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.config.Name, lang)
+	model := buildModelAppTranslations(app, lang, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
 	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
 		fmt.Print(err.Error(), "\n")

@@ -175,7 +175,7 @@ func parseSumatraTranslationsFile(fileName string, tl *TranslationLog) error {
 				msg := "Unexpected empty or comment line"
 				return &CantParseError{msg, lineNo}
 			}
-			err := encoder.writeNewTranslation(tl.file, currString, s, lt.LangCode, "unknown")
+			err := encoder.writeNewTranslation(tl.file, currString, s, lt.LangCode, "import")
 			if nil != err {
 				fmt.Printf("Error in file %s line %d\n", fileName, lineNo)
 			}

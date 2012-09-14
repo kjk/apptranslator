@@ -15,7 +15,7 @@
 	<p>Languages:</p>
 	<ul>
 	  {{range .Langs}}
-	  <li><a href="/app?name={{$appName}}&lang={{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated)</li>
+	  <li><a href="/app/{{$appName}}/{{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated)</li>
 	  {{end}}
 	</ul>
 	{{else}}
@@ -29,7 +29,7 @@
 		<p>Recent translations:</p>
 		<ul>
 			{{range .RecentEdits}}
-			<li><a href="/user?name={{.User}}">{{.User}}</a> translated '{{.Text}}' in <a href="/app?name={{$appName}}&lang={{.Lang}}">{{.Lang}}</a></li>
+			<li><a href="/user/{{.User}}">{{.User}}</a> translated '{{.Text}}' in <a href="/app/{{$appName}}/{{.Lang}}">{{.Lang}}</a></li>
 			{{end}}
 		</ul>
 		</div>
@@ -40,7 +40,7 @@
 		<p>Translators:</p>
 		<ul>
 			{{range .Translators}}
-			<li><a href="/user?name={{.Name}}">{{.Name}}</a> made {{.TranslationsCount}} translations</li>
+			<li><a href="/user/{{.Name}}">{{.Name}}</a> made {{.TranslationsCount}} translations</li>
 			{{end}}
 		</ul>
 		</div>

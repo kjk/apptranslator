@@ -1,11 +1,11 @@
 package main
 
 import (
+	"code.google.com/p/gorilla/mux"
 	"fmt"
 	"html/template"
 	"net/http"
 	"sort"
-	"strings"
 )
 
 type ModelApp struct {
@@ -13,7 +13,7 @@ type ModelApp struct {
 	Langs       []*LangInfo
 	RecentEdits []Edit
 	Translators []*Translator
-	User        string
+	User        string // TODO: change to LoginName
 	UserIsAdmin bool
 	RedirectUrl string
 }
@@ -43,17 +43,13 @@ func buildModelApp(app *App, user string) *ModelApp {
 	return model
 }
 
-// handler for url: /app?name=$app
+// handler for url: /app/{appname}
 func handleApp(w http.ResponseWriter, r *http.Request) {
-	appName := strings.TrimSpace(r.FormValue("name"))
+	vars := mux.Vars(r)
+	appName := vars["appname"]
 	app := findApp(appName)
 	if app == nil {
 		serveErrorMsg(w, fmt.Sprintf("Application \"%s\" doesn't exist", appName))
-		return
-	}
-	lang := strings.TrimSpace(r.FormValue("lang"))
-	if IsValidLangCode(lang) {
-		handleAppTranslations(w, r, app, lang)
 		return
 	}
 
