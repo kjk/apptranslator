@@ -510,7 +510,7 @@ func readRecord(r *ReaderByteReader) ([]byte, time.Time, error) {
 		}
 		log.Fatalf("readRecord(), err: %s", err.Error())
 	}
-	panicIf(n<=4, "record too small")
+	panicIf(n <= 4, "record too small")
 	var timeUnix int64
 	err = binary.Read(r, binary.LittleEndian, &timeUnix)
 	if err != nil {

@@ -98,17 +98,8 @@ type AppState struct {
 
 func NewApp(config *AppConfig) *App {
 	app := &App{config: config}
-	logger.Printf("Created %s app\n", app.config.Name)
+	logger.Printf("Created %s app\n", app.Name())
 	return app
-}
-
-func readAppData(app *App) error {
-	l, err := NewTranslationLog(app.translationLogFilePath())
-	if err != nil {
-		return err
-	}
-	app.translationLog = l
-	return nil
 }
 
 // used in templates
@@ -124,6 +115,27 @@ func (a *App) StringsCount() int {
 // used in templates
 func (a *App) UntranslatedCount() int {
 	return a.translationLog.UntranslatedCount()
+}
+
+func (app *App) Name() string {
+	return app.config.Name
+}
+
+func (app *App) Url() string {
+	return app.config.Url
+}
+
+func (a *App) translationLogFilePath() string {
+	return filepath.Join(filepath.Join(getDataDir(), a.config.DataDir), "translations.dat")
+}
+
+func readAppData(app *App) error {
+	l, err := NewTranslationLog(app.translationLogFilePath())
+	if err != nil {
+		return err
+	}
+	app.translationLog = l
+	return nil
 }
 
 /*
@@ -158,7 +170,7 @@ func getDataDir() string {
 
 func appAlreadyExists(appName string) bool {
 	for _, app := range appState.Apps {
-		if app.config.Name == appName {
+		if app.Name() == appName {
 			return true
 		}
 	}
@@ -167,7 +179,7 @@ func appAlreadyExists(appName string) bool {
 
 func appInvalidField(app *App) string {
 	app.config.Name = strings.TrimSpace(app.config.Name)
-	if app.config.Name == "" {
+	if app.Name() == "" {
 		return "Name"
 	}
 	if app.config.DataDir == "" {
@@ -186,7 +198,7 @@ func addApp(app *App) error {
 	if invalidField := appInvalidField(app); invalidField != "" {
 		return errors.New(fmt.Sprintf("App has invalid field '%s'", invalidField))
 	}
-	if appAlreadyExists(app.config.Name) {
+	if appAlreadyExists(app.Name()) {
 		return errors.New("App already exists")
 	}
 	if err := readAppData(app); err != nil {
@@ -196,21 +208,9 @@ func addApp(app *App) error {
 	return nil
 }
 
-func (app *App) Name() string {
-	return app.config.Name
-}
-
-func (app *App) Url() string {
-	return app.config.Url
-}
-
-func (a *App) translationLogFilePath() string {
-	return filepath.Join(filepath.Join(getDataDir(), a.config.DataDir), "translations.dat")
-}
-
 func findApp(name string) *App {
 	for _, app := range appState.Apps {
-		if app.config.Name == name {
+		if app.Name() == name {
 			return app
 		}
 	}
@@ -332,7 +332,7 @@ func main() {
 	for _, appData := range config.Apps {
 		app := NewApp(&appData)
 		if err := addApp(app); err != nil {
-			log.Fatalf("Failed to add the app: %s, err: %s\n", app.config.Name, err.Error())
+			log.Fatalf("Failed to add the app: %s, err: %s\n", app.Name(), err.Error())
 		}
 	}
 
