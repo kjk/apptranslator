@@ -298,11 +298,15 @@ const alwaysLogTime = true
 
 func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		url := fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery)
+
 		startTime := time.Now()
 		fn(w, r)
 		duration := time.Now().Sub(startTime)
 		if duration.Seconds() > 1.0 || alwaysLogTime {
+			url := r.URL.Path
+			if len(r.URL.RawQuery) > 0 {
+				url = fmt.Sprintf("%s?%s", url, r.URL.RawQuery)
+			}
 			logger.Printf("'%s' took %f seconds to serve\n", url, duration.Seconds())
 		}
 	}

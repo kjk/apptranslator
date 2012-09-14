@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Translation log is append-only file. It consists of records. Each record
@@ -50,8 +51,6 @@ import (
 //
 //   varint(langId) varint(userId) varint(stringId) string
 //
-//   TODO: remember time?
-//
 //   Note: varint(stringId) is guaranteed to not have 0 as first byte
 //   which is why all other (much less frequent records) start with byte 0
 
@@ -72,6 +71,7 @@ type TranslationRec struct {
 	userId      int
 	stringId    int
 	translation string
+	time        time.Time
 }
 
 type Edit struct {
@@ -275,16 +275,18 @@ func readUVarintAsInt(r *ReaderByteReader) (int, error) {
 	return int(n), nil
 }
 
-func encodeRecordData(rec []byte) *bytes.Buffer {
+func encodeRecordData(rec []byte, t time.Time) *bytes.Buffer {
 	var b bytes.Buffer
 	panicIf(0 == len(rec), "0 == recLen")
-	writeUvarintToBuf(&b, len(rec))
+	writeUvarintToBuf(&b, len(rec)+4) // 4 for 64-bit tn
+	var tn int64 = t.Unix()
+	binary.Write(&b, binary.LittleEndian, tn)
 	b.Write(rec) // // ignore error, it's always nil
 	return &b
 }
 
-func writeRecord(w io.Writer, rec []byte) error {
-	b := encodeRecordData(rec)
+func writeRecord(w io.Writer, rec []byte, time time.Time) error {
+	b := encodeRecordData(rec, time)
 	_, err := w.Write(b.Bytes())
 	return err
 }
@@ -295,7 +297,7 @@ func writeStringInternRecord(buf *bytes.Buffer, recId int, s string) {
 	b.WriteByte(byte(recId))
 	b.WriteString(s)
 	// ignoring error because writing to bytes.Buffer never fails
-	writeRecord(buf, b.Bytes())
+	writeRecord(buf, b.Bytes(), time.Now())
 }
 
 func writeDeleteStringRecord(w io.Writer, strId int) error {
@@ -303,7 +305,7 @@ func writeDeleteStringRecord(w io.Writer, strId int) error {
 	b.WriteByte(0)
 	b.WriteByte(strDelRec)
 	writeUvarintToBuf(&b, strId)
-	return writeRecord(w, b.Bytes())
+	return writeRecord(w, b.Bytes(), time.Now())
 }
 
 func writeUndeleteStringRecord(w io.Writer, strId int) error {
@@ -311,7 +313,7 @@ func writeUndeleteStringRecord(w io.Writer, strId int) error {
 	b.WriteByte(0)
 	b.WriteByte(strUndelRec)
 	writeUvarintToBuf(&b, strId)
-	return writeRecord(w, b.Bytes())
+	return writeRecord(w, b.Bytes(), time.Now())
 }
 
 // returns a unique integer 1..n for a given string
@@ -326,8 +328,8 @@ func writeUniquifyStringRecord(buf *bytes.Buffer, s string, dict map[string]int,
 	return n
 }
 
-func (s *EncoderDecoderState) addTranslationRec(langId, userId, stringId int, translation string) {
-	t := &TranslationRec{langId, userId, stringId, translation}
+func (s *EncoderDecoderState) addTranslationRec(langId, userId, stringId int, translation string, time time.Time) {
+	t := &TranslationRec{langId, userId, stringId, translation, time}
 	s.translations = append(s.translations, *t)
 }
 
@@ -369,12 +371,14 @@ func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang,
 	writeUvarintToBuf(&b, userId)
 	writeUvarintToBuf(&b, stringId)
 	b.Write([]byte(trans))
-	writeRecord(&recs, b.Bytes()) // cannot fail
+
+	t := time.Now()
+	writeRecord(&recs, b.Bytes(), t) // cannot fail
 
 	if _, err := w.Write(recs.Bytes()); err != nil {
 		return err
 	}
-	s.addTranslationRec(langId, userId, stringId, trans)
+	s.addTranslationRec(langId, userId, stringId, trans, t)
 	return nil
 }
 
@@ -444,7 +448,7 @@ func (s *EncoderDecoderState) decodeStringUndeleteRecord(rec []byte) error {
 }
 
 // rec is: varint(stringId) varint(userId) varint(langId) string
-func (s *EncoderDecoderState) decodeNewTranslation(rec []byte) error {
+func (s *EncoderDecoderState) decodeNewTranslation(rec []byte, time time.Time) error {
 	var stringId, userId, langId uint64
 	var n int
 
@@ -464,14 +468,14 @@ func (s *EncoderDecoderState) decodeNewTranslation(rec []byte) error {
 	rec = rec[n:]
 
 	translation := string(rec)
-	s.addTranslationRec(int(langId), int(userId), int(stringId), translation)
+	s.addTranslationRec(int(langId), int(userId), int(stringId), translation, time)
 	if logging {
 		fmt.Printf("decodeNewTranslation(): %v, %v, %v, %s\n", langId, userId, stringId, translation)
 	}
 	return nil
 }
 
-func (s *EncoderDecoderState) decodeRecord(rec []byte) error {
+func (s *EncoderDecoderState) decodeRecord(rec []byte, time time.Time) error {
 	panicIf(len(rec) < 2, "decodeRecord(), len(rec) < 2")
 	if 0 == rec[0] {
 		t := rec[1]
@@ -490,28 +494,35 @@ func (s *EncoderDecoderState) decodeRecord(rec []byte) error {
 			log.Fatalf("Unexpected t=%d", t)
 		}
 	} else {
-		return s.decodeNewTranslation(rec)
+		return s.decodeNewTranslation(rec, time)
 	}
 	return nil
 }
 
 // TODO: optimize by passing in a buffer to fill instead of allocating a new
 // one every time?
-func readRecord(r *ReaderByteReader) ([]byte, error) {
+func readRecord(r *ReaderByteReader) ([]byte, time.Time, error) {
+	var t time.Time
 	n, err := readUVarintAsInt(r)
 	if err != nil {
 		if err == io.EOF {
-			return nil, nil
+			return nil, t, nil
 		}
 		log.Fatalf("readRecord(), err: %s", err.Error())
 	}
-	panicIf(0 == n, "recSize is 0")
-	buf := make([]byte, n)
+	panicIf(n<=4, "record too small")
+	var timeUnix int64
+	err = binary.Read(r, binary.LittleEndian, &timeUnix)
+	if err != nil {
+		return nil, t, err
+	}
+	t = time.Unix(timeUnix, 0)
+	buf := make([]byte, n-4)
 	n, err = r.Read(buf)
 	if err != nil {
-		return nil, err
+		return nil, t, err
 	}
-	return buf, err
+	return buf, t, err
 }
 
 func (s *EncoderDecoderState) readExistingRecords(r *ReaderByteReader) error {
@@ -520,15 +531,16 @@ func (s *EncoderDecoderState) readExistingRecords(r *ReaderByteReader) error {
 		//lastValidOffset, _ := l.file.Seek(1, 0)
 		// TODO: could explicitly see if this is EOF by comparing lastValidOffset
 		// with file size. that would simplify error handling
-		buf, err := readRecord(r)
+		buf, time, err := readRecord(r)
 		if err != nil {
 			// TODO: do something on error
+			fmt.Printf("readExistingRecords(): error=%s\n", err.Error())
 			panic("readExistingRecords")
 		}
 		if buf == nil {
 			return nil
 		}
-		err = s.decodeRecord(buf)
+		err = s.decodeRecord(buf, time)
 		if err != nil {
 			return err
 		}
