@@ -65,7 +65,6 @@ const (
 
 var (
 	logging = false
-	recNo   = 1
 )
 
 type TranslationRec struct {
@@ -407,7 +406,7 @@ func decodeStrRecord(rec []byte, dict map[string]int, tp string) error {
 	// id is inferred from the order, starts at 1
 	id := len(dict) + 1
 	if logging {
-		fmt.Printf("decodeStrRecord(): rec %d, %s -> %v in %s\n", recNo, str, id, tp)
+		fmt.Printf("decodeStrRecord(): %s -> %v in %s\n", str, id, tp)
 	}
 	if _, exists := dict[str]; exists {
 		log.Fatalf("decodeStrRecord(): '%s' already exists in dict %s\n", str, tp)
@@ -424,7 +423,7 @@ func (s *EncoderDecoderState) decodeStringDeleteRecord(rec []byte) error {
 		log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
 	}
 	if logging {
-		fmt.Printf("decodeStringDeleteRecord(): rec %d, %d\n", recNo, id)
+		fmt.Printf("decodeStringDeleteRecord(): %d\n", id)
 	}
 	s.deletedStrings[int(id)] = true
 	return nil
@@ -438,7 +437,7 @@ func (s *EncoderDecoderState) decodeStringUndeleteRecord(rec []byte) error {
 		log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
 	}
 	if logging {
-		fmt.Printf("decodeStringUndeleteRecord(): rec %d, %d\n", recNo, id)
+		fmt.Printf("decodeStringUndeleteRecord(): %d\n", id)
 	}
 	delete(s.deletedStrings, int(id))
 	return nil
@@ -467,13 +466,12 @@ func (s *EncoderDecoderState) decodeNewTranslation(rec []byte) error {
 	translation := string(rec)
 	s.addTranslationRec(int(langId), int(userId), int(stringId), translation)
 	if logging {
-		fmt.Printf("decodeNewTranslation(): rec %d, %v, %v, %v, %s\n", recNo, langId, userId, stringId, translation)
+		fmt.Printf("decodeNewTranslation(): %v, %v, %v, %s\n", langId, userId, stringId, translation)
 	}
 	return nil
 }
 
 func (s *EncoderDecoderState) decodeRecord(rec []byte) error {
-	recNo++
 	panicIf(len(rec) < 2, "decodeRecord(), len(rec) < 2")
 	if 0 == rec[0] {
 		t := rec[1]

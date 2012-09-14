@@ -96,19 +96,19 @@ func (ts *TestState) ensureTranslationsCount(expected int) {
 
 func (ts *TestState) ensureLangCode(name string, expected int) {
 	if s := ts.getEncoderDecoderState(); s.langCodeMap[name] != expected {
-		ts.t.Fatalf("s.langCodeMap['%s']=%d, expected: %d", s.langCodeMap[name], expected)
+		ts.t.Fatalf("s.langCodeMap['%s']=%d, expected: %d", name, s.langCodeMap[name], expected)
 	}
 }
 
 func (ts *TestState) ensureUserCode(name string, expected int) {
 	if s := ts.getEncoderDecoderState(); s.userNameMap[name] != expected {
-		ts.t.Fatalf("s.userNameMap['%s']=%d, expected: %d", s.userNameMap[name], expected)
+		ts.t.Fatalf("s.userNameMap['%s']=%d, expected: %d", name, s.userNameMap[name], expected)
 	}
 }
 
 func (ts *TestState) ensureStringCode(name string, expected int) {
 	if s := ts.getEncoderDecoderState(); s.stringMap[name] != expected {
-		ts.t.Fatalf("s.stringMap['%s']=%d, expected: %d", s.stringMap[name], expected)
+		ts.t.Fatalf("s.stringMap['%s']=%d, expected: %d", name, s.stringMap[name], expected)
 	}
 }
 
