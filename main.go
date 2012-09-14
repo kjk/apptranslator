@@ -20,10 +20,11 @@ import (
 )
 
 var (
-	configPath = flag.String("config", "secrets.json", "Path to configuration file")
-	httpAddr   = flag.String("addr", ":5000", "HTTP server address")
-	logPath    = flag.String("log", "stdout", "where to log")
-	cookieName = "ckie"
+	configPath   = flag.String("config", "secrets.json", "Path to configuration file")
+	httpAddr     = flag.String("addr", ":5000", "HTTP server address")
+	logPath      = flag.String("log", "stdout", "where to log")
+	inProduction = flag.Bool("production", false, "are we running in production")
+	cookieName   = "ckie"
 )
 
 var (
@@ -66,6 +67,7 @@ var (
 	templatePaths   = make([]string, 0)
 	templates       *template.Template
 	reloadTemplates = true
+	alwaysLogTime   = true
 )
 
 // a static configuration of a single app
@@ -286,8 +288,6 @@ func readSecrets(configFile string) error {
 	return err
 }
 
-const alwaysLogTime = true
-
 func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -306,6 +306,12 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 
 func main() {
 	flag.Parse()
+
+	if *inProduction {
+		reloadTemplates = false
+		alwaysLogTime = false
+	}
+
 	if *logPath == "stdout" {
 		logger = log.New(os.Stdout, "", 0)
 	} else {
