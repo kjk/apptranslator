@@ -33,7 +33,7 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(w, fmt.Sprintf("AppTranslator: %s\n", app.config.Name))
+	io.WriteString(w, fmt.Sprintf("AppTranslator: %s\n", app.Name))
 	m := make(map[string][]LangTrans)
 	langInfos := app.translationLog.LangInfos()
 	for _, li := range langInfos {

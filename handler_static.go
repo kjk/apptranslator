@@ -12,16 +12,6 @@ func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName stri
 		fmt.Printf("serveFileFromDir() file=%s doesn't exist\n", filePath)
 	}
 	http.ServeFile(w, r, filePath)
-	/*
-		b, err := ioutil.ReadFile(filePath)
-		if err != nil {
-			fmt.Printf("serveFileFromDir() file=%s doesn't exist\n", filePath)
-			serve404(w, r)
-			return
-		}
-		w.Write(b)
-		fmt.Printf("serveFileFromDir() served %d bytes of '%s'\n", len(b), filePath)
-	*/
 }
 
 func serveFileStatic(w http.ResponseWriter, r *http.Request, fileName string) {

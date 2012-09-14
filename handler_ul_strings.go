@@ -80,7 +80,7 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	secret := strings.TrimSpace(r.FormValue("secret"))
-	if secret != app.config.UploadSecret {
+	if secret != app.UploadSecret {
 		serveErrorMsg(w, fmt.Sprintf("Invalid secret for app '%s'", appName))
 		return
 	}

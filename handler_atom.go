@@ -9,9 +9,9 @@ import (
 )
 
 func getAllRss(app *App) string {
-	title := fmt.Sprintf("Apptranslator %s edits", app.config.Name)
-	link := fmt.Sprintf("http://apptranslator.org/app?name=%s", app.config.Name) // TODO: technically url-escape
-	dsc := fmt.Sprintf("Recent translation edits for %s", app.config.Name)
+	title := fmt.Sprintf("Apptranslator %s edits", app.Name)
+	link := fmt.Sprintf("http://apptranslator.org/app?name=%s", app.Name) // TODO: technically url-escape
+	dsc := fmt.Sprintf("Recent translation edits for %s", app.Name)
 	feed := &atomfeedgen.Feed{Title: title, Link: link, Description: dsc}
 	items := make([]*atomfeedgen.FeedItem, 0)
 	for _, e := range app.translationLog.recentEdits(10) {
@@ -31,9 +31,9 @@ func getRss(app *App, lang string) string {
 	if "" == lang {
 		return getAllRss(app)
 	}
-	title := fmt.Sprintf("Apptranslator %s edits for lang %s", app.config.Name, lang)
-	link := fmt.Sprintf("http://apptranslator.org/app?name=%s&lang=%s", app.config.Name, lang) // TODO: technically url-escape
-	dsc := fmt.Sprintf("Recent %s translation edits for %s", lang, app.config.Name)
+	title := fmt.Sprintf("Apptranslator %s edits for lang %s", app.Name, lang)
+	link := fmt.Sprintf("http://apptranslator.org/app?name=%s&lang=%s", app.Name, lang) // TODO: technically url-escape
+	dsc := fmt.Sprintf("Recent %s translation edits for %s", lang, app.Name)
 	feed := &atomfeedgen.Feed{Title: title, Link: link, Description: dsc}
 	return atomfeedgen.GenerateAtomFeed(feed)
 }

@@ -54,7 +54,7 @@ func handleAppTranslations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.config.Name, lang)
+	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, lang)
 	model := buildModelAppTranslations(app, lang, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
 	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
