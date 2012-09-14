@@ -1,7 +1,6 @@
 List of things to do for app translator.
 
 Must have:
-- deployment scripts
 - upload strings to be translated
 - python script to parse translations from app translator
 - a way to backup data to s3 (e.g. every 1hr, if changed)
