@@ -3,13 +3,14 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package gorilla/context provides a container to store values for a request.
+Package gorilla/context stores values shared during a request lifetime.
 
-A context stores global variables used during a request. For example, a router
-can set variables extracted from the URL and later application handlers can
-access those values. There are several others common cases.
+For example, a router can set variables extracted from the URL and later
+application handlers can access those values, or it can be used to store
+sessions values to be saved at the end of a request. There are several
+others common uses.
 
-The context idea was posted by Brad Fitzpatrick to the go-nuts mailing list:
+The idea was posted by Brad Fitzpatrick to the go-nuts mailing list:
 
 	http://groups.google.com/group/golang-nuts/msg/e2d679d303aa5d53
 
@@ -19,54 +20,61 @@ Here we define a key using a custom int type to avoid name collisions:
 
 	package foo
 
-	type contextKey int
+	import (
+		"code.google.com/p/gorilla/context"
+	)
 
-	const Key1 contextKey = 0
+	type key int
 
-Then set a variable in the context. Context variables are bound to a
-http.Request object, so you need a request instance to set a value:
+	const MyKey key = 0
 
-	context.DefaultContext.Set(request, Key1, "bar")
+Then set a variable. Variables are bound to an http.Request object, so you
+need a request instance to set a value:
+
+	context.Set(r, MyKey, "bar")
 
 The application can later access the variable using the same key you provided:
 
 	func MyHandler(w http.ResponseWriter, r *http.Request) {
 		// val is "bar".
-		val = context.DefaultContext.Get(r, foo.Key1)
+		val = context.Get(r, foo.MyKey)
 
 		// ...
 	}
 
 And that's all about the basic usage. We discuss some other ideas below.
 
-A Context can store any type. To enforce a given type, make the key private
-and wrap Get() and Set() to accept and return values of a specific type:
+Any type can be stored in the context. To enforce a given type, make the key
+private and wrap Get() and Set() to accept and return values of a specific
+type:
 
-	type contextKey int
+	type key int
 
-	const key1 contextKey = 0
+	const mykey key = 0
 
-	// GetKey1 returns a value for this package from the request context.
-	func GetKey1(request *http.Request) SomeType {
-		if rv := context.DefaultContext.Get(request, key1); rv != nil {
+	// GetMyKey returns a value for this package from the request values.
+	func GetMyKey(r *http.Request) SomeType {
+		if rv := context.Get(r, mykey); rv != nil {
 			return rv.(SomeType)
 		}
 		return nil
 	}
 
-	// SetKey1 sets a value for this package in the request context.
-	func SetKey1(request *http.Request, val SomeType) {
-		context.DefaultContext.Set(request, key1, val)
+	// SetMyKey sets a value for this package in the request values.
+	func SetMyKey(r *http.Request, val SomeType) {
+		context.Set(r, mykey, val)
 	}
 
-A context must be cleared at the end of a request, to remove all values
-that were stored. This can be done in a http.Handler, after a request was
+Variables must be cleared at the end of a request, to remove all values
+that were stored. This can be done in an http.Handler, after a request was
 served. Just call Clear() passing the request:
 
-	context.DefaultContext.Clear(request)
+	context.Clear(r)
 
-The package gorilla/mux clears the default context, so if you are using the
-default handler from there you don't need to do anything: context variables
-will be deleted at the end of a request.
+...or use ClearHandler(), which conveniently wraps an http.Handler to clear
+variables at the end of a request lifetime.
+
+The Router from the package gorilla/mux calls Clear(), so if you are using it
+you don't need to clear the context manually.
 */
 package context

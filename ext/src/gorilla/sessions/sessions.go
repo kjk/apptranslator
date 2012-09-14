@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"gorilla/context"
+	"code.google.com/p/gorilla/context"
 )
 
 // Default flashes key.
@@ -119,7 +119,7 @@ const registryKey contextKey = 0
 
 // GetRegistry returns a registry instance for the current request.
 func GetRegistry(r *http.Request) *Registry {
-	registry := context.DefaultContext.Get(r, registryKey)
+	registry := context.Get(r, registryKey)
 	if registry != nil {
 		return registry.(*Registry)
 	}
@@ -127,7 +127,7 @@ func GetRegistry(r *http.Request) *Registry {
 		request:  r,
 		sessions: make(map[string]sessionInfo),
 	}
-	context.DefaultContext.Set(r, registryKey, newRegistry)
+	context.Set(r, registryKey, newRegistry)
 	return newRegistry
 }
 

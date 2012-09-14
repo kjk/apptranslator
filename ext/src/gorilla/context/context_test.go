@@ -23,31 +23,30 @@ func TestContext(t *testing.T) {
 		}
 	}
 
-	c := new(Context)
 	r, _ := http.NewRequest("GET", "http://localhost:8080/", nil)
 
 	// Get()
-	assertEqual(c.Get(r, key1), nil)
+	assertEqual(Get(r, key1), nil)
 
 	// Set()
-	c.Set(r, key1, "1")
-	assertEqual(c.Get(r, key1), "1")
-	assertEqual(len(c.m[r]), 1)
+	Set(r, key1, "1")
+	assertEqual(Get(r, key1), "1")
+	assertEqual(len(data[r]), 1)
 
-	c.Set(r, key2, "2")
-	assertEqual(c.Get(r, key2), "2")
-	assertEqual(len(c.m[r]), 2)
+	Set(r, key2, "2")
+	assertEqual(Get(r, key2), "2")
+	assertEqual(len(data[r]), 2)
 
 	// Delete()
-	c.Delete(r, key1)
-	assertEqual(c.Get(r, key1), nil)
-	assertEqual(len(c.m[r]), 1)
+	Delete(r, key1)
+	assertEqual(Get(r, key1), nil)
+	assertEqual(len(data[r]), 1)
 
-	c.Delete(r, key2)
-	assertEqual(c.Get(r, key2), nil)
-	assertEqual(len(c.m[r]), 0)
+	Delete(r, key2)
+	assertEqual(Get(r, key2), nil)
+	assertEqual(len(data[r]), 0)
 
 	// Clear()
-	c.Clear(r)
-	assertEqual(len(c.m), 0)
+	Clear(r)
+	assertEqual(len(data), 0)
 }

@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"io"
 	"strconv"
 	"time"
 )
@@ -335,7 +336,7 @@ func decode(value []byte) ([]byte, error) {
 // GenerateRandomKey creates a random key with the given strength.
 func GenerateRandomKey(strength int) []byte {
 	k := make([]byte, strength)
-	if _, err := rand.Read(k); err != nil {
+	if _, err := io.ReadFull(rand.Reader, k); err != nil {
 		return nil
 	}
 	return k
