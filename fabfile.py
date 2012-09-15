@@ -74,7 +74,7 @@ def delete_old_deploys(to_keep=4):
 				i += 1
 				to_keep -= 1
 			else:
-				if len(s) == 21: # s == "0111cb7bdd014850e8c11ee4820dc0d7e12f4015/"
+				if len(s) == 41: # s == "0111cb7bdd014850e8c11ee4820dc0d7e12f4015/"
 					dirs_to_del.append(s)
 			i += 1
 		if len(dirs_to_del) > to_keep:
