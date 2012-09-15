@@ -17,7 +17,7 @@ type ModelUser struct {
 
 func buildModelUser(user, loginName string) *ModelUser {
 	model := &ModelUser{Name: user,
-		User: loginName,
+		User:      loginName,
 		PageTitle: fmt.Sprintf("Translations of user %s", user)}
 	// TOOD: calc Edits
 	return model

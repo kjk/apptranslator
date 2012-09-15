@@ -161,13 +161,17 @@ func getDataDir() string {
 	return ""
 }
 
-func appAlreadyExists(appName string) bool {
+func findApp(name string) *App {
 	for _, app := range appState.Apps {
-		if app.Name == appName {
-			return true
+		if app.Name == name {
+			return app
 		}
 	}
-	return false
+	return nil
+}
+
+func appAlreadyExists(name string) bool {
+	return nil != findApp(name)
 }
 
 func appInvalidField(app *App) string {
@@ -198,15 +202,6 @@ func addApp(app *App) error {
 		return err
 	}
 	appState.Apps = append(appState.Apps, app)
-	return nil
-}
-
-func findApp(name string) *App {
-	for _, app := range appState.Apps {
-		if app.Name == name {
-			return app
-		}
-	}
 	return nil
 }
 

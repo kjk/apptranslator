@@ -35,13 +35,13 @@ func sortTranslatorsByCount(t []*Translator) {
 }
 
 func buildModelApp(app *App, user string) *ModelApp {
-	model := &ModelApp{App: app, 
-		User: user,
+	model := &ModelApp{App: app,
+		User:        user,
 		UserIsAdmin: userIsAdmin(app, user),
-		PageTitle : fmt.Sprintf("Translations for %s", app.Name),
-		Langs : app.translationLog.LangInfos(),
-		RecentEdits : app.translationLog.recentEdits(10),
-		Translators : app.translationLog.translators()}
+		PageTitle:   fmt.Sprintf("Translations for %s", app.Name),
+		Langs:       app.translationLog.LangInfos(),
+		RecentEdits: app.translationLog.recentEdits(10),
+		Translators: app.translationLog.translators()}
 	sortTranslatorsByCount(model.Translators)
 	return model
 }

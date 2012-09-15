@@ -21,11 +21,11 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 	}
 	user := decodeUserFromCookie(r)
 	model := &ModelMain{
-		Apps: &appState.Apps,
-		User: user, 
+		Apps:        &appState.Apps,
+		User:        user,
 		UserIsAdmin: false,
 		RedirectUrl: r.URL.String(),
-		PageTitle:"AppTranslator"}
+		PageTitle:   "AppTranslator"}
 
 	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
