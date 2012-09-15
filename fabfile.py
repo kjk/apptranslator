@@ -60,14 +60,15 @@ def zip_files(zip_path):
 	add_dir_files(zf, "static")
 	zf.close()
 
-def delete_old_deploys(to_keep=4):
+def delete_old_deploys(to_keep=5):
 	with cd(app_dir):
 		out = run('ls -1trF')
 		lines = out.split("\n")
 		i = 0
 		dirs_to_del = []
 		while i < len(lines):
-			s = lines[i]
+			s = lines[i].strip()
+			#print("s: '%s'" % s)
 			# extra precaution: skip dirs right after "prev@", "current@", they
 			# are presumed to be their symlink targets
 			if s in ["prev@", "current@"]:
@@ -77,16 +78,12 @@ def delete_old_deploys(to_keep=4):
 				if len(s) == 41: # s == "0111cb7bdd014850e8c11ee4820dc0d7e12f4015/"
 					dirs_to_del.append(s)
 			i += 1
+		#print("len(dirs_to_del) = %d, to_keep = %d" % (len(dirs_to_del), to_keep))
 		if len(dirs_to_del) > to_keep:
 			dirs_to_del = dirs_to_del[:-to_keep]
-			print("dirs to delete:")
-			print(dirs_to_del)
-			# TODO: delete those dirs
-			#for d in dirs_to_del:
-			#	run("rm -rf %s" % d)
-
-def delold():
-	delete_old_deploys()
+			print("deleting old deploys: %s" % str(dirs_to_del))
+			for d in dirs_to_del:
+				run("rm -rf %s" % d)
 
 def deploy():
 	if not os.path.exists("secrets.json"): abort("secrets.json doesn't exist locally")
