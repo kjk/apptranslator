@@ -35,7 +35,8 @@ func sortTranslatorsByCount(t []*Translator) {
 }
 
 func buildModelApp(app *App, user string) *ModelApp {
-	model := &ModelApp{App: app,
+	model := &ModelApp{
+		App:         app,
 		User:        user,
 		UserIsAdmin: userIsAdmin(app, user),
 		PageTitle:   fmt.Sprintf("Translations for %s", app.Name),

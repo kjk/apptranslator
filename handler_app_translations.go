@@ -18,7 +18,12 @@ type ModelAppTranslations struct {
 }
 
 func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTranslations {
-	model := &ModelAppTranslations{App: app, ShowTranslationEditedMsg: false, User: user, UserIsAdmin: userIsAdmin(app, user)}
+	model := &ModelAppTranslations{
+		App: app,
+		ShowTranslationEditedMsg: false,
+		User:                     user,
+		UserIsAdmin:              userIsAdmin(app, user)}
+
 	modelApp := buildModelApp(app, user)
 	for _, langInfo := range modelApp.Langs {
 		if langInfo.Code == langCode {
