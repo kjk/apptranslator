@@ -79,6 +79,7 @@ def delete_old_deploys(to_keep=5):
 			i += 1
 		if len(dirs_to_del) > to_keep:
 			dirs_to_del = dirs_to_del[:-to_keep]
+			print("dirs to delete:")
 			print(dirs_to_del)
 			# TODO: delete those dirs
 			#for d in dirs_to_del:
