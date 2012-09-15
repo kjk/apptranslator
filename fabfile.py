@@ -21,7 +21,6 @@ def git_pull():
 	local("git pull")
 
 def git_trunk_sha1():
-	# TODO: use "git rev-parse origin" instead?
 	return subprocess.check_output(["git", "log", "-1", "--pretty=format:%H"])
 
 def delete_file(p):
@@ -31,16 +30,10 @@ def delete_file(p):
 def ensure_remote_dir_exists(p):
 	if not files.exists(p):
 		abort("dir '%s' doesn't exist on remote server" % p)
-	#with settings(warn_only=True):
-	#	if run("test -d %s" % p).failed:
-	#		abort("dir '%s' doesn't exist on remote server" % p)
 
 def ensure_remote_file_exists(p):
 	if not files.exists(p):
 		abort("dir '%s' doesn't exist on remote server" % p)
-	#with settings(warn_only=True):
-	#	if run("test -f %s" % p).failed:
-	#		abort("file '%s' doesn't exist on remote server" % p	)
 
 def add_dir_files(zip_file, dir):
 	for (path, dirs, files) in os.walk(dir):
@@ -68,7 +61,6 @@ def delete_old_deploys(to_keep=5):
 		dirs_to_del = []
 		while i < len(lines):
 			s = lines[i].strip()
-			#print("s: '%s'" % s)
 			# extra precaution: skip dirs right after "prev@", "current@", they
 			# are presumed to be their symlink targets
 			if s in ["prev@", "current@"]:
@@ -78,7 +70,6 @@ def delete_old_deploys(to_keep=5):
 				if len(s) == 41: # s == "0111cb7bdd014850e8c11ee4820dc0d7e12f4015/"
 					dirs_to_del.append(s)
 			i += 1
-		#print("len(dirs_to_del) = %d, to_keep = %d" % (len(dirs_to_del), to_keep))
 		if len(dirs_to_del) > to_keep:
 			dirs_to_del = dirs_to_del[:-to_keep]
 			print("deleting old deploys: %s" % str(dirs_to_del))
