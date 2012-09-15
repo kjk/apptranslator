@@ -60,7 +60,7 @@ def zip_files(zip_path):
 	add_dir_files(zf, "static")
 	zf.close()
 
-def delete_old_deploys(to_keep=5):
+def delete_old_deploys(to_keep=4):
 	with cd(app_dir):
 		out = run('ls -1trF')
 		lines = out.split("\n")
