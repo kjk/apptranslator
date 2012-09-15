@@ -1,11 +1,11 @@
 package main
 
 import (
-	"html/template"
 	"net/http"
 )
 
 type ModelMain struct {
+	PageTitle   string
 	Apps        *[]*App
 	User        string
 	UserIsAdmin bool
@@ -20,14 +20,14 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := decodeUserFromCookie(r)
-	model := &ModelMain{Apps: &appState.Apps, User: user, UserIsAdmin: false, RedirectUrl: r.URL.String()}
-	tp := &templateParser{}
-	if err := GetTemplates().ExecuteTemplate(tp, tmplMain, model); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	content := &content{template.HTML(tp.HTML)}
-	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
+	model := &ModelMain{
+		Apps: &appState.Apps,
+		User: user, 
+		UserIsAdmin: false,
+		RedirectUrl: r.URL.String(),
+		PageTitle:"AppTranslator"}
+
+	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

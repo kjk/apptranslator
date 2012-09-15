@@ -3,13 +3,13 @@ package main
 import (
 	"code.google.com/p/gorilla/mux"
 	"fmt"
-	"html/template"
 	"net/http"
 	"sort"
 )
 
 type ModelApp struct {
 	App         *App
+	PageTitle   string
 	Langs       []*LangInfo
 	RecentEdits []Edit
 	Translators []*Translator
@@ -35,10 +35,13 @@ func sortTranslatorsByCount(t []*Translator) {
 }
 
 func buildModelApp(app *App, user string) *ModelApp {
-	model := &ModelApp{App: app, User: user, UserIsAdmin: userIsAdmin(app, user)}
-	model.Langs = app.translationLog.LangInfos()
-	model.RecentEdits = app.translationLog.recentEdits(10)
-	model.Translators = app.translationLog.translators()
+	model := &ModelApp{App: app, 
+		User: user,
+		UserIsAdmin: userIsAdmin(app, user),
+		PageTitle : fmt.Sprintf("Translations for %s", app.Name),
+		Langs : app.translationLog.LangInfos(),
+		RecentEdits : app.translationLog.recentEdits(10),
+		Translators : app.translationLog.translators()}
 	sortTranslatorsByCount(model.Translators)
 	return model
 }
@@ -56,15 +59,8 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("handleApp() appName=%s\n", appName)
 	model := buildModelApp(app, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
-	tp := &templateParser{}
-	if err := GetTemplates().ExecuteTemplate(tp, tmplApp, model); err != nil {
+	if err := GetTemplates().ExecuteTemplate(w, tmplApp, model); err != nil {
 		fmt.Print(err.Error(), "\n")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	content := &content{template.HTML(tp.HTML)}
-	if err := GetTemplates().ExecuteTemplate(w, tmplBase, content); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -1,50 +1,55 @@
-<header class="jumbotron subhead" id="overview">
-	<h2><a href="/">Home</a> : Translations for {{.App.Name}}
-		<span style="font-size:50%;float:right;">{{if .User}}Logged in as {{.User}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
-	</h2>
-	<p class="lead">{{.App.StringsCount}} strings translated
-		to {{.App.LangsCount}} languages, {{.App.UntranslatedCount}}
-		total untranslated strings (in all languages)</p>
-</header>
+{{ template "header.html" . }}
 
-{{$appName := .App.Name}}
+<div class="container">
+	<header class="jumbotron subhead" id="overview">
+		<h2><a href="/">Home</a> : Translations for {{.App.Name}}
+			<span style="font-size:50%;float:right;">{{if .User}}Logged in as {{.User}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
+		</h2>
+		<p class="lead">{{.App.StringsCount}} strings translated
+			to {{.App.LangsCount}} languages, {{.App.UntranslatedCount}}
+			total untranslated strings (in all languages)</p>
+	</header>
 
-<div>
-	<div id="langs" style="display: inline-block;">
-	{{if len .Langs}}
-	<p>Languages:</p>
-	<ul>
-	  {{range .Langs}}
-	  <li><a href="/app/{{$appName}}/{{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated)</li>
-	  {{end}}
-	</ul>
-	{{else}}
-	There are no languages!
-	{{end}}
-	</div>
+	{{$appName := .App.Name}}
 
-	<div style="display: inline-block;vertical-align:top;">
-		{{if len .RecentEdits}}
-		<div id="recentEdits">
-		<p>Recent translations:</p>
+	<div>
+		<div id="langs" style="display: inline-block;">
+		{{if len .Langs}}
+		<p>Languages:</p>
 		<ul>
-			{{range .RecentEdits}}
-			<li><a href="/user/{{.User}}">{{.User}}</a> translated '{{.Text}}' in <a href="/app/{{$appName}}/{{.Lang}}">{{.Lang}}</a></li>
-			{{end}}
+		  {{range .Langs}}
+		  <li><a href="/app/{{$appName}}/{{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated)</li>
+		  {{end}}
 		</ul>
-		</div>
+		{{else}}
+		There are no languages!
 		{{end}}
+		</div>
 
-		{{if len .Translators}}
-		<div id="translators">
-		<p>Translators:</p>
-		<ul>
-			{{range .Translators}}
-			<li><a href="/user/{{.Name}}">{{.Name}}</a> made {{.TranslationsCount}} translations</li>
+		<div style="display: inline-block;vertical-align:top;">
+			{{if len .RecentEdits}}
+			<div id="recentEdits">
+			<p>Recent translations:</p>
+			<ul>
+				{{range .RecentEdits}}
+				<li><a href="/user/{{.User}}">{{.User}}</a> translated '{{.Text}}' in <a href="/app/{{$appName}}/{{.Lang}}">{{.Lang}}</a></li>
+				{{end}}
+			</ul>
+			</div>
 			{{end}}
-		</ul>
+
+			{{if len .Translators}}
+			<div id="translators">
+			<p>Translators:</p>
+			<ul>
+				{{range .Translators}}
+				<li><a href="/user/{{.Name}}">{{.Name}}</a> made {{.TranslationsCount}} translations</li>
+				{{end}}
+			</ul>
+			</div>
+			{{end}}
 		</div>
-		{{end}}
 	</div>
-
 </div>
+
+{{ template "footer.html" . }}

@@ -61,9 +61,8 @@ var (
 	tmplMain        = "main.html"
 	tmplApp         = "app.html"
 	tmplAppTrans    = "apptrans.html"
-	tmplBase        = "base.html"
 	tmplUser        = "user.html"
-	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans, tmplUser, tmplBase}
+	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans, tmplUser, "header.html", "footer.html"}
 	templatePaths   = make([]string, 0)
 	templates       *template.Template
 	reloadTemplates = true
@@ -209,19 +208,6 @@ func findApp(name string) *App {
 		}
 	}
 	return nil
-}
-
-type content struct {
-	ContentHTML template.HTML
-}
-
-type templateParser struct {
-	HTML string
-}
-
-func (tP *templateParser) Write(p []byte) (n int, err error) {
-	tP.HTML += string(p)
-	return len(p), nil
 }
 
 func GetTemplates() *template.Template {
