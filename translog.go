@@ -558,7 +558,6 @@ type Translation struct {
 
 func NewTranslation(s, trans string) *Translation {
 	t := &Translation{String: s}
-	t.Translations = make([]string, 0)
 	if trans != "" {
 		t.Translations = append(t.Translations, trans)
 	}
@@ -786,7 +785,7 @@ func (l *TranslationLog) updateStringsList(newStrings []string) error {
 		stringsHash[s] = true
 	}
 
-	toUndelete := make([]string, 0)
+	var toUndelete []string
 	for _, s := range newStrings {
 		if strId, ok := l.state.stringMap[s]; ok {
 			if l.state.isDeleted(strId) {
@@ -795,14 +794,14 @@ func (l *TranslationLog) updateStringsList(newStrings []string) error {
 		}
 	}
 
-	toDelete := make([]string, 0)
+	var toDelete []string, 0
 	for str, _ := range l.state.stringMap {
 		if _, ok := stringsHash[str]; !ok {
 			toDelete = append(toDelete, str)
 		}
 	}
 
-	toAdd := make([]string, 0)
+	var toAdd := []string
 	for str, _ := range stringsHash {
 		if _, ok := l.state.stringMap[str]; !ok {
 			toAdd = append(toAdd, str)

@@ -63,7 +63,7 @@ var (
 	tmplAppTrans    = "apptrans.html"
 	tmplUser        = "user.html"
 	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans, tmplUser, "header.html", "footer.html"}
-	templatePaths   = make([]string, 0)
+	templatePaths   []string
 	templates       *template.Template
 	reloadTemplates = true
 	alwaysLogTime   = true
