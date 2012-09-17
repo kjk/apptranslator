@@ -2,12 +2,11 @@ package atomfeed
 
 import (
 	"encoding/xml"
-	"fmt"
-	"strings"
+	"net/url"
 	"time"
 )
 
-// Generates Atom feed
+// Generates Atom feed as XML
 
 const AtomFeedNamespace = "http://www.w3.org/2005/Atom"
 
@@ -59,19 +58,14 @@ type feedXml struct {
 	Entries []*entryXml
 }
 
-// given: http://foo.bar.com/url.html return just foo.bar.com
-func domainFromHref(s string) string {
-	parts := strings.Split(s, "/")
-	if len(parts) >= 3 {
-		return parts[2]
-	}
-	return s
-}
-
-func newEntryXml(e *Entry, entryNo int) *entryXml {
+func newEntryXml(e *Entry) *entryXml {
 	s := &entrySummary{e.Description, "html"}
 	// <id>tag:blog.kowalczyk.info,2012-09-11:/item/1.html</id>
-	id := "tag:" + domainFromHref(e.Link) + "," + e.PubDate.Format("2006-01-02") + fmt.Sprintf(":/item/%d.html", entryNo)
+	idDate := e.PubDate.Format("2006-01-02")
+	id := "tag:" + e.Link + "," + idDate + ":/invalid.html"
+	if url, err := url.Parse(e.Link); err == nil {
+		id = "tag:" + url.Host + "," + idDate + ":" + url.Path
+	}
 	x := &entryXml{
 		Title:   e.Title,
 		Link:    &linkXml{Href: e.Link, Rel: "alternate"},
@@ -88,8 +82,8 @@ func (f *Feed) GenXml() (string, error) {
 		Link:    &linkXml{Href: f.Link, Rel: "alternate"},
 		Id:      f.Link,
 		Updated: f.PubDate.Format(time.RFC3339)}
-	for n, e := range f.entries {
-		feed.Entries = append(feed.Entries, newEntryXml(e, n+1))
+	for _, e := range f.entries {
+		feed.Entries = append(feed.Entries, newEntryXml(e))
 	}
 	data, err := xml.Marshal(feed)
 	if err != nil {
