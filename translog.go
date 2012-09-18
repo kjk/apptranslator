@@ -794,14 +794,14 @@ func (l *TranslationLog) updateStringsList(newStrings []string) error {
 		}
 	}
 
-	var toDelete []string, 0
+	var toDelete []string
 	for str, _ := range l.state.stringMap {
 		if _, ok := stringsHash[str]; !ok {
 			toDelete = append(toDelete, str)
 		}
 	}
 
-	var toAdd := []string
+	var toAdd []string
 	for str, _ := range stringsHash {
 		if _, ok := l.state.stringMap[str]; !ok {
 			toAdd = append(toAdd, str)
