@@ -1,4 +1,5 @@
-package atomfeed
+// This code is under BSD license. See license-bsd.txt
+package atom
 
 import (
 	"encoding/xml"
@@ -8,7 +9,7 @@ import (
 
 // Generates Atom feed as XML
 
-const AtomFeedNamespace = "http://www.w3.org/2005/Atom"
+const ns = "http://www.w3.org/2005/Atom"
 
 type Feed struct {
 	Title   string
@@ -77,7 +78,7 @@ func newEntryXml(e *Entry) *entryXml {
 
 func (f *Feed) GenXml() (string, error) {
 	feed := &feedXml{
-		Ns:      AtomFeedNamespace,
+		Ns:      ns,
 		Title:   f.Title,
 		Link:    &linkXml{Href: f.Link, Rel: "alternate"},
 		Id:      f.Link,

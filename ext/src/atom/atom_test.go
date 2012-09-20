@@ -1,4 +1,5 @@
-package atomfeed
+// This code is under BSD license. See license-bsd.txt
+package atom
 
 import (
 	"testing"

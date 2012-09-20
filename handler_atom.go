@@ -2,7 +2,7 @@
 package main
 
 import (
-	"atomfeed"
+	"atom"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,7 +16,7 @@ func getAllRss(app *App) string {
 
 	// TODO: use a more reasonable time, like the time of last edit?
 	pubTime, err := time.Parse(time.RFC3339, "2012-09-11T07:39:41Z")
-	feed := &atomfeed.Feed{
+	feed := &atom.Feed{
 		Title:   title,
 		Link:    link,
 		PubDate: pubTime}
@@ -28,7 +28,7 @@ func getAllRss(app *App) string {
 		pubdate := time.Now()
 		// TODO: a unique link?
 		dsc := fmt.Sprintf("%s translated %s as %s in language %s", e.User, e.Text, e.Translation, e.Lang)
-		e := &atomfeed.Entry{
+		e := &atom.Entry{
 			Title:       title,
 			Link:        "http://blog.kowalczyk.info/item/1.html",
 			Description: dsc,
@@ -51,7 +51,7 @@ func getRss(app *App, lang string) string {
 	//dsc := fmt.Sprintf("Recent %s translation edits for %s", lang, app.Name)
 
 	pubTime := time.Now() // TODO: better!
-	feed := &atomfeed.Feed{
+	feed := &atom.Feed{
 		Title:   title,
 		Link:    link,
 		PubDate: pubTime}

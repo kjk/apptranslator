@@ -1,3 +1,3 @@
 #!/bin/sh
-cd ext/src/atomfeed
+cd ext/src/atom
 go test
