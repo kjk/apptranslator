@@ -89,6 +89,7 @@ func ensureValidConfig(config *BackupConfig) {
 	if err != nil {
 		log.Fatalf("Invalid s3 backup: bucket.List failed %s\n", err.Error())
 	}
+	fmt.Printf("s3 bucket ok!\n")
 }
 
 func BackupLoop(config *BackupConfig) {
