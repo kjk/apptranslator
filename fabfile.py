@@ -1,3 +1,4 @@
+# This code is under BSD license. See license-bsd.txt
 import sys, os, os.path, subprocess
 import zipfile
 from fabric.api import *

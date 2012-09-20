@@ -1,3 +1,4 @@
+// This code is under BSD license. See license-bsd.txt
 package main
 
 import (
@@ -39,11 +40,16 @@ var (
 		Apps                    []AppConfig
 		CookieAuthKeyHexStr     *string
 		CookieEncrKeyHexStr     *string
+		AwsAccess               *string
+		AwsSecret               *string
+		S3BackupBucket          *string
+		S3BackupDir             *string
 	}{
 		&oauthClient.Credentials,
 		nil,
-		nil,
-		nil,
+		nil, nil,
+		nil, nil,
+		nil, nil,
 	}
 	logger        *log.Logger
 	cookieAuthKey []byte
@@ -68,6 +74,30 @@ var (
 	reloadTemplates = true
 	alwaysLogTime   = true
 )
+
+func StringEmpty(s *string) bool {
+	return (s == nil) || (len(*s) > 0)
+}
+
+func S3BackupEnabled() bool {
+	if StringEmpty(config.AwsAccess) {
+		fmt.Print("Backup to s3 disabled because AwsAccess not defined in secrets.json\n")
+		return false
+	}
+	if StringEmpty(config.AwsSecret) {
+		fmt.Print("Backup to s3 disabled because AwsSecret not defined in secrets.json\n")
+		return false
+	}
+	if StringEmpty(config.S3BackupBucket) {
+		fmt.Print("Backup to s3 disabled because S3BackupBucket not defined in secrets.json\n")
+		return false
+	}
+	if StringEmpty(config.S3BackupDir) {
+		fmt.Print("Backup to s3 disabled because S3BackupDir not defined in secrets.json\n")
+		return false
+	}
+	return true
+}
 
 // a static configuration of a single app
 type AppConfig struct {
