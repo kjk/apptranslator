@@ -207,7 +207,7 @@ func main() {
 		fmt.Printf("Error reading dir '%s', %s\n", dir, err.Error())
 		return
 	}
-	if FileExists(dataFileName) {
+	if PathExists(dataFileName) {
 		log.Fatalf("%s already exists", dataFileName)
 	}
 	translog, err := NewTranslationLog(dataFileName)

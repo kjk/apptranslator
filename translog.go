@@ -702,7 +702,7 @@ func (s *EncoderDecoderState) langInfos() []*LangInfo {
 
 func NewTranslationLog(path string) (*TranslationLog, error) {
 	state := NewEncoderDecoderState()
-	if FileExists(path) {
+	if PathExists(path) {
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err
