@@ -2,10 +2,6 @@
 package main
 
 /*
-import (
-	"mime"
-)
-
 func upload(bucket s3.Bucket, local, remote string, public bool) error {
 	localf, err := os.Open(local)
 	if err != nil {
@@ -52,7 +48,9 @@ func upload(bucket s3.Bucket, local, remote string, public bool) error {
 */
 
 import (
+	"archive/zip"
 	"fmt"
+	"io"
 	"launchpad.net/goamz/aws"
 	"launchpad.net/goamz/s3"
 	"log"
@@ -96,6 +94,7 @@ func ensureValidConfig(config *BackupConfig) {
 func doBackup(config *BackupConfig) {
 	// TODO: a better way to generate a random file name
 	path := filepath.Join(os.TempDir(), "apptranslator-tmp-backup.zip")
+	fmt.Printf("zip file name: %s\n", path)
 	os.Remove(path)
 	zf, err := os.Create(path)
 	if err != nil {
@@ -103,13 +102,48 @@ func doBackup(config *BackupConfig) {
 		return
 	}
 	defer zf.Close()
-	defer os.Remove(path)
+	//defer os.Remove(path)
+	zipWriter := zip.NewWriter(zf)
+	// TODO: is the order of defer here can create problems?
+	// TODO: need to check error code returned by Close()
+	defer zipWriter.Close()
 
-	err = filepath.Walk(config.LocalDir, func(path string, info os.FileInfo, err error) error {
+	//fmt.Printf("Walk root: %s\n", config.LocalDir)
+	root := config.LocalDir
+	rootLen := len(config.LocalDir) + 1 // +1 for slash
+	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf(path)
+		//fmt.Printf("%s\n", path)
+		if root == path {
+			return nil
+		}
+		toZipPath := filepath.Join(root, path[rootLen:])
+		fmt.Printf("toZipPath: %s\n", toZipPath)
+		isDir, err := PathIsDir(toZipPath)
+		if err != nil {
+			return err
+		}
+		if isDir {
+			return nil
+		}
+		toZipReader, err := os.Open(toZipPath)
+		if err != nil {
+			return err
+		}
+		defer toZipReader.Close()
+
+		inZipWriter, err := zipWriter.Create(toZipPath)
+		if err != nil {
+			fmt.Printf("Error in zipWriter(): %s\n", err.Error())
+			return err
+		}
+		_, err = io.Copy(inZipWriter, toZipReader)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Added %s to zip file\n", toZipPath)
 		return nil
 	})
 	if err != nil {
@@ -119,6 +153,8 @@ func doBackup(config *BackupConfig) {
 
 func BackupLoop(config *BackupConfig) {
 	ensureValidConfig(config)
+	doBackup(config)
+	log.Fatalf("Exiting now")
 	for {
 		// sleep first so that we don't backup right after new deploy
 		time.Sleep(backupFreq)
