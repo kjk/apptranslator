@@ -43,7 +43,7 @@ var (
 		AwsAccess               *string
 		AwsSecret               *string
 		S3BackupBucket          *string
-		S3BackupDir				*string
+		S3BackupDir             *string
 	}{
 		&oauthClient.Credentials,
 		nil,
@@ -370,9 +370,9 @@ func main() {
 	backupConfig := &BackupConfig{
 		AwsAccess: *config.AwsAccess,
 		AwsSecret: *config.AwsSecret,
-		Bucket: *config.S3BackupBucket,
-		S3Dir: *config.S3BackupDir,
-		LocalDir: getDataDir(),
+		Bucket:    *config.S3BackupBucket,
+		S3Dir:     *config.S3BackupDir,
+		LocalDir:  getDataDir(),
 	}
 	go BackupLoop(backupConfig)
 	logger.Printf("Running on %s\n", *httpAddr)

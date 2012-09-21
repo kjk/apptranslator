@@ -3,7 +3,6 @@ package main
 
 /*
 import (
-	"os"
 	"mime"
 )
 
@@ -58,6 +57,8 @@ import (
 	"launchpad.net/goamz/s3"
 	"log"
 	_ "mime"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -90,6 +91,30 @@ func ensureValidConfig(config *BackupConfig) {
 		log.Fatalf("Invalid s3 backup: bucket.List failed %s\n", err.Error())
 	}
 	fmt.Printf("s3 bucket ok!\n")
+}
+
+func doBackup(config *BackupConfig) {
+	// TODO: a better way to generate a random file name
+	path := filepath.Join(os.TempDir(), "apptranslator-tmp-backup.zip")
+	os.Remove(path)
+	zf, err := os.Create(path)
+	if err != nil {
+		// TODO: what to do about it? Notify using e-mail?
+		return
+	}
+	defer zf.Close()
+	defer os.Remove(path)
+
+	err = filepath.Walk(config.LocalDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		fmt.Printf(path)
+		return nil
+	})
+	if err != nil {
+		return
+	}
 }
 
 func BackupLoop(config *BackupConfig) {
