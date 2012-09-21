@@ -49,6 +49,7 @@ func upload(bucket s3.Bucket, local, remote string, public bool) error {
 
 import (
 	"archive/zip"
+	"crypto/sha1"
 	"fmt"
 	"io"
 	"launchpad.net/goamz/aws"
@@ -148,18 +149,43 @@ func createZipWithDirContent(zipFilePath, dirToZip string) error {
 	return nil
 }
 
+func fileSha1(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		//fmt.Printf("os.Open(%s) failed with %s\n", path, err.Error())
+		return "", err
+	}
+	defer f.Close()
+	h := sha1.New()
+	_, err = io.Copy(h, f)
+	if err != nil {
+		//fmt.Printf("io.Copy() failed with %s\n", err.Error())
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
 // TODO: what to do about failures? Log somewhere and allow viewing via website?
 // e-mail the failures once a day?
+// TODO:
+//  - upload the zip under YYMMDD_HHMM_${SHA1}.zip name
+//    - but only if latest backup had a different ${SHA1}
 func doBackup(config *BackupConfig) {
 	// TODO: a better way to generate a random file name
 	path := filepath.Join(os.TempDir(), "apptranslator-tmp-backup.zip")
 	fmt.Printf("zip file name: %s\n", path)
+	// TODO: do I need os.Remove() won't os.Create() over-write the file anyway?
 	os.Remove(path) // remove before trying to create a new one, just in cased
 	err := createZipWithDirContent(path, config.LocalDir)
-	defer os.Remove(path)
+	//defer os.Remove(path)
 	if err != nil {
 		return
 	}
+	sha1, err := fileSha1(path)
+	if err != nil {
+		return
+	}
+	fmt.Printf("%s  %s\n", sha1, path)
 }
 
 func BackupLoop(config *BackupConfig) {
