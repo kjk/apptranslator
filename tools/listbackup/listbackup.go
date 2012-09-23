@@ -2,15 +2,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/garyburd/go-oauth/oauth"
+	"io/ioutil"
 	"launchpad.net/goamz/aws"
 	"launchpad.net/goamz/s3"
 	"log"
-	"encoding/json"
-	"github.com/garyburd/go-oauth/oauth"
-	"io/ioutil"
+	"strings"
 )
-
 
 var (
 	bucketDelim = "/"
@@ -62,53 +62,38 @@ func readSecrets(configFile string) error {
 	}
 	return json.Unmarshal(b, &config)
 }
-/*
-// The ListResp type holds the results of a List bucket operation.
-type ListResp struct {
-	Name      string
-	Prefix    string
-	Delimiter string
-	Marker    string
-	MaxKeys   int
-	// IsTruncated is true if the results have been truncated because
-	// there are more keys and prefixes than can fit in MaxKeys.
-	// N.B. this is the opposite sense to that documented (incorrectly) in
-	// http://goo.gl/YjQTc
-	IsTruncated    bool
-	Contents       []Key
-	CommonPrefixes []string `xml:">Prefix"`
-}
-
-// The Key type represents an item stored in an S3 bucket.
-type Key struct {
-	Key          string
-	LastModified string
-	Size         int64
-	// ETag gives the hex-encoded MD5 sum of the contents,
-	// surrounded with double-quotes.
-	ETag         string
-	StorageClass string
-	Owner        Owner
-}
-*/
 
 func fullUrl(bucket, path string) string {
 	return fmt.Sprintf("http://%s.s3.amazonaws.com%s", bucket, path)
 }
 
+// removes "/" if exists and adds delim if missing
+func sanitizeDirForList(dir, delim string) string {
+	if strings.HasPrefix(dir, "/") {
+		dir = dir[1:]
+	}
+	if !strings.HasSuffix(dir, delim) {
+		dir = dir + delim
+	}
+	return dir
+}
+
 func listBackups() {
+	bucketName := *config.S3BackupBucket
+	dir := sanitizeDirForList(*config.S3BackupDir, bucketDelim)
 	auth := aws.Auth{*config.AwsAccess, *config.AwsSecret}
-	s3 := s3.New(auth, aws.USEast)
-	bucket := s3.Bucket(*config.S3BackupBucket)
-	rsp, err := bucket.List(*config.S3BackupDir, bucketDelim, "", 1000)
+	b := s3.New(auth, aws.USEast).Bucket(bucketName)
+	fmt.Printf("Listing files in %s\n", fullUrl(bucketName, dir))
+	rsp, err := b.List(dir, bucketDelim, "", 1000)
 	if err != nil {
 		log.Fatalf("Invalid s3 backup: bucket.List failed %s\n", err.Error())
 	}
+	//fmt.Printf("rsp: %v\n", rsp)
 	if 0 == len(rsp.Contents) {
 		fmt.Printf("There are no files in %s\n", fullUrl(*config.S3BackupBucket, *config.S3BackupDir))
 		return
 	}
-	fmt.Printf("Backup files in %s:\n", fullUrl(*config.S3BackupBucket, *config.S3BackupDir))
+	//fmt.Printf("Backup files in %s:\n", fullUrl(*config.S3BackupBucket, *config.S3BackupDir))
 	for _, key := range rsp.Contents {
 		fmt.Printf("  %s %d\n", key.Key, key.Size)
 	}
