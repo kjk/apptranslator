@@ -11,7 +11,7 @@ package main
 //       via web interface
 
 import (
-	"fmt"
+	_ "fmt"
 	"launchpad.net/goamz/aws"
 	"launchpad.net/goamz/s3"
 	"log"

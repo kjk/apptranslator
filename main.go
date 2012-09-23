@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -316,6 +317,14 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 }
 
 func main() {
+	// set number of goroutines to number of cpus, but capped at 4 since
+	// I don't expect this to be heavily trafficed website
+	ncpu := runtime.NumCPU()
+	fmt.Printf("%d cpus\n", ncpu)
+	if ncpu > 4 {
+		ncpu = 4
+	}
+	runtime.GOMAXPROCS(ncpu)
 	flag.Parse()
 
 	if *inProduction {
