@@ -77,7 +77,7 @@ var (
 )
 
 func StringEmpty(s *string) bool {
-	return (s == nil) || (len(*s) > 0)
+	return s == nil || 0 == len(*s)
 }
 
 func S3BackupEnabled() bool {
@@ -98,6 +98,23 @@ func S3BackupEnabled() bool {
 		return false
 	}
 	return true
+}
+
+// data dir is ../data on the server or ../apptranslatordata locally
+func getDataDir() string {
+	if dataDir != "" {
+		return dataDir
+	}
+	dataDir = filepath.Join("..", "apptranslatordata")
+	if PathExists(dataDir) {
+		return dataDir
+	}
+	dataDir = filepath.Join("..", "..", "data")
+	if PathExists(dataDir) {
+		return dataDir
+	}
+	log.Fatal("data directory (../../data or ../apptranslatordata) doesn't exist")
+	return ""
 }
 
 // a static configuration of a single app
@@ -150,7 +167,15 @@ func (a *App) UntranslatedCount() int {
 }
 
 func (a *App) translationLogFilePath() string {
-	return filepath.Join(filepath.Join(getDataDir(), a.DataDir), "translations.dat")
+	// the data directory and file 'translations.dat' must already
+	// exists. We don't expect adding new projects often, it requires a
+	// deploy anyway, so we force the admin to create those dirs
+	appDataDir := filepath.Join(getDataDir(), a.DataDir)
+	dataFilePath := filepath.Join(appDataDir, "translations.dat")
+	if !PathExists(dataFilePath) {
+		log.Fatalf("Data file %s for app %s doesn't exist. Prease create (empty file is ok)!\n", dataFilePath, a.Name)
+	}
+	return dataFilePath
 }
 
 func readAppData(app *App) error {
@@ -174,23 +199,6 @@ func (s SmartString) Less(i, j int) bool {
 	return transStringLess(s.StringsSeq[i], s.StringsSeq[j])
 }
 */
-
-// data dir is ../data on the server or ../apptranslatordata locally
-func getDataDir() string {
-	if dataDir != "" {
-		return dataDir
-	}
-	dataDir = filepath.Join("..", "apptranslatordata")
-	if PathExists(dataDir) {
-		return dataDir
-	}
-	dataDir = filepath.Join("..", "..", "data")
-	if PathExists(dataDir) {
-		return dataDir
-	}
-	log.Fatal("data directory (../../data or ../apptranslatordata) doesn't exist")
-	return ""
-}
 
 func findApp(name string) *App {
 	for _, app := range appState.Apps {
@@ -383,7 +391,9 @@ func main() {
 		S3Dir:     *config.S3BackupDir,
 		LocalDir:  getDataDir(),
 	}
-	go BackupLoop(backupConfig)
+	if !S3BackupEnabled() {
+		go BackupLoop(backupConfig)
+	}
 	logger.Printf("Running on %s\n", *httpAddr)
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err.Error())
