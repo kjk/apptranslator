@@ -9,7 +9,6 @@
 			to {{.App.LangsCount}} languages, {{.App.UntranslatedCount}}
 			total untranslated strings (in all languages)</p>
 	</header>
-
 	{{$appName := .App.Name}}
 
 	<div>
@@ -24,6 +23,11 @@
 		{{else}}
 		There are no languages!
 		{{end}}
+
+		<p style="color:grey">Your language missing? Contact <a href="http://blog.kowalczyk.info">me</a>
+		and I'll add it</p>
+
+
 		</div>
 
 		<div style="display: inline-block;vertical-align:top;">

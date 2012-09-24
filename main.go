@@ -147,7 +147,6 @@ type AppState struct {
 
 func NewApp(config *AppConfig) *App {
 	app := &App{AppConfig: *config}
-	logger.Printf("Created %s app\n", app.Name)
 	return app
 }
 
@@ -328,7 +327,6 @@ func main() {
 	// set number of goroutines to number of cpus, but capped at 4 since
 	// I don't expect this to be heavily trafficed website
 	ncpu := runtime.NumCPU()
-	fmt.Printf("%d cpus\n", ncpu)
 	if ncpu > 4 {
 		ncpu = 4
 	}
