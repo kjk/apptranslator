@@ -3,7 +3,6 @@ List of things to do for app translator.
 Must have:
 - upload strings to be translated
 - python script to parse translations from app translator
-- a way to backup data to s3 (e.g. every 1hr, if changed)
 - allow for handleDownloadTranslations (/downloadtranslations) to not re-download
   translations if they haven't changed
 

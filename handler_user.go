@@ -7,22 +7,41 @@ import (
 	"net/http"
 )
 
+type EditByUser struct {
+	Lang        string
+	App         string
+	Text        string
+	Translation string
+}
+
 type ModelUser struct {
 	Name            string
 	PageTitle       string
 	TranslatedCount int
-	Edits           []*Edit
+	Edits           []EditByUser
 	User            string // TODO: change to LoginName
 	RedirectUrl     string
 }
 
 func buildModelUser(user, loginName string) *ModelUser {
-	model := &ModelUser{
+	edits := make([]EditByUser, 0)
+	for _, app := range appState.Apps {
+		for _, edit := range app.translationLog.editsByUser(user) {
+			var e = EditByUser{
+				Lang:        edit.Lang,
+				App:         app.Name,
+				Text:        edit.Text,
+				Translation: edit.Translation,
+			}
+			edits = append(edits, e)
+		}
+	}
+	return &ModelUser{
+		PageTitle: fmt.Sprintf("Translations of user %s", user),
 		Name:      user,
 		User:      loginName,
-		PageTitle: fmt.Sprintf("Translations of user %s", user)}
-	// TOOD: calc Edits
-	return model
+		Edits:     edits,
+	}
 }
 
 // handler for url: /user/{user}

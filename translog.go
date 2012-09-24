@@ -143,6 +143,25 @@ func (s *EncoderDecoderState) recentEdits(max int) []Edit {
 	return res
 }
 
+func (s *EncoderDecoderState) editsByUser(user string) []Edit {
+	res := make([]Edit, 0)
+	transCount := len(s.translations)
+	for i := 0; i < transCount; i++ {
+		tr := &(s.translations[transCount-i-1])
+		editUser := s.userById(tr.userId)
+		if editUser == user {
+			var e = Edit{
+				Lang:        s.langById(tr.langId),
+				User:        editUser,
+				Text:        s.stringById(tr.stringId),
+				Translation: tr.translation,
+			}
+			res = append(res, e)
+		}
+	}
+	return res
+}
+
 func (s *EncoderDecoderState) translators() []*Translator {
 	m := make(map[int]*Translator)
 	unknownUserId := 1
@@ -768,6 +787,12 @@ func (l *TranslationLog) recentEdits(max int) []Edit {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.state.recentEdits(max)
+}
+
+func (l *TranslationLog) editsByUser(user string) []Edit {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.editsByUser(user)
 }
 
 func (l *TranslationLog) translators() []*Translator {
