@@ -25,7 +25,7 @@ func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTransla
 		User:                     user,
 		UserIsAdmin:              userIsAdmin(app, user)}
 
-	modelApp := buildModelApp(app, user)
+	modelApp := buildModelApp(app, user, false)
 	for _, langInfo := range modelApp.Langs {
 		if langInfo.Code == langCode {
 			model.LangInfo = langInfo

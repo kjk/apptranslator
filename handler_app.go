@@ -6,20 +6,22 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 )
 
 type ModelApp struct {
-	App         *App
-	PageTitle   string
-	Langs       []*LangInfo
-	RecentEdits []Edit
-	Translators []*Translator
-	User        string // TODO: change to LoginName
-	UserIsAdmin bool
-	RedirectUrl string
+	App          *App
+	PageTitle    string
+	Langs        []*LangInfo
+	RecentEdits  []Edit
+	Translators  []*Translator
+	SortedByName bool
+	LoggedUser   string
+	UserIsAdmin  bool
+	RedirectUrl  string
 }
 
-// for sorting by name
+// for sorting by count of translations
 type TranslatorsSeq []*Translator
 
 func (s TranslatorsSeq) Len() int      { return len(s) }
@@ -35,20 +37,25 @@ func sortTranslatorsByCount(t []*Translator) {
 	sort.Sort(ByCount{t})
 }
 
-func buildModelApp(app *App, user string) *ModelApp {
+func buildModelApp(app *App, loggedUser string, sortedByName bool) *ModelApp {
 	model := &ModelApp{
-		App:         app,
-		User:        user,
-		UserIsAdmin: userIsAdmin(app, user),
-		PageTitle:   fmt.Sprintf("Translations for %s", app.Name),
-		Langs:       app.translationLog.LangInfos(),
-		RecentEdits: app.translationLog.recentEdits(10),
-		Translators: app.translationLog.translators()}
+		App:          app,
+		LoggedUser:   loggedUser,
+		SortedByName: sortedByName,
+		UserIsAdmin:  userIsAdmin(app, loggedUser),
+		PageTitle:    fmt.Sprintf("Translations for %s", app.Name),
+		Langs:        app.translationLog.LangInfos(),
+		RecentEdits:  app.translationLog.recentEdits(10),
+		Translators:  app.translationLog.translators()}
 	sortTranslatorsByCount(model.Translators)
+	// by default they are sorted by untranslated count
+	if sortedByName {
+		sortLangsByName(model.Langs)
+	}
 	return model
 }
 
-// handler for url: /app/{appname}
+// handler for url: /app/{appname}?sort=name
 func handleApp(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appName := vars["appname"]
@@ -58,8 +65,12 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sortOrder := strings.TrimSpace(r.FormValue("sort"))
+	sortedByName := sortOrder == "name"
 	//fmt.Printf("handleApp() appName=%s\n", appName)
-	model := buildModelApp(app, decodeUserFromCookie(r))
+	model := buildModelApp(app, decodeUserFromCookie(r), sortedByName)
+	model.SortedByName = sortedByName
+
 	model.RedirectUrl = r.URL.String()
 	if err := GetTemplates().ExecuteTemplate(w, tmplApp, model); err != nil {
 		fmt.Print(err.Error(), "\n")

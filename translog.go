@@ -658,6 +658,10 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
+func sortLangsByName(langs []*LangInfo) {
+	sort.Sort(ByName{langs})
+}
+
 func NewLangInfo(langCode string) *LangInfo {
 	li := &LangInfo{Code: langCode, Name: LangNameByCode(langCode)}
 	return li
