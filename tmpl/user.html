@@ -12,7 +12,7 @@
 
 {{if len .Edits}}
 <div id="edits">
-<p>{{len .Edits}} translations by user <a href="http://twitter.com/{{.Name}}">{{.Name}}:</p>
+<p>{{len .Edits}} translations by user <a href="http://twitter.com/{{.Name}}">{{.Name}}:</a></p>
 <ul>
 	{{range .Edits}}
 	<li>translated '{{.Text}}' as '{{.Translation}}' in <a href="/app/{{.App}}">{{.App}}</a> / <a href="/app/{{.App}}/{{.Lang}}">{{.Lang}}</a></li>
