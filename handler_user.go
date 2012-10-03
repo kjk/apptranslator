@@ -44,7 +44,7 @@ func buildModelUser(user, loginName string) *ModelUser {
 	}
 }
 
-// handler for url: /user/{user}
+// url: /user/{user}
 func handleUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userName := vars["user"]

@@ -46,7 +46,7 @@ func translationsForApp(app *App) []byte {
 	return w.Bytes()
 }
 
-// handler for url: /dltrans?app=$app&sha1=$sha1
+// url: /dltrans?app=$app&sha1=$sha1
 // Returns plain/text response in the format designed for easy parsing:
 /*
 AppTranslator: $appName

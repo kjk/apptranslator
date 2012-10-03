@@ -44,7 +44,7 @@ func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTransla
 	panic("buildModelAppTranslations() failed")
 }
 
-// handler for url: /app/{appname}/{lang}
+// url: /app/{appname}/{lang}
 func handleAppTranslations(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appName := vars["appname"]

@@ -14,7 +14,7 @@ type ModelMain struct {
 	RedirectUrl string
 }
 
-// handler for url: /
+// url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
 	if !isTopLevelUrl(r.URL.Path) {
 		serve404(w, r)

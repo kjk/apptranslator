@@ -64,7 +64,7 @@ func parseUploadedStrings(reader io.Reader) []string {
 	return res
 }
 
-// handler for url: POST /uploadstrings?app=$appName&secret=$uploadSecret
+// url: POST /uploadstrings?app=$appName&secret=$uploadSecret
 // POST data is in the format:
 /*
 AppTranslator strings

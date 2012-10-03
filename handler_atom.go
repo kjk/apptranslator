@@ -63,7 +63,7 @@ func getRss(app *App, lang string) string {
 	return s
 }
 
-// handler for url: /atom?app=$app&[lang=$lang]
+// url: /atom?app=$app&[lang=$lang]
 func handleAtom(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)

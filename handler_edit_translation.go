@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// handler for url: /edittranslation
+// url: /edittranslation
 func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)

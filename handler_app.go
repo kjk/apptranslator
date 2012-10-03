@@ -55,7 +55,7 @@ func buildModelApp(app *App, loggedUser string, sortedByName bool) *ModelApp {
 	return model
 }
 
-// handler for url: /app/{appname}?sort=name
+// url: /app/{appname}?sort=name
 func handleApp(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appName := vars["appname"]

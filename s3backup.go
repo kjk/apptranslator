@@ -1,14 +1,7 @@
 // This code is under BSD license. See license-bsd.txt
 package main
 
-// TODO: some strategy for handling serious errors (can't upload etc.)
-// option 1 - e-mail myself every time something very unexpected happens
-// option 2 - collect errors in a list and show them via. web interface
-
 // TODO: delete old backup files and only keep the last, say, 64?
-
-// TODO: log significant actions (like uploading to s3) and allow browsing
-//       via web interface
 
 import (
 	_ "fmt"
@@ -96,7 +89,6 @@ func ensureValidConfig(config *BackupConfig) {
 	if err != nil {
 		log.Fatalf("Invalid s3 backup: bucket.List failed %s\n", err.Error())
 	}
-	//fmt.Printf("s3 bucket ok!\n")
 }
 
 // Return true if a backup file with given sha1 content has already been uploaded
@@ -106,7 +98,7 @@ func ensureValidConfig(config *BackupConfig) {
 func alreadyUploaded(config *BackupConfig, sha1 string) bool {
 	rsp, err := listBackupFiles(config, 10)
 	if err != nil {
-		// TODO: log as an important error?
+		logger.Errorf("alreadyUploaded(): listBackupFiles() failed with %s", err.Error())
 		return false
 	}
 	for _, key := range rsp.Contents {
@@ -134,23 +126,24 @@ func doBackup(config *BackupConfig) {
 		return
 	}
 	if alreadyUploaded(config, sha1) {
+		logger.Noticef("s3 backup not done because data hasn't changed")
 		return
 	}
 	timeStr := time.Now().Format("060102_1504_")
 	zipS3Path := path.Join(config.S3Dir, timeStr+sha1+".zip")
-	//fmt.Printf("Uploading %s as %s\n", zipLocalPath, zipS3Path)
+
 	if err = s3Put(config, zipLocalPath, zipS3Path, true); err != nil {
-		//fmt.Printf("s3Put failed with %s\n", err.Error())
+		logger.Errorf("s3Put of '%s' to '%s' failed with %s", zipLocalPath, zipS3Path, err.Error())
+		return
 	}
 
-	//fmt.Printf("Done uploading\n")
+	logger.Noticef("s3 backup of '%s' to '%s'", zipLocalPath, zipS3Path)
 }
 
 func BackupLoop(config *BackupConfig) {
 	ensureValidConfig(config)
 	for {
-		// sleep first so that we don't backup right after new deploy
-		time.Sleep(backupFreq)
 		doBackup(config)
+		time.Sleep(backupFreq)
 	}
 }

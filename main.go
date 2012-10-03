@@ -14,7 +14,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -52,7 +51,7 @@ var (
 		nil, nil,
 		nil, nil,
 	}
-	logger        *log.Logger
+	logger        *ServerLogger
 	cookieAuthKey []byte
 	cookieEncrKey []byte
 	secureCookie  *securecookie.SecureCookie
@@ -65,11 +64,14 @@ var (
 
 	appState = AppState{}
 
-	tmplMain        = "main.html"
-	tmplApp         = "app.html"
-	tmplAppTrans    = "apptrans.html"
-	tmplUser        = "user.html"
-	templateNames   = [...]string{tmplMain, tmplApp, tmplAppTrans, tmplUser, "header.html", "footer.html"}
+	tmplMain      = "main.html"
+	tmplApp       = "app.html"
+	tmplAppTrans  = "apptrans.html"
+	tmplUser      = "user.html"
+	tmplLogs      = "logs.html"
+	templateNames = [...]string{
+		tmplMain, tmplApp, tmplAppTrans, tmplUser, tmplLogs, "header.html",
+		"footer.html"}
 	templatePaths   []string
 	templates       *template.Template
 	reloadTemplates = true
@@ -313,12 +315,18 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 		startTime := time.Now()
 		fn(w, r)
 		duration := time.Now().Sub(startTime)
-		if duration.Seconds() > 1.0 || alwaysLogTime {
+		// log urls that take long time to generate i.e. over 1 sec in production
+		// or over 0.1 sec in dev
+		shouldLog := duration.Seconds() > 1.0
+		if alwaysLogTime && duration.Seconds() > 0.1 {
+			shouldLog = true
+		}
+		if shouldLog {
 			url := r.URL.Path
 			if len(r.URL.RawQuery) > 0 {
 				url = fmt.Sprintf("%s?%s", url, r.URL.RawQuery)
 			}
-			logger.Printf("'%s' took %f seconds to serve\n", url, duration.Seconds())
+			logger.Noticef("'%s' took %f seconds to serve\n", url, duration.Seconds())
 		}
 	}
 }
@@ -338,16 +346,20 @@ func main() {
 		alwaysLogTime = false
 	}
 
-	if *logPath == "stdout" {
-		logger = log.New(os.Stdout, "", 0)
-	} else {
-		loggerFile, err := os.OpenFile(*logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
-		if err != nil {
-			log.Fatalf("Failed to open log file '%s', %s\n", *logPath, err.Error())
-		}
-		defer loggerFile.Close()
-		logger = log.New(loggerFile, "", 0)
-	}
+	// TODO: pass *logPath to server logger
+	logger = NewServerLogger(256, 256)
+
+	/*
+		if *logPath == "stdout" {
+			logger = log.New(os.Stdout, "", 0)
+		} else {
+			loggerFile, err := os.OpenFile(*logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+			if err != nil {
+				log.Fatalf("Failed to open log file '%s', %s\n", *logPath, err.Error())
+			}
+			defer loggerFile.Close()
+			logger = log.New(loggerFile, "", 0)
+		}*/
 
 	if err := readSecrets(*configPath); err != nil {
 		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err.Error())
@@ -377,6 +389,7 @@ func main() {
 	r.HandleFunc("/login", handleLogin)
 	r.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
 	r.HandleFunc("/logout", handleLogout)
+	r.HandleFunc("/logs", makeTimingHandler(handleLogs))
 	r.HandleFunc("/", makeTimingHandler(handleMain))
 
 	http.HandleFunc("/s/", makeTimingHandler(handleStatic))
@@ -392,7 +405,9 @@ func main() {
 	if S3BackupEnabled() {
 		go BackupLoop(backupConfig)
 	}
-	logger.Printf("Running on %s\n", *httpAddr)
+	msg := fmt.Sprintf("Started runing on %s", *httpAddr)
+	logger.Noticef(msg)
+	println(msg)
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err.Error())
 	}

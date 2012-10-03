@@ -21,7 +21,7 @@ func serveFileStatic(w http.ResponseWriter, r *http.Request, fileName string) {
 
 const lenStatic = len("/s/")
 
-// handler for url: /s/
+// url: /s/
 func handleStatic(w http.ResponseWriter, r *http.Request) {
 	file := r.URL.Path[lenStatic:]
 	serveFileStatic(w, r, file)
