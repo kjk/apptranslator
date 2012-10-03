@@ -48,6 +48,15 @@ func FileSha1(path string) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+func DataSha1(data []byte) (string, error) {
+	h := sha1.New()
+	_, err := h.Write(data)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
 // the names of files inside the zip file are relatitve to dirToZip e.g.
 // if dirToZip is foo and there is a file foo/bar.txt, the name in the zip
 // will be bar.txt

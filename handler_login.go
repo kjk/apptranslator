@@ -117,7 +117,7 @@ func handleOauthTwitterCallback(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("handleOauthTwitterCallback()\n")
 	redirect := strings.TrimSpace(r.FormValue("redirect"))
 	if redirect == "" {
-		serveErrorMsg(w, fmt.Sprintf("Missing redirect value for /login"))
+		serveErrorMsg(w, "Missing redirect value for /login")
 		return
 	}
 	tempCred := oauth.Credentials{

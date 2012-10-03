@@ -370,7 +370,7 @@ func main() {
 	r.HandleFunc("/app/{appname}/{lang}", makeTimingHandler(handleAppTranslations))
 	r.HandleFunc("/user/{user}", makeTimingHandler(handleUser))
 	r.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
-	r.HandleFunc("/downloadtranslations", makeTimingHandler(handleDownloadTranslations))
+	r.HandleFunc("/dltrans", makeTimingHandler(handleDownloadTranslations))
 	r.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
 	r.HandleFunc("/atom", makeTimingHandler(handleAtom))
 
