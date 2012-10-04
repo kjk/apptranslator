@@ -73,15 +73,20 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logger.Errorf("updateStringsList() failed with %s", err.Error())
 		} else {
+			msg := ""
 			if len(added) > 0 {
-				logger.Noticef("New strings: %v", added)
+				msg += fmt.Sprintf("New strings: %v\n", added)
 			}
 			if len(deleted) > 0 {
-				logger.Noticef("Deleted strings: %v", deleted)
+				msg += fmt.Sprintf("Deleted strings: %v\n", deleted)
 			}
 			if len(undeleted) > 0 {
-				logger.Noticef("Undeleted strings: %v", undeleted)
+				msg += fmt.Sprintf("Undeleted strings: %v\n", undeleted)
 			}
+			if len(msg) > 0 {
+				logger.Notice(msg)
+			}
+			w.Write([]byte(msg))
 		}
 	}
 }
