@@ -12,14 +12,14 @@
 	{{if len .Errors}}
 		<div style="color:red">Errors:</div>
 		{{range .Errors}}
-			<div>{{printf "%s" .Time}} {{.Msg}}</div>
-		{{end}}
+			<div>{{.Time.Format "2006-01-02 15:04:05"}} {{.Msg}}</div>
+		{{end}} =
 	{{end}}
 
 	{{if len .Notices}}
 		<div>Notices:</div>
 		{{range .Notices}}
-			<div>{{printf "%s" .Time}} {{.Msg}}</div>
+			<div><font style="color:gray;">{{.Time.Format "2006-01-02 15:04:05"}}</font> {{.Msg}}</div>
 		{{end}}
 	{{end}}
 
