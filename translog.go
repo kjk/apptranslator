@@ -805,7 +805,7 @@ func (l *TranslationLog) translators() []*Translator {
 	return l.state.translators()
 }
 
-func (l *TranslationLog) updateStringsList(newStrings []string) error {
+func (l *TranslationLog) updateStringsList(newStrings []string) ([]string, []string, []string, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -839,22 +839,19 @@ func (l *TranslationLog) updateStringsList(newStrings []string) error {
 	}
 
 	for _, str := range toUndelete {
-		fmt.Printf("updateStringsList(): undelete %s\n", str)
 		if err := l.state.undeleteString(l.file, str); err != nil {
-			return err
+			return nil, nil, nil, err
 		}
 	}
 	for _, str := range toDelete {
-		fmt.Printf("updateStringsList(): delete %s\n", str)
 		if err := l.state.deleteString(l.file, str); err != nil {
-			return err
+			return nil, nil, nil, err
 		}
 	}
 	for _, str := range toAdd {
-		fmt.Printf("updateStringsList(): add %s\n", str)
 		if err := l.state.writeNewStringRecord(l.file, str); err != nil {
-			return err
+			return nil, nil, nil, err
 		}
 	}
-	return nil
+	return toAdd, toDelete, toUndelete, nil
 }

@@ -49,7 +49,6 @@ string to translate 2
 ...
 */
 func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
-	//fmt.Printf("handleUploadStrings\n")
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)
 	if app == nil {
@@ -70,6 +69,19 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		logger.Noticef("handleUploadString(): uploading %d strings for %s", len(newStrings), appName)
-		app.translationLog.updateStringsList(newStrings)
+		added, deleted, undeleted, err := app.translationLog.updateStringsList(newStrings)
+		if err != nil {
+			logger.Errorf("updateStringsList() failed with %s", err.Error())
+		} else {
+			if len(added) > 0 {
+				logger.Noticef("New strings: %v", added)
+			}
+			if len(deleted) > 0 {
+				logger.Noticef("Deleted strings: %v", deleted)
+			}
+			if len(undeleted) > 0 {
+				logger.Noticef("Undeleted strings: %v", undeleted)
+			}
+		}
 	}
 }
