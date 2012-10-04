@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -37,10 +38,28 @@ func translationsForApp(app *App) []byte {
 	}
 
 	var w bytes.Buffer
-	for s, ltarr := range m {
+	// get strings in sorted order so that we can generate stable output
+	strings := make([]string, len(m), len(m))
+	i := 0
+	for k, _ := range m {
+		strings[i] = k
+		i += 1
+	}
+	sort.Strings(strings)
+
+	for _, s := range strings {
+		ltarr := m[s]
 		io.WriteString(&w, fmt.Sprintf(":%s\n", s))
+		n := len(ltarr)
+		// TODO: to be more efficient, allocate translations array outside of loop	
+		translations := make([]string, n, n)
 		for _, lt := range ltarr {
-			io.WriteString(&w, fmt.Sprintf("%s:%s\n", lt.lang, lt.trans))
+			n -= 1
+			translations[n] = fmt.Sprintf("%s:%s\n", lt.lang, lt.trans)
+		}
+		sort.Strings(translations)
+		for _, trans := range translations {
+			io.WriteString(&w, trans)
 		}
 	}
 	return w.Bytes()
@@ -73,14 +92,20 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 	}
 	b := translationsForApp(app)
 	sha1, err := DataSha1(b)
+	sha2, _ := DataSha1(b)
+	if sha1 != sha2 {
+		logger.Errorf("sha1 != sha2 (%s != %s)", sha1, sha2)
+	}
 	if err != nil {
 		serveErrorMsg(w, fmt.Sprintf("Error from DataSha1 %s", err.Error()))
 		return
 	}
 	if sha1 == sha1In {
 		io.WriteString(w, "No change\n")
+		logger.Noticef("Translations download for %s with sha1 %s, didn't change", appName, sha1In)
 		return
 	}
 	io.WriteString(w, fmt.Sprintf("%s\n", sha1))
 	w.Write(b)
+	logger.Noticef("Translations download for %s with sha1 %s, our sha1 %s", appName, sha1In, sha1)
 }
