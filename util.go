@@ -113,3 +113,35 @@ func CreateZipWithDirContent(zipFilePath, dirToZip string) error {
 	})
 	return nil
 }
+
+/*
+func myReadLine(r *bufio.Reader) (string, error) {
+	line, isPrefix, err := r.ReadLine()
+	if err != nil {
+		return "", err
+	}
+	if isPrefix {
+		return "", &CantParseError{"Line too long", -1}
+	}
+	return string(line), nil
+}
+
+func ReadLines(r io.Reader) ([]string, err) {
+	res := make([]string, 0)
+	rb := bufio.NewReaderSize(r, 4*1024) // I think this makes max line lenght 4k
+	for {
+		line, err := myReadLine(rb)
+		if err != nil {
+			if err == io.EOF {
+				if 0 == len(res) {
+					return (nil, errors.NewError("empty file"))
+				}
+				return (res, nil)
+			}
+			return (nil, err)
+		}
+		res = append(res, line)
+	}
+	panic("what is the meaning of this?")
+}
+*/

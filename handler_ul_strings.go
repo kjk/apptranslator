@@ -2,10 +2,8 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 )
@@ -19,49 +17,27 @@ func (e *CantParseError) Error() string {
 	return fmt.Sprintf("Error: %s on line %d", e.Msg, e.LineNo)
 }
 
-func myReadLine(r *bufio.Reader) (string, error) {
-	line, isPrefix, err := r.ReadLine()
-	if err != nil {
-		return "", err
-	}
-	if isPrefix {
-		return "", &CantParseError{"Line too long", -1}
-	}
-	return string(line), nil
+func normalizeNewlines(s string) string {
+	s = strings.Replace(s, "\n\r", "\n", -1)
+	return strings.Replace(s, "\r", "\n", -1)
 }
 
-// returns nil on error
-func parseUploadedStrings(reader io.Reader) []string {
-	r := bufio.NewReaderSize(reader, 4*1024)
-	res := make([]string, 0)
-	parsedHeader := false
-	for {
-		line, err := myReadLine(r)
-		if err != nil {
-			if err == io.EOF {
-				if 0 == len(res) {
-					return nil
-				}
-				return res
-			}
-			return nil
-		}
-		if !parsedHeader {
-			// first line must be: AppTranslator strings
-			if line != "AppTranslator strings" {
-				fmt.Printf("parseUploadedStrings(): invalid first line: '%s'\n", line)
-				return nil
-			}
-			parsedHeader = true
-		} else {
-			if 0 == len(line) {
-				fmt.Printf("parseUploadedStrings(): encountered empty line\n")
-				return nil
-			}
-			res = append(res, line)
+func parseUploadedStrings(s string) ([]string, error) {
+	s = normalizeNewlines(s)
+	lines := strings.Split(s, "\n")
+	if len(lines) < 2 {
+		return nil, errors.New("not enough lines")
+	}
+	if lines[0] != "AppTranslator strings" {
+		return nil, errors.New("First line is not 'Apptranslator strings'")
+	}
+	lines = lines[1:]
+	for _, l := range lines {
+		if 0 == len(l) {
+			return nil, errors.New("found empty line")
 		}
 	}
-	return res
+	return lines, nil
 }
 
 // url: POST /uploadstrings?app=$appName&secret=$uploadSecret
@@ -77,20 +53,23 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)
 	if app == nil {
+		logger.Noticef("Someone tried to upload strings for non-existing app %s", appName)
 		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
 		return
 	}
 	secret := strings.TrimSpace(r.FormValue("secret"))
 	if secret != app.UploadSecret {
+		logger.Noticef("Someone tried to upload strings for %s with invalid secret %s", appName, secret)
 		serveErrorMsg(w, fmt.Sprintf("Invalid secret for app '%s'", appName))
 		return
 	}
 	s := r.FormValue("strings")
-	//fmt.Printf("file:\n%s\n", file)
-	newStrings := parseUploadedStrings(bytes.NewBufferString(s))
-	if nil == newStrings {
+	if newStrings, err := parseUploadedStrings(s); err != nil {
+		logger.Noticef("parseUploadedStrings() failed with %s", err.Error())
 		serveErrorMsg(w, "Error parsing uploaded strings")
 		return
+	} else {
+		logger.Noticef("handleUploadString(): uploading %d strings for %s", len(newStrings), appName)
+		app.translationLog.updateStringsList(newStrings)
 	}
-	app.translationLog.updateStringsList(newStrings)
 }
