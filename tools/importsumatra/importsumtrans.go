@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"bytes"
 )
 
 const (
@@ -71,28 +72,6 @@ func myReadLine(r *bufio.Reader) ([]byte, error) {
 	return line, nil
 }
 
-func isTrailing(b byte) bool {
-	switch b {
-	case ' ', '\n', '\r':
-		return true
-	}
-	return false
-}
-
-func removeTrailing(b []byte) []byte {
-	i := len(b) - 1
-	for i >= 0 {
-		if !isTrailing(b[i]) {
-			break
-		}
-		i--
-	}
-	if i < len(b)-1 {
-		return b[0:i]
-	}
-	return b
-}
-
 func removeBom(b []byte) []byte {
 	if len(b) >= 3 {
 		if b[0] == 0xef && b[1] == 0xbb && b[2] == 0xbf {
@@ -144,7 +123,7 @@ func parseSumatraTranslationsFile(fileName string, tl *TranslationLog) error {
 			//err.LineNo = lineNo
 			return err
 		}
-		line = removeTrailing(removeBom(line))
+		line = bytes.TrimRight(removeBom(line), " \r\n")
 		s := string(line)
 		if ParsingMeta == state {
 			if isEmptyOrComment(s) {
