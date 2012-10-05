@@ -1,3 +1,4 @@
+// This code is under BSD license. See license-bsd.txt
 package main
 
 // TODO: add an option to log to a file in the format:
@@ -42,20 +43,6 @@ func (b *CircularMessagesBuf) Add(s string) {
 	b.Msgs[b.pos] = msg
 	b.pos += 1
 }
-
-/*
-func reverseInPlace(arr []*TimestampedMsg) {
-	j := len(arr) - 1
-	for i, tmp := range arr {
-		if i >= j {
-			break
-		}
-		arr[i] = arr[j]
-		arr[j] = tmp
-		j -= 1
-	}
-}
-*/
 
 func (b *CircularMessagesBuf) GetOrdered() []*TimestampedMsg {
 	size := b.pos
