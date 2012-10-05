@@ -3,29 +3,61 @@ package main
 
 import (
 	"atom"
+	"bytes"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 	"time"
 )
 
-func addEdits(edits []Edit, link string, feed *atom.Feed) {
-	// technicall link should be unique for every entry and point to a page
-	// for that entry, but we don't have pages for each string/translation
-	for _, e := range edits {
-		dsc := fmt.Sprintf("User '%s' translated '%s' as '%s' in language %s", e.User, e.Text, e.Translation, e.Lang)
-		e := &atom.Entry{
-			Title:       fmt.Sprintf("String: '%s'", e.Text),
-			Link:        link,
-			Description: dsc,
-			PubDate:     e.Time}
-		feed.AddEntry(e)
-	}
+const tmplRssAll = `
+Recent {{.AppName}} translations:
+<ul>
+{{range .Translations}}
+<li>User '{{.User}} translated '{{.Text}}' as '{{.Translation}} in language {{.Lang}}</li>
+{{end}}
+</ul>
+`
+
+const tmplRssOneLang = `
+<p>Untranslated strings: {{.UntranslatedCount}}</p>
+
+<p>Recent {{.AppName}} translations for language {{.Lang}}
+<ul>
+{{range .Translations}}
+<li>User '{{.User}} translated '{{.Text}}' as '{{.Translation}} in language {{.Lang}}</li>
+{{end}}
+</ul>
+</p>
+`
+
+var tRssAll = template.Must(template.New("rssall").Parse(tmplRssAll))
+var tRssForLang = template.Must(template.New("rssforlang").Parse(tmplRssOneLang))
+
+type RssModel struct {
+	AppName      string
+	Translations []Edit
+	// only valid for tmplRssOneLang
+	Lang              string
+	UntranslatedCount int
 }
 
-func getAllRss(app *App) string {
-	title := fmt.Sprintf("Apptranslator %s edits", app.Name)
-	link := fmt.Sprintf("http://www.apptranslator.org/app/%s", app.Name) // TODO: url-escape app.Name
+// returns "" on error
+func templateToString(t *template.Template, data interface{}) string {
+	var buf bytes.Buffer
+	err := t.Execute(&buf, data)
+	if err != nil {
+		logger.Errorf("Failed to execute template '%s', error: %s", t.Name(), err.Error())
+		return ""
+	}
+	return string(buf.Bytes())
+}
+
+func getRssAll(app *App) string {
+	title := fmt.Sprintf("%s translations on AppTranslator.org", app.Name)
+	// TODO: technically should url-escape
+	link := fmt.Sprintf("http://www.apptranslator.org/app/%s", app.Name)
 
 	edits := app.translationLog.recentEdits(10)
 	pubTime := time.Now()
@@ -37,7 +69,15 @@ func getAllRss(app *App) string {
 		Link:    link,
 		PubDate: pubTime,
 	}
-	addEdits(edits, link, feed)
+	model := &RssModel{AppName: app.Name, Translations: edits}
+	html := templateToString(tRssAll, model)
+	e := &atom.Entry{
+		Title:       title,
+		Link:        link,
+		Description: html,
+		PubDate:     pubTime}
+	feed.AddEntry(e)
+
 	s, err := feed.GenXml()
 	if err != nil {
 		return "Failed to generate XML feed"
@@ -45,22 +85,33 @@ func getAllRss(app *App) string {
 	return s
 }
 
-func getRss(app *App, lang string) string {
-	title := fmt.Sprintf("Apptranslator %s edits for language %s", app.Name, lang)
-	// TODO: technically should url-escape
-	link := fmt.Sprintf("http://apptranslator.org/app?name=%s&lang=%s", app.Name, lang)
-
-	edits := app.translationLog.editsForLang(lang, 10)
+func getRssForLang(app *App, lang string) string {
 	pubTime := time.Now()
+	edits := app.translationLog.editsForLang(lang, 10)
 	if len(edits) > 0 {
 		pubTime = edits[0].Time
 	}
+
+	title := fmt.Sprintf("%s %s translations on AppTranslator.org", app.Name, lang)
+	// TODO: technically should url-escape
+	link := fmt.Sprintf("http://apptranslator.org/app?name=%s&lang=%s", app.Name, lang)
 	feed := &atom.Feed{
 		Title:   title,
 		Link:    link,
 		PubDate: pubTime,
 	}
-	addEdits(edits, link, feed)
+
+	model := &RssModel{AppName: app.Name, Translations: edits}
+	model.UntranslatedCount = app.translationLog.UntranslatedForLang(lang)
+	html := templateToString(tRssForLang, model)
+	title = fmt.Sprintf("%d missing %s %s translations", model.UntranslatedCount, app.Name, lang)
+	e := &atom.Entry{
+		Title:       title,
+		Link:        link,
+		Description: html,
+		PubDate:     pubTime}
+	feed.AddEntry(e)
+
 	s, err := feed.GenXml()
 	if err != nil {
 		return "Failed to generate XML feed"
@@ -68,7 +119,7 @@ func getRss(app *App, lang string) string {
 	return s
 }
 
-// url: /atom?app=$app&[lang=$lang]
+// url: /atom?app=$app[&lang=$lang]
 func handleAtom(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)
@@ -78,8 +129,7 @@ func handleAtom(w http.ResponseWriter, r *http.Request) {
 	}
 	lang := strings.TrimSpace(r.FormValue("lang"))
 	if 0 == len(lang) {
-		// TODO: set headers to text/plain
-		s := getAllRss(app)
+		s := getRssAll(app)
 		w.Write([]byte(s))
 		return
 	}
@@ -89,6 +139,5 @@ func handleAtom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(getRss(app, lang)))
-	// TODO: set headers to text/plain
+	w.Write([]byte(getRssForLang(app, lang)))
 }

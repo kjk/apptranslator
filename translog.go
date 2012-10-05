@@ -265,6 +265,13 @@ func (s *EncoderDecoderState) untranslatedCount() int {
 	return n
 }
 
+func (s *EncoderDecoderState) UntranslatedForLang(lang string) int {
+	translatedPerLang := s.translatedCountForLangs()
+	langId := s.langCodeMap[lang]
+	translated := translatedPerLang[langId]
+	return s.stringsCount() - translated
+}
+
 func (s *EncoderDecoderState) validLangId(id int) bool {
 	return (id >= 0) && (id <= len(s.langCodeMap))
 }
@@ -805,6 +812,12 @@ func (l *TranslationLog) UntranslatedCount() int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.state.untranslatedCount()
+}
+
+func (l *TranslationLog) UntranslatedForLang(lang string) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.UntranslatedForLang(lang)
 }
 
 func (l *TranslationLog) LangInfos() []*LangInfo {
