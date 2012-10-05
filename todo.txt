@@ -1,15 +1,10 @@
 List of things to do for app translator.
 
 Must have:
-- upload strings to be translated
-- python script to parse translations from app translator
-- allow for handleDownloadTranslations (/downloadtranslations) to not re-download
-  translations if they haven't changed
 
 Nice to have:
 - ability to rename original string while preserving the translation
 - ability to see history of translations for a given string and revert to any past translations
-- a page that shows a log of changes (who, what, when)
 - an RSS feed for each app/lang pair which shows currently untranslated
   strings (so that translators have an easy way to be notified about the
   need to translate)
