@@ -119,8 +119,8 @@ func getRssForLang(app *App, lang string) string {
 	return s
 }
 
-// url: /atom?app=$app[&lang=$lang]
-func handleAtom(w http.ResponseWriter, r *http.Request) {
+// url: /rss?app=$app[&lang=$lang]
+func handleRss(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)
 	if app == nil {

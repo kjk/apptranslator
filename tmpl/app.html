@@ -19,7 +19,7 @@
 		</p>
 		<ul>
 		  {{range .Langs}}
-		  <li><a href="/app/{{$appName}}/{{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated)</li>
+		  <li><a href="/app/{{$appName}}/{{.Code}}">{{.Name}}</a> ({{.UntranslatedCount}} untranslated, <a href="/rss?app={{$appName}}&lang={{.Code}}">rss</a>)</li>
 		  {{end}}
 		</ul>
 		{{else}}

@@ -1,10 +1,6 @@
 List of things to do for app translator.
 
-Must have:
-
 Nice to have:
 - ability to rename original string while preserving the translation
-- ability to see history of translations for a given string and revert to any past translations
-- an RSS feed for each app/lang pair which shows currently untranslated
-  strings (so that translators have an easy way to be notified about the
-  need to translate)
+- ability to see history of translations for a given string and revert to any
+  past translations

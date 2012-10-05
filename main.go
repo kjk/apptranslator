@@ -384,7 +384,7 @@ func main() {
 	r.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
 	r.HandleFunc("/dltrans", makeTimingHandler(handleDownloadTranslations))
 	r.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
-	r.HandleFunc("/atom", makeTimingHandler(handleAtom))
+	r.HandleFunc("/rss", makeTimingHandler(handleRss))
 
 	r.HandleFunc("/login", handleLogin)
 	r.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
