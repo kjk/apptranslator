@@ -55,15 +55,15 @@ func templateToString(t *template.Template, data interface{}) string {
 }
 
 func getRssAll(app *App) string {
-	title := fmt.Sprintf("%s translations on AppTranslator.org", app.Name)
-	// TODO: technically should url-escape
-	link := fmt.Sprintf("http://www.apptranslator.org/app/%s", app.Name)
-
 	edits := app.translationLog.recentEdits(10)
 	pubTime := time.Now()
 	if len(edits) > 0 {
 		pubTime = edits[0].Time
 	}
+
+	title := fmt.Sprintf("%s translations on AppTranslator.org", app.Name)
+	// TODO: technically should url-escape
+	link := fmt.Sprintf("http://www.apptranslator.org/rss?app=%s", app.Name)
 	feed := &atom.Feed{
 		Title:   title,
 		Link:    link,
@@ -94,7 +94,7 @@ func getRssForLang(app *App, lang string) string {
 
 	title := fmt.Sprintf("%s %s translations on AppTranslator.org", app.Name, lang)
 	// TODO: technically should url-escape
-	link := fmt.Sprintf("http://apptranslator.org/app?name=%s&lang=%s", app.Name, lang)
+	link := fmt.Sprintf("http://www.apptranslator.org/rss?app=%s&lang=%s", app.Name, lang)
 	feed := &atom.Feed{
 		Title:   title,
 		Link:    link,
