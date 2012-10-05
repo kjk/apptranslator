@@ -12,8 +12,8 @@
 	{{if len .Errors}}
 		<div style="color:red">Errors:</div>
 		{{range .Errors}}
-			<div>{{.Time.Format "2006-01-02 15:04:05"}} {{.Msg}}</div>
-		{{end}} =
+			<div><font style="color:gray;">{{.Time.Format "2006-01-02 15:04:05"}}</font> {{.Msg}}</div>
+		{{end}}
 	{{end}}
 
 	{{if len .Notices}}
@@ -22,7 +22,6 @@
 			<div><font style="color:gray;">{{.Time.Format "2006-01-02 15:04:05"}}</font> {{.Msg}}</div>
 		{{end}}
 	{{end}}
-
 </div>
 
 {{ template "footer.html" . }}
