@@ -86,7 +86,7 @@ func (f *Feed) GenXml() (string, error) {
 	for _, e := range f.entries {
 		feed.Entries = append(feed.Entries, newEntryXml(e))
 	}
-	data, err := xml.Marshal(feed)
+	data, err := xml.MarshalIndent(feed, " ", " ")
 	if err != nil {
 		return "", err
 	}

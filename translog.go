@@ -80,6 +80,7 @@ type Edit struct {
 	User        string
 	Text        string
 	Translation string
+	Time        time.Time
 }
 
 type Translator struct {
@@ -138,6 +139,7 @@ func (s *EncoderDecoderState) recentEdits(max int) []Edit {
 		e.User = s.userById(tr.userId)
 		e.Text = s.stringById(tr.stringId)
 		e.Translation = tr.translation
+		e.Time = tr.time
 		res[i] = e
 	}
 	return res
@@ -155,8 +157,32 @@ func (s *EncoderDecoderState) editsByUser(user string) []Edit {
 				User:        editUser,
 				Text:        s.stringById(tr.stringId),
 				Translation: tr.translation,
+				Time:        tr.time,
 			}
 			res = append(res, e)
+		}
+	}
+	return res
+}
+
+func (s *EncoderDecoderState) editsForLang(lang string, max int) []Edit {
+	res := make([]Edit, 0)
+	transCount := len(s.translations)
+	for i := 0; i < transCount; i++ {
+		tr := &(s.translations[transCount-i-1])
+		editLang := s.langById(tr.langId)
+		if editLang == lang {
+			var e = Edit{
+				Lang:        s.langById(tr.langId),
+				User:        s.userById(tr.userId),
+				Text:        s.stringById(tr.stringId),
+				Translation: tr.translation,
+				Time:        tr.time,
+			}
+			res = append(res, e)
+			if max != -1 && len(res) >= max {
+				return res
+			}
 		}
 	}
 	return res
@@ -797,6 +823,12 @@ func (l *TranslationLog) editsByUser(user string) []Edit {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.state.editsByUser(user)
+}
+
+func (l *TranslationLog) editsForLang(user string, max int) []Edit {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.state.editsForLang(user, max)
 }
 
 func (l *TranslationLog) translators() []*Translator {
