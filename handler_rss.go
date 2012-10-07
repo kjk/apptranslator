@@ -71,6 +71,7 @@ func getRssAll(app *App) string {
 	}
 	model := &RssModel{AppName: app.Name, Translations: edits}
 	html := templateToString(tRssAll, model)
+	link = fmt.Sprintf("http://www.apptranslator.org/app/%s", app.Name)
 	e := &atom.Entry{
 		Title:       title,
 		Link:        link,
@@ -105,6 +106,7 @@ func getRssForLang(app *App, lang string) string {
 	model.UntranslatedCount = app.translationLog.UntranslatedForLang(lang)
 	html := templateToString(tRssForLang, model)
 	title = fmt.Sprintf("%d missing %s %s translations", model.UntranslatedCount, app.Name, lang)
+	link = fmt.Sprintf("http://www.apptranslator.org/app/%s/%s", app.Name, lang)
 	e := &atom.Entry{
 		Title:       title,
 		Link:        link,
