@@ -23,7 +23,7 @@ import (
 var (
 	configPath   = flag.String("config", "secrets.json", "Path to configuration file")
 	httpAddr     = flag.String("addr", ":5000", "HTTP server address")
-	logPath      = flag.String("log", "stdout", "where to log")
+	//logPath      = flag.String("log", "stdout", "where to log")
 	inProduction = flag.Bool("production", false, "are we running in production")
 	cookieName   = "ckie"
 )
@@ -303,7 +303,9 @@ func readSecrets(configFile string) error {
 		// generate valid, random value for them
 		auth := securecookie.GenerateRandomKey(32)
 		encr := securecookie.GenerateRandomKey(32)
-		fmt.Printf("auth: %s\nencr: %s\n", hex.EncodeToString(auth), hex.EncodeToString(encr))
+		fmt.Printf("CookieAuthKeyHexStr and/or nCookieEncrKeyHexStr in secrets.json is not valid.\n")
+		fmt.Printf("You can use those random values:\n")
+		fmt.Printf("CookieAuthKeyHexStr: %s\nCookieEncrKeyHexStr: %s\n", hex.EncodeToString(auth), hex.EncodeToString(encr))
 	}
 	// TODO: somehow verify twitter creds
 	return err

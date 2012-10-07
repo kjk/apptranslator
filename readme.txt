@@ -10,3 +10,5 @@ you would need to figure out your deployment strategy, backup and write a script
 that uploads your strings to the server and a script that downloads the
 translations from the server and updates your code to use those translations.
 In other words, it's complicated.
+
+For more information, see docs/deploy_your_own.txt
