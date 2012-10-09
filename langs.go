@@ -76,6 +76,7 @@ var (
 		&Lang{"uk", "Ukrainian", "Українська"},
 		&Lang{"uz", "Uzbek", "O'zbek"},
 		&Lang{"vn", "Vietnamese", "Việt Nam"},
+		&Lagn{"ne", "Nepali", "नेपाली"},
 	}
 )
 
