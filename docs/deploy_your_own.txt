@@ -21,7 +21,8 @@ needed for the app.
 I didn't want to maintain yet another signup system so user authentication
 is OAuth via Twitter.
 
-For that reason you'll need to get your own Twitter OAuth credentials (dev.twitter.com) and put them in secrets.json
+For that reason you'll need to get your own Twitter OAuth credentials (dev.twitter.com)
+and put them in config.json
 
 It's OAuth so it should be relatively easy to add/change to other OAuth provider
 (Google? Facebook?) if you desire. See handler_login.go
@@ -30,7 +31,7 @@ It's OAuth so it should be relatively easy to add/change to other OAuth provider
 
 For that reason you need to put your s3 access and secret keys, define which
 bucket and which subdirectory in that backet will be used for backups (in
-secrets.json)
+config.json)
 
 If you don't provide those, backups will be disabled (see the end of main.go).
 
@@ -56,7 +57,7 @@ If you translate other kinds of strings, you can disable or modify that check.
 
 Strings must be uploaded to the server as POST application/x-wwww-form-urlencoded
 to /uploadstrings url, where "app" argument is the name of the app (as configured
-in Apps array in Name field in secrets.json), "secret" must be UploadSecret and
+in Apps array in Name field in config.json), "secret" must be UploadSecret and
 "strings" is strings to be uploaded. You can see how it works in Sumatra:
 https://code.google.com/p/sumatrapdf/source/browse/trunk/scripts/apptransul.py
 
@@ -115,7 +116,7 @@ directory and looks like:
 data/ - this is where the data of the app lives, one directory for each
         configured app
 app/current - this is where the executable and other files like static, tmpl,
-              secrets.json are
+              config.json are
 
 Why app/current and not just app? This is for my safe deployment scheme.
 
@@ -124,8 +125,8 @@ deployment tool), see fabfile.py. You can easily modify it for your own needs.
 
 == Configuring AppTranslator
 
-There is some functionality that requires your own secrets. They must be stored
-in secrets.json file which looks like this:
+There is some functionality that requires your own config. They must be stored
+in config.json file which looks like this:
 
 {
 	"Apps" : [{
@@ -161,7 +162,7 @@ from http://dev.twitter.com
 
 Cookie*KeyHexStr is for encrypting cookies by securecookie module. It's a random,
 32-byte, hex-encoded number. If they are not valid, the code will helpfully
-generate a new value for you (see readSecrets() in main.go).
+generate a new value for you (see readConfig() in main.go).
 
 AwsAcess/AwsSecret is for s3 backup, along with S3BackupBucket and S3BackupDir.
 If not provided, s3 backups will be disabled.

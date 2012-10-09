@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	configPath   = flag.String("config", "secrets.json", "Path to configuration file")
-	httpAddr     = flag.String("addr", ":5000", "HTTP server address")
+	configPath = flag.String("config", "config.json", "Path to configuration file")
+	httpAddr   = flag.String("addr", ":5000", "HTTP server address")
 	//logPath      = flag.String("log", "stdout", "where to log")
 	inProduction = flag.Bool("production", false, "are we running in production")
 	cookieName   = "ckie"
@@ -84,25 +84,26 @@ func StringEmpty(s *string) bool {
 
 func S3BackupEnabled() bool {
 	if StringEmpty(config.AwsAccess) {
-		fmt.Print("Backup to s3 disabled because AwsAccess not defined in secrets.json\n")
+		fmt.Print("Backup to s3 disabled because AwsAccess not defined in config.json\n")
 		return false
 	}
 	if StringEmpty(config.AwsSecret) {
-		fmt.Print("Backup to s3 disabled because AwsSecret not defined in secrets.json\n")
+		fmt.Print("Backup to s3 disabled because AwsSecret not defined in config.json\n")
 		return false
 	}
 	if StringEmpty(config.S3BackupBucket) {
-		fmt.Print("Backup to s3 disabled because S3BackupBucket not defined in secrets.json\n")
+		fmt.Print("Backup to s3 disabled because S3BackupBucket not defined in config.json\n")
 		return false
 	}
 	if StringEmpty(config.S3BackupDir) {
-		fmt.Print("Backup to s3 disabled because S3BackupDir not defined in secrets.json\n")
+		fmt.Print("Backup to s3 disabled because S3BackupDir not defined in config.json\n")
 		return false
 	}
 	return true
 }
 
-// data dir is ../data on the server or ../apptranslatordata locally
+// data dir is ../../data on the server or ../apptranslatordata locally
+// the important part is that it's outside of directory with the code
 func getDataDir() string {
 	if dataDir != "" {
 		return dataDir
@@ -274,9 +275,9 @@ func userIsAdmin(app *App, user string) bool {
 	return user == app.AdminTwitterUser
 }
 
-// readSecrets reads the configuration file from the path specified by
+// reads the configuration file from the path specified by
 // the config command line flag.
-func readSecrets(configFile string) error {
+func readConfig(configFile string) error {
 	b, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return err
@@ -304,7 +305,7 @@ func readSecrets(configFile string) error {
 		// generate valid, random value for them
 		auth := securecookie.GenerateRandomKey(32)
 		encr := securecookie.GenerateRandomKey(32)
-		fmt.Printf("CookieAuthKeyHexStr and/or nCookieEncrKeyHexStr in secrets.json is not valid.\n")
+		fmt.Printf("CookieAuthKeyHexStr and/or nCookieEncrKeyHexStr in config.json is not valid.\n")
 		fmt.Printf("You can use those random values:\n")
 		fmt.Printf("CookieAuthKeyHexStr: %s\nCookieEncrKeyHexStr: %s\n", hex.EncodeToString(auth), hex.EncodeToString(encr))
 	}
@@ -364,7 +365,7 @@ func main() {
 			logger = log.New(loggerFile, "", 0)
 		}*/
 
-	if err := readSecrets(*configPath); err != nil {
+	if err := readConfig(*configPath); err != nil {
 		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err.Error())
 	}
 
@@ -377,7 +378,7 @@ func main() {
 
 	// for testing, add a dummy app if no apps exist
 	if len(appState.Apps) == 0 {
-		log.Fatalf("No apps defined in secrets.json")
+		log.Fatalf("No apps defined in config.json")
 	}
 
 	r := mux.NewRouter()

@@ -5,4 +5,3 @@ Nice to have:
 - ability to see history of translations for a given string and revert to any
   past translations
 - ability to disable languages per project (in secrets.json)
-- rename secrets.json to config.json

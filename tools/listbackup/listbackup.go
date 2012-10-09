@@ -53,9 +53,9 @@ type AppConfig struct {
 	UploadSecret string
 }
 
-// readSecrets reads the configuration file from the path specified by
+// reads the configuration file from the path specified by
 // the config command line flag.
-func readSecrets(configFile string) error {
+func readConfig(configFile string) error {
 	b, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return err
@@ -100,6 +100,6 @@ func listBackups() {
 }
 
 func main() {
-	readSecrets("secrets.json")
+	readConfig("config.json")
 	listBackups()
 }
