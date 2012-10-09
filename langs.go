@@ -52,6 +52,7 @@ var (
 		&Lang{"ml", "Malayalam", "മലയാളം"},
 		&Lang{"mm", "Burmese", "ဗမာ စာ"},
 		&Lang{"my", "Malaysian", "Bahasa Melayu"},
+		&Lang{"ne", "Nepali", "नेपाली"},
 		&Lang{"nl", "Dutch", "Nederlands"},
 		&Lang{"nn", "Norwegian Neo-Norwegian", "Norsk nynorsk"},
 		&Lang{"no", "Norwegian", "Norsk"},
@@ -76,7 +77,6 @@ var (
 		&Lang{"uk", "Ukrainian", "Українська"},
 		&Lang{"uz", "Uzbek", "O'zbek"},
 		&Lang{"vn", "Vietnamese", "Việt Nam"},
-		&Lang{"ne", "Nepali", "नेपाली"},
 	}
 )
 

@@ -746,8 +746,10 @@ func (s *EncoderDecoderState) translationsForLang(langId int) ([]*Translation, i
 
 func (s *EncoderDecoderState) langInfos() []*LangInfo {
 	res := make([]*LangInfo, 0)
-	for langCode, langId := range s.langCodeMap {
+	for _, lang := range Languages {
+		langCode := lang.Code
 		li := NewLangInfo(langCode)
+		langId := s.langCodeMap[langCode]
 		li.Translations, li.untranslated = s.translationsForLang(langId)
 		sort.Sort(ByString{li.Translations})
 		res = append(res, li)

@@ -154,7 +154,8 @@ func NewApp(config *AppConfig) *App {
 
 // used in templates
 func (a *App) LangsCount() int {
-	return a.translationLog.LangsCount()
+	return len(Languages)
+	//return a.translationLog.LangsCount()
 }
 
 // used in templates
