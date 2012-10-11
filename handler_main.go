@@ -26,7 +26,7 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		User:        user,
 		UserIsAdmin: false,
 		RedirectUrl: r.URL.String(),
-		PageTitle:   "AppTranslator"}
+		PageTitle:   "AppTranslator - crowd-sourced translation for software"}
 
 	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

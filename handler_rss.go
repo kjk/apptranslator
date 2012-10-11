@@ -15,7 +15,7 @@ const tmplRssAll = `
 Recent {{.AppName}} translations:
 <ul>
 {{range .Translations}}
-<li>User '{{.User}}' translated '{{.Text}}' as '{{.Translation}}' in language {{.Lang}}</li>
+<li>'{{.User}}' translated '{{.Text}}' as '{{.Translation}}' in language {{.Lang}}</li>
 {{end}}
 </ul>
 `
@@ -26,7 +26,7 @@ const tmplRssOneLang = `
 <p>Recent {{.AppName}} translations for language {{.Lang}}
 <ul>
 {{range .Translations}}
-<li>User '{{.User}}' translated '{{.Text}}' as '{{.Translation}}' in language {{.Lang}}</li>
+<li>'{{.User}}' translated '{{.Text}}' as '{{.Translation}}' in language {{.Lang}}</li>
 {{end}}
 </ul>
 </p>

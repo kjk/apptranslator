@@ -3,7 +3,7 @@
 <div class="container">
 
 <header class="jumbotron subhead" id="overview">
-	<h2><a href="/">Home</a> : Translations of user <a href="http://twitter.com/{{.Name}}">{{.Name}}</a>
+	<h2><a href="/">Home</a> : Translations by <a href="http://twitter.com/{{.Name}}">{{.Name}}</a>
 		<span style="font-size:50%;float:right;">{{if .User}}Logged in as {{.User}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
 	</h2>
 </header>
@@ -12,15 +12,15 @@
 
 {{if len .Edits}}
 <div id="edits">
-<p>{{len .Edits}} translations by user <a href="http://twitter.com/{{.Name}}">{{.Name}}:</a></p>
+<p><a href="http://twitter.com/{{.Name}}">{{.Name}}</a> made the following {{len .Edits}} translations:</p>
 <ul>
 	{{range .Edits}}
-	<li>translated '{{.Text}}' as '{{.Translation}}' in <a href="/app/{{.App}}">{{.App}}</a> / <a href="/app/{{.App}}/{{.Lang}}">{{.Lang}}</a></li>
+	<li>'{{.Text}}' as '{{.Translation}}' in <a href="/app/{{.App}}">{{.App}}</a> / <a href="/app/{{.App}}/{{.Lang}}">{{.Lang}}</a></li>
 	{{end}}
 </ul>
 </div>
 {{else}}
-User {{.Name}} didn't provide any translations yet.
+No translations by {{.Name}} yet.
 {{end}}
 
 </div>

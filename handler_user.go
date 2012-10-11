@@ -37,7 +37,7 @@ func buildModelUser(user, loginName string) *ModelUser {
 		}
 	}
 	return &ModelUser{
-		PageTitle: fmt.Sprintf("Translations of user %s", user),
+		PageTitle: fmt.Sprintf("Translations by %s", user),
 		Name:      user,
 		User:      loginName,
 		Edits:     edits,

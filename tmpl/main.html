@@ -12,7 +12,7 @@
 	<p>Applications:</p>
 	<ul>
 	  {{range .Apps}}
-	  <li><a href="/app/{{.Name}}">{{.Name}}</a> ({{.LangsCount}} languages, {{.StringsCount}} strings, {{.UntranslatedCount}} untranslated in all languages{{if len .Url}}, website: <a href="{{.Url}}">{{.Url}}</a>{{end}})</li>
+	  <li><a href="/app/{{.Name}}">{{.Name}}</a> ({{.StringsCount}} strings, {{.LangsCount}} languages, {{.UntranslatedCount}} untranslated{{if len .Url}}, website: <a href="{{.Url}}">{{.Url}}</a>{{end}})</li>
 	  {{end}}
 	</ul>
 	{{else}}
