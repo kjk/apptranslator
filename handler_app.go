@@ -9,11 +9,16 @@ import (
 	"strings"
 )
 
+type EditDisplay struct {
+	Edit
+	TextDisplay string
+}
+
 type ModelApp struct {
 	App          *App
 	PageTitle    string
 	Langs        []*LangInfo
-	RecentEdits  []Edit
+	RecentEdits  []EditDisplay
 	Translators  []*Translator
 	SortedByName bool
 	LoggedUser   string
@@ -37,7 +42,23 @@ func sortTranslatorsByCount(t []*Translator) {
 	sort.Sort(ByCount{t})
 }
 
+func strTruncate(s string, n int) string {
+	if len(s) < n {
+		return s
+	}
+	if len(s) < n+len("...") {
+		return s
+	}
+	return s[:n] + "..."
+}
+
 func buildModelApp(app *App, loggedUser string, sortedByName bool) *ModelApp {
+	edits := app.translationLog.recentEdits(10)
+	editsDisplay := make([]EditDisplay, len(edits), len(edits))
+	for i, e := range edits {
+		ed := EditDisplay{Edit: e, TextDisplay: strTruncate(e.Text, 42)}
+		editsDisplay[i] = ed
+	}
 	model := &ModelApp{
 		App:          app,
 		LoggedUser:   loggedUser,
@@ -45,7 +66,7 @@ func buildModelApp(app *App, loggedUser string, sortedByName bool) *ModelApp {
 		UserIsAdmin:  userIsAdmin(app, loggedUser),
 		PageTitle:    fmt.Sprintf("Translations for %s", app.Name),
 		Langs:        app.translationLog.LangInfos(),
-		RecentEdits:  app.translationLog.recentEdits(10),
+		RecentEdits:  editsDisplay,
 		Translators:  app.translationLog.translators()}
 	sortTranslatorsByCount(model.Translators)
 	// by default they are sorted by untranslated count

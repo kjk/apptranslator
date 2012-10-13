@@ -36,7 +36,7 @@
 			<p>Recent translations:</p>
 			<ul>
 				{{range .RecentEdits}}
-				<li><a href="/user/{{.User}}">{{.User}}</a> translated '{{.Text}}' in <a href="/app/{{$appName}}/{{.Lang}}">{{.Lang}}</a></li>
+				<li><a href="/user/{{.User}}">{{.User}}</a> translated '{{.TextDisplay}}' in <a href="/app/{{$appName}}/{{.Lang}}">{{.Lang}}</a></li>
 				{{end}}
 			</ul>
 			</div>
