@@ -52,9 +52,5 @@ func handleUser(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("handleUser() user=%s\n", userName)
 	model := buildModelUser(userName, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
-	if err := GetTemplates().ExecuteTemplate(w, tmplUser, model); err != nil {
-		fmt.Print(err.Error(), "\n")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	ExecTemplate(w, tmplUser, model)
 }

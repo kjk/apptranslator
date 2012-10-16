@@ -28,8 +28,5 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		RedirectUrl: r.URL.String(),
 		PageTitle:   "AppTranslator - crowd-sourced translation for software"}
 
-	if err := GetTemplates().ExecuteTemplate(w, tmplMain, model); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	ExecTemplate(w, tmplMain, model)
 }
