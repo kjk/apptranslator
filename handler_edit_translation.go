@@ -36,9 +36,5 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	// TODO: use a redirect with message passed in as an argument
 	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
 	model.ShowTranslationEditedMsg = true
-	if err := GetTemplates().ExecuteTemplate(w, tmplAppTrans, model); err != nil {
-		fmt.Print(err.Error(), "\n")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	ExecTemplate(w, tmplAppTrans, model)
 }

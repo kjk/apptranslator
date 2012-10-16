@@ -93,9 +93,5 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 	model.SortedByName = sortedByName
 
 	model.RedirectUrl = r.URL.String()
-	if err := GetTemplates().ExecuteTemplate(w, tmplApp, model); err != nil {
-		fmt.Print(err.Error(), "\n")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	ExecTemplate(w, tmplApp, model)
 }
