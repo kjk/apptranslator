@@ -96,7 +96,7 @@ func ensureValidConfig(config *BackupConfig) {
 // that if the content hasn't changed, the last backup file should have
 // the same content, so we don't need to check all files
 func alreadyUploaded(config *BackupConfig, sha1 string) bool {
-	rsp, err := listBackupFiles(config, 10)
+	rsp, err := listBackupFiles(config, 1024)
 	if err != nil {
 		logger.Errorf("alreadyUploaded(): listBackupFiles() failed with %s", err.Error())
 		return false
@@ -112,6 +112,7 @@ func alreadyUploaded(config *BackupConfig, sha1 string) bool {
 }
 
 func doBackup(config *BackupConfig) {
+	startTime := time.Now()
 	zipLocalPath := filepath.Join(os.TempDir(), "apptranslator-tmp-backup.zip")
 	//fmt.Printf("zip file name: %s\n", zipLocalPath)
 	// TODO: do I need os.Remove() won't os.Create() over-write the file anyway?
@@ -126,7 +127,8 @@ func doBackup(config *BackupConfig) {
 		return
 	}
 	if alreadyUploaded(config, sha1) {
-		logger.Noticef("s3 backup not done because data hasn't changed")
+		dur := time.Now().Sub(startTime)
+		logger.Noticef("s3 backup not done because data (%s) didn't changed, took %.2f secs", sha1, dur.Seconds())
 		return
 	}
 	timeStr := time.Now().Format("060102_1504_")
@@ -137,7 +139,8 @@ func doBackup(config *BackupConfig) {
 		return
 	}
 
-	logger.Noticef("s3 backup of '%s' to '%s'", zipLocalPath, zipS3Path)
+	dur := time.Now().Sub(startTime)
+	logger.Noticef("s3 backup of '%s' to '%s' took %.2f secs", zipLocalPath, zipS3Path, dur.Seconds())
 }
 
 func BackupLoop(config *BackupConfig) {

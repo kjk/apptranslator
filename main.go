@@ -83,20 +83,24 @@ func StringEmpty(s *string) bool {
 }
 
 func S3BackupEnabled() bool {
+	if !*inProduction {
+		logger.Notice("s3 backups disabled because not in production")
+		return false
+	}
 	if StringEmpty(config.AwsAccess) {
-		fmt.Print("Backup to s3 disabled because AwsAccess not defined in config.json\n")
+		logger.Notice("s3 backups disabled because AwsAccess not defined in config.json\n")
 		return false
 	}
 	if StringEmpty(config.AwsSecret) {
-		fmt.Print("Backup to s3 disabled because AwsSecret not defined in config.json\n")
+		logger.Notice("s3 backups disabled because AwsSecret not defined in config.json\n")
 		return false
 	}
 	if StringEmpty(config.S3BackupBucket) {
-		fmt.Print("Backup to s3 disabled because S3BackupBucket not defined in config.json\n")
+		logger.Notice("s3 backups disabled because S3BackupBucket not defined in config.json\n")
 		return false
 	}
 	if StringEmpty(config.S3BackupDir) {
-		fmt.Print("Backup to s3 disabled because S3BackupDir not defined in config.json\n")
+		logger.Notice("s3 backups disabled because S3BackupDir not defined in config.json\n")
 		return false
 	}
 	return true
@@ -409,6 +413,7 @@ func main() {
 	if S3BackupEnabled() {
 		go BackupLoop(backupConfig)
 	}
+
 	msg := fmt.Sprintf("Started runing on %s", *httpAddr)
 	logger.Noticef(msg)
 	println(msg)
