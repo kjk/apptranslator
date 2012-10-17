@@ -1,8 +1,6 @@
 // This code is under BSD license. See license-bsd.txt
 package main
 
-// TODO: delete old backup files and only keep the last, say, 64?
-
 import (
 	_ "fmt"
 	"launchpad.net/goamz/aws"
@@ -12,12 +10,16 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
 
-var backupFreq = 4 * time.Hour
+var backupFreq = 12 * time.Hour
 var bucketDelim = "/"
+
+// since we backup twice a day, that should be ~32 days of backups
+const MaxBackupsToKeep = 64
 
 type BackupConfig struct {
 	AwsAccess string
@@ -43,6 +45,12 @@ func listBackupFiles(config *BackupConfig, max int) (*s3.ListResp, error) {
 	b := s3.New(auth, aws.USEast).Bucket(config.Bucket)
 	dir := sanitizeDirForList(config.S3Dir, bucketDelim)
 	return b.List(dir, bucketDelim, "", max)
+}
+
+func s3Del(config *BackupConfig, keyName string) error {
+	auth := aws.Auth{config.AwsAccess, config.AwsSecret}
+	b := s3.New(auth, aws.USEast).Bucket(config.Bucket)
+	return b.Del(keyName)
 }
 
 func s3Put(config *BackupConfig, local, remote string, public bool) error {
@@ -111,10 +119,57 @@ func alreadyUploaded(config *BackupConfig, sha1 string) bool {
 	return false
 }
 
+// backup file name is in the form:
+// apptranslator/121011_1121_c7fedc06cf4b08fef66090eaa0ad7a68dc13a325.zip
+// return true if s matches that form
+func isBackupFile(s string) bool {
+	parts := strings.Split(s, "/")
+	if len(parts) != 2 {
+		return false
+	}
+	s = parts[1]
+	parts = strings.Split(s, "_")
+	if len(parts) != 3 || len(parts[0]) != 6 || len(parts[1]) != 4 {
+		return false
+	}
+	if len(parts[2]) != 40+4 {
+		return false
+	}
+	return strings.HasSuffix(parts[2], ".zip")
+}
+
+func deleteOldBackups(config *BackupConfig, maxToKeep int) {
+	rsp, err := listBackupFiles(config, 1024)
+	if err != nil {
+		logger.Errorf("deleteOldBackups(): listBackupFiles() failed with %s", err.Error())
+		return
+	}
+	keys := make([]string, 0)
+	for _, key := range rsp.Contents {
+		if isBackupFile(key.Key) {
+			keys = append(keys, key.Key)
+		}
+	}
+	toDelete := len(keys) - maxToKeep
+	if toDelete <= 0 {
+		return
+	}
+	sort.Strings(keys)
+	// keys are sorted with the oldest at the beginning of keys array, so we
+	// delete those first
+	for i := 0; i < toDelete; i++ {
+		key := keys[i]
+		if err = s3Del(config, key); err != nil {
+			logger.Noticef("deleteOldBackups(): failed to delete %s, error: %s", key, err.Error())
+		} else {
+			logger.Noticef("deleteOldBackups(): deleted %s", key)
+		}
+	}
+}
+
 func doBackup(config *BackupConfig) {
 	startTime := time.Now()
 	zipLocalPath := filepath.Join(os.TempDir(), "apptranslator-tmp-backup.zip")
-	//fmt.Printf("zip file name: %s\n", zipLocalPath)
 	// TODO: do I need os.Remove() won't os.Create() over-write the file anyway?
 	os.Remove(zipLocalPath) // remove before trying to create a new one, just in cased
 	err := CreateZipWithDirContent(zipLocalPath, config.LocalDir)
@@ -138,6 +193,8 @@ func doBackup(config *BackupConfig) {
 		logger.Errorf("s3Put of '%s' to '%s' failed with %s", zipLocalPath, zipS3Path, err.Error())
 		return
 	}
+
+	deleteOldBackups(config, MaxBackupsToKeep)
 
 	dur := time.Now().Sub(startTime)
 	logger.Noticef("s3 backup of '%s' to '%s' took %.2f secs", zipLocalPath, zipS3Path, dur.Seconds())

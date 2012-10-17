@@ -424,6 +424,7 @@ func main() {
 		S3Dir:     *config.S3BackupDir,
 		LocalDir:  getDataDir(),
 	}
+
 	if S3BackupEnabled() {
 		go BackupLoop(backupConfig)
 	}
