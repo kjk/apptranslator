@@ -368,8 +368,7 @@ func main() {
 		alwaysLogTime = false
 	}
 
-	// TODO: pass *logPath to server logger
-	logger = NewServerLogger(256, 256)
+	logger = NewServerLogger(256, 256, !*inProduction)
 
 	/*
 		if *logPath == "stdout" {
