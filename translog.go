@@ -285,12 +285,10 @@ func (s *EncoderDecoderState) validStringId(id int) bool {
 }
 
 type TranslationLog struct {
+	sync.Mutex
 	state    *EncoderDecoderState
 	filePath string
 	file     *os.File
-
-	// protects writing translations
-	mu sync.Mutex
 }
 
 var errorRecordMalformed = errors.New("Record malformed")
@@ -793,68 +791,68 @@ func (l *TranslationLog) close() {
 }
 
 func (l *TranslationLog) writeNewTranslation(txt, trans, lang, user string) error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.writeNewTranslation(l.file, txt, trans, lang, user)
 }
 
 func (l *TranslationLog) LangsCount() int {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.langsCount()
 }
 
 func (l *TranslationLog) StringsCount() int {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.stringsCount()
 }
 
 func (l *TranslationLog) UntranslatedCount() int {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.untranslatedCount()
 }
 
 func (l *TranslationLog) UntranslatedForLang(lang string) int {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.UntranslatedForLang(lang)
 }
 
 func (l *TranslationLog) LangInfos() []*LangInfo {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.langInfos()
 }
 
 func (l *TranslationLog) recentEdits(max int) []Edit {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.recentEdits(max)
 }
 
 func (l *TranslationLog) editsByUser(user string) []Edit {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.editsByUser(user)
 }
 
 func (l *TranslationLog) editsForLang(user string, max int) []Edit {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.editsForLang(user, max)
 }
 
 func (l *TranslationLog) translators() []*Translator {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 	return l.state.translators()
 }
 
 func (l *TranslationLog) updateStringsList(newStrings []string) ([]string, []string, []string, error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.Lock()
+	defer l.Unlock()
 
 	// for faster detection if string exists in newStrings, build a hash
 	stringsHash := make(map[string]bool)

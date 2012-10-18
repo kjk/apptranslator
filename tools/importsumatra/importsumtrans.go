@@ -3,6 +3,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	_ "encoding/json"
 	"fmt"
 	"io"
@@ -11,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"bytes"
 )
 
 const (
