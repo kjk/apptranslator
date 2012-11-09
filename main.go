@@ -428,9 +428,7 @@ func main() {
 		go BackupLoop(backupConfig)
 	}
 
-	msg := fmt.Sprintf("Started runing on %s", *httpAddr)
-	logger.Noticef(msg)
-	println(msg)
+	logger.Noticef(fmt.Sprintf("Started running on %s", *httpAddr))
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err.Error())
 	}

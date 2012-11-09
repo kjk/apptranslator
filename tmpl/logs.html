@@ -1,6 +1,6 @@
 {{ template "header.html" . }}
 
-<div class="container">
+<div class="container" style="font-size:80%;">
 	<header class="jumbotron subhead" id="overview">
 		<h2><a href="/">Home</a> : App Translator logs
 			<span style="font-size:50%;float:right;">{{if .User}}Logged in as {{.User}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
@@ -12,14 +12,14 @@
 	{{if len .Errors}}
 		<div style="color:red">Errors:</div>
 		{{range .Errors}}
-			<div><font style="color:gray;">{{.Time.Format "2006-01-02 15:04:05"}}</font> {{.Msg}}</div>
+			<div><font style="color:gray;">{{.TimeSinceStr}}</font> {{.Msg}}</div>
 		{{end}}
 	{{end}}
 
 	{{if len .Notices}}
 		<div>Notices:</div>
 		{{range .Notices}}
-			<div><font style="color:gray;">{{.Time.Format "2006-01-02 15:04:05"}}</font> {{.Msg}}</div>
+			<div><font style="color:gray;">{{.TimeSinceStr}}</font> {{.Msg}}</div>
 		{{end}}
 	{{end}}
 </div>
