@@ -118,6 +118,6 @@ def deploy():
 	with cd(curr_dir):
 		#run("/sbin/start-stop-daemon --start --background --chdir /home/apptranslator/www/app/current --exec apptranslator_app -- -log apptranslator_app.log -production")
 		run("/sbin/start-stop-daemon --start --background --chdir /home/apptranslator/www/app/current --exec apptranslator_app -- -production")
-		run("ps aux | grep _app")
+		run("ps aux | grep _app | grep -v grep")
 
 	delete_old_deploys()
