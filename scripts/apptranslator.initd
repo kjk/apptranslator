@@ -6,8 +6,8 @@
 # Required-Stop  : $remote_fs
 # Default-Start     : 2 3 4 5
 # Default-Stop     : 0 1 6
-# Short-Description : Fofou initscript
-# Description : Fofou initscript, symlink from /etc/init.d/apptranslator
+# Short-Description : apptranslator initscript
+# Description : apptranslator initscript, symlink from /etc/init.d/apptranslator
 #
 ### END INIT INFO
 
