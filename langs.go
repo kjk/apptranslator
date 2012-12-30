@@ -15,6 +15,7 @@ var (
 		&Lang{"af", "Afrikaans", "Afrikaans"},
 		&Lang{"am", "Armenian", "Հայերեն"},
 		&Lang{"ar", "Arabic", "الْعَرَبيّة"},
+		&Lang{"az", "Azerbaijani", "اآذربایجان دیلی"},
 		&Lang{"bg", "Bulgarian", "Български"},
 		&Lang{"bn", "Bengali", "বাংলা"},
 		&Lang{"br", "Portuguese - Brazil", "Português"},
