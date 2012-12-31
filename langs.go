@@ -46,6 +46,7 @@ var (
 		&Lang{"it", "Italian", "Italiano"},
 		&Lang{"ja", "Japanese", "日本語"},
 		&Lang{"ka", "Georgian", "ქართული"},
+		&Lang{"ku", "Kurdish", "كوردی"},
 		&Lang{"kr", "Korean", "한국어"},
 		&Lang{"kw", "Cornish", "Kernewek"},
 		&Lang{"lt", "Lithuanian", "Lietuvių"},
