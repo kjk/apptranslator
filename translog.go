@@ -22,7 +22,7 @@ import (
 //
 // In order to minimize the size of the file, we intern some strings by assigning
 // them unique, monotonically increasing integers, e.g. we identify languages
-// by their code names like "en", "pl" etc. Instead of repeating 
+// by their code names like "en", "pl" etc. Instead of repeating
 //
 // We have several types of records:
 // - record interning a new language string, format:
@@ -474,8 +474,10 @@ func decodeStrRecord(rec []byte, dict map[string]int, tp string) error {
 func (s *EncoderDecoderState) decodeStringDeleteRecord(rec []byte) error {
 	id, n := binary.Uvarint(rec)
 	panicIf(n != len(rec), "decodeStringDeleteRecord")
+	//fmt.Printf("Deleting %d\n", int(id))
 	if s.isDeleted(int(id)) {
-		log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
+		//log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
+		log.Printf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
 	}
 	if logging {
 		fmt.Printf("decodeStringDeleteRecord(): %d\n", id)
@@ -489,11 +491,13 @@ func (s *EncoderDecoderState) decodeStringUndeleteRecord(rec []byte) error {
 	id, n := binary.Uvarint(rec)
 	panicIf(n != len(rec), "decodeStringUndeleteRecord")
 	if !s.isDeleted(int(id)) {
-		log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
+		//log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
+		log.Printf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
 	}
 	if logging {
 		fmt.Printf("decodeStringUndeleteRecord(): %d\n", id)
 	}
+	//fmt.Printf("Undeleting %d\n", int(id))
 	delete(s.deletedStrings, int(id))
 	return nil
 }
