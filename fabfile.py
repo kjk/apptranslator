@@ -4,12 +4,12 @@ import zipfile
 from fabric.api import *
 from fabric.contrib import *
 
-# Deploys a new version of apptranslator to the server
 
 env.hosts = ['apptranslator.org']
 env.user = 'apptranslator'
 
 app_dir = 'www/app'
+
 
 def git_ensure_clean():
 	out = subprocess.check_output(["git", "status", "--porcelain"])
@@ -18,29 +18,36 @@ def git_ensure_clean():
 		print(out)
 		sys.exit(1)
 
+
 def git_pull():
 	local("git pull")
 
+
 def git_trunk_sha1():
 	return subprocess.check_output(["git", "log", "-1", "--pretty=format:%H"])
+
 
 def delete_file(p):
 	if os.path.exists(p):
 		os.remove(p)
 
+
 def ensure_remote_dir_exists(p):
 	if not files.exists(p):
 		abort("dir '%s' doesn't exist on remote server" % p)
 
+
 def ensure_remote_file_exists(p):
 	if not files.exists(p):
 		abort("dir '%s' doesn't exist on remote server" % p)
+
 
 def add_dir_files(zip_file, dir):
 	for (path, dirs, files) in os.walk(dir):
 		for f in files:
 			p = os.path.join(path, f)
 			zip_file.write(p)
+
 
 def zip_files(zip_path):
 	zf = zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_DEFLATED)
@@ -53,6 +60,7 @@ def zip_files(zip_path):
 	add_dir_files(zf, "tmpl")
 	add_dir_files(zf, "static")
 	zf.close()
+
 
 def delete_old_deploys(to_keep=5):
 	with cd(app_dir):
@@ -77,11 +85,16 @@ def delete_old_deploys(to_keep=5):
 			for d in dirs_to_del:
 				run("rm -rf %s" % d)
 
+def check_config():
+	if not os.path.exists("config.json"):
+		abort("config.json doesn't exist locally")
+
 def deploy():
-	if not os.path.exists("config.json"): abort("config.json doesn't exist locally")
+	check_config()
 	#git_pull()
 	git_ensure_clean()
 	local("./scripts/build.sh")
+	local("./scripts/tests.sh")
 	ensure_remote_dir_exists(app_dir)
 	ensure_remote_file_exists('www/data/SumatraPDF/translations.dat')
 	sha1 = git_trunk_sha1()
@@ -103,8 +116,7 @@ def deploy():
 	curr_dir = app_dir + '/current'
 	if files.exists(curr_dir):
 		# shut-down currently running instance
-		with cd(curr_dir):
-			run("/sbin/start-stop-daemon --stop --oknodo --exec apptranslator_app")
+		sudo("/etc/init.d/apptranslator stop", pty=False)
 		# rename old current as prev for easy rollback of bad deploy
 		with cd(app_dir):
 			run('rm -f prev')
@@ -114,10 +126,13 @@ def deploy():
 	with cd(app_dir):
 		run("ln -s %s current" % sha1)
 
+	if not files.exists("/etc/init.d/apptranslator"):
+		sudo("ln -s /home/apptranslator/www/app/current/scripts/apptranslator.initd /etc/init.d/apptranslator")
+		# make sure it runs on startup
+		sudo("update-rc.d apptranslator defaults")
+
 	# start it
-	with cd(curr_dir):
-		#run("/sbin/start-stop-daemon --start --background --chuid apptranslator --chdir /home/apptranslator/www/app/current --exec apptranslator_app -- -log apptranslator_app.log -production")
-		run("/sbin/start-stop-daemon --start --background --chuid apptranslator --chdir /home/apptranslator/www/app/current --exec apptranslator_app -- -production")
-		run("ps aux | grep _app | grep -v grep")
+	sudo("/etc/init.d/apptranslator start", pty=False)
+	run("ps aux | grep _app | grep -v grep")
 
 	delete_old_deploys()

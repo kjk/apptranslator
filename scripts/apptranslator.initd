@@ -10,8 +10,12 @@
 # Description:       starts apptranslator using start-stop-daemon
 ### END INIT INFO
 
+# /etc/init.d/apptranslator must be symlinked to this file i.e. /home/apptranslator/www/app/current/scripts/apptranslator.initd
+# sudo ln -s /home/apptranslator/www/app/current/scripts/apptranslator.initd /etc/init.d/apptranslator
+
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/home/apptranslator/www/app/current/apptranslator_app
+DAEMON_ARGS=-production
 NAME=apptranslator
 DESC=apptranslator
 
@@ -21,19 +25,33 @@ set -e
 
 . /lib/lsb/init-functions
 
+start() {
+	start-stop-daemon --oknodo --start --verbose --background \
+		--chuid apptranslator --chdir /home/apptranslator/www/app/current \
+		--exec $DAEMON -- $DAEMON_ARGS
+}
+
+stop() {
+	start-stop-daemon --oknodo --stop --verbose \
+		--exec $DAEMON
+}
+
 case "$1" in
 	start)
-		echo -n "Starting $DESC: "
-		start-stop-daemon --start --background --chuid apptranslator --chdir /home/apptranslator/www/app/current --exec $DAEMON -- -production || true
-		echo "$NAME."
+		log_daemon_msg "Starting $NAME"
+		start
+		log_end_msg $?
 		;;
 
 	stop)
-		echo -n "Stopping $DESC: "
-		start-stop-daemon --stop --oknodo --exec $DAEMON || true
-		echo "$NAME."
+		log_daemon_msg "Stopping $NAME"
+		stop
+		log_end_msg $?
 		;;
 
+	status)
+		status_of_proc "$DAEMON" "$NAME"
+		;;
 esac
 
 exit 0
