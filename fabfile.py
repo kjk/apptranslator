@@ -4,8 +4,18 @@ import zipfile
 from fabric.api import *
 from fabric.contrib import *
 
+# TODO: could also automate the following:
+# - if /etc/nginx/sites-available/apptranslator doesn't exist,
+#   copy scripts/nginx.conf as /etc/nginx/sites-available/apptranslator and
+#   soft-link /etc/nginx/sites-enabled/apptranslator to it
+# - if doesn't exist, create  /var/log/nginx/apptranslator
+# - run sudo nginx -t to ensure config was successful
+# - sudo /etc/init.d/nginx restart
+# - mkdir /home/apptranslator/www; mkdir /home/apptranslator/www/app; mkdir /home/apptranslator/www/data
+#   if they don't already exist
 
-env.hosts = ['apptranslator.org']
+# TODO: temporarily using og.apptranslator.org, change back to apptranslator.org
+env.hosts = ['og.apptranslator.org']
 env.user = 'apptranslator'
 
 app_dir = 'www/app'
