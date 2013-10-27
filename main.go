@@ -23,7 +23,7 @@ import (
 
 var (
 	configPath = flag.String("config", "config.json", "Path to configuration file")
-	httpAddr   = flag.String("addr", ":5000", "HTTP server address")
+	httpAddr   = flag.String("addr", ":5001", "HTTP server address")
 	//logPath      = flag.String("log", "stdout", "where to log")
 	inProduction = flag.Bool("production", false, "are we running in production")
 	cookieName   = "ckie"
