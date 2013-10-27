@@ -14,8 +14,8 @@ from fabric.contrib import *
 # - mkdir /home/apptranslator/www; mkdir /home/apptranslator/www/app; mkdir /home/apptranslator/www/data
 #   if they don't already exist
 
-# TODO: temporarily using og.apptranslator.org, change back to apptranslator.org
-env.hosts = ['og.apptranslator.org']
+# TODO: temporarily using do.apptranslator.org, change back to apptranslator.org
+env.hosts = ['do.apptranslator.org']
 env.user = 'apptranslator'
 
 app_dir = 'www/app'
