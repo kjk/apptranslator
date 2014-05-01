@@ -3,7 +3,6 @@ package main
 
 import (
 	"bytes"
-	_ "fmt"
 	"io"
 	"os"
 	"testing"

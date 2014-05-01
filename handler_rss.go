@@ -4,11 +4,12 @@ package main
 import (
 	"bytes"
 	"fmt"
-	atom "github.com/thomas11/atomgenerator"
 	"html/template"
 	"net/http"
 	"strings"
 	"time"
+
+	atom "github.com/thomas11/atomgenerator"
 )
 
 const tmplRssAll = `

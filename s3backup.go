@@ -2,9 +2,6 @@
 package main
 
 import (
-	"github.com/crowdmob/goamz/aws"
-	"github.com/crowdmob/goamz/s3"
-	"github.com/kjk/u"
 	"log"
 	"mime"
 	"os"
@@ -13,6 +10,10 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/crowdmob/goamz/aws"
+	"github.com/crowdmob/goamz/s3"
+	"github.com/kjk/u"
 )
 
 var backupFreq = 12 * time.Hour

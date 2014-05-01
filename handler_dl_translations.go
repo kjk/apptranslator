@@ -4,11 +4,12 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/kjk/u"
 	"io"
 	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/kjk/u"
 )
 
 type LangTrans struct {

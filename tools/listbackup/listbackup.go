@@ -4,12 +4,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/garyburd/go-oauth/oauth"
 	"io/ioutil"
-	"launchpad.net/goamz/aws"
-	"launchpad.net/goamz/s3"
 	"log"
 	"strings"
+
+	"github.com/crowdmob/goamz/aws"
+	"github.com/crowdmob/goamz/s3"
+	"github.com/garyburd/go-oauth/oauth"
 )
 
 var (
@@ -81,7 +82,7 @@ func sanitizeDirForList(dir, delim string) string {
 func listBackups() {
 	bucketName := *config.S3BackupBucket
 	dir := sanitizeDirForList(*config.S3BackupDir, bucketDelim)
-	auth := aws.Auth{*config.AwsAccess, *config.AwsSecret}
+	auth := aws.Auth{AccessKey: *config.AwsAccess, SecretKey: *config.AwsSecret}
 	b := s3.New(auth, aws.USEast).Bucket(bucketName)
 	fmt.Printf("Listing files in %s\n", fullUrl(bucketName, dir))
 	rsp, err := b.List(dir, bucketDelim, "", 1000)

@@ -2,11 +2,12 @@
 package main
 
 import (
-	"code.google.com/p/gorilla/mux"
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
+
+	"code.google.com/p/gorilla/mux"
 )
 
 type EditDisplay struct {

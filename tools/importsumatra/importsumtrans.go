@@ -4,7 +4,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	_ "encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/kjk/u"
 )
 
 const (
@@ -186,7 +187,7 @@ func main() {
 		fmt.Printf("Error reading dir '%s', %s\n", dir, err.Error())
 		return
 	}
-	if PathExists(dataFileName) {
+	if u.PathExists(dataFileName) {
 		log.Fatalf("%s already exists", dataFileName)
 	}
 	translog, err := NewTranslationLog(dataFileName)
