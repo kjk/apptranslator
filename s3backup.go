@@ -2,9 +2,6 @@
 package main
 
 import (
-	_ "fmt"
-	"launchpad.net/goamz/aws"
-	"launchpad.net/goamz/s3"
 	"log"
 	"mime"
 	"os"
@@ -13,6 +10,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"github.com/kjk/u"
+	"launchpad.net/goamz/aws"
+	"launchpad.net/goamz/s3"
 )
 
 var backupFreq = 12 * time.Hour
@@ -86,7 +86,7 @@ func s3Put(config *BackupConfig, local, remote string, public bool) error {
 
 // tests if s3 credentials are valid and aborts if aren't
 func ensureValidConfig(config *BackupConfig) {
-	if !PathExists(config.LocalDir) {
+	if !u.PathExists(config.LocalDir) {
 		log.Fatalf("Invalid s3 backup: directory to backup '%s' doesn't exist\n", config.LocalDir)
 	}
 
@@ -172,12 +172,12 @@ func doBackup(config *BackupConfig) {
 	zipLocalPath := filepath.Join(os.TempDir(), "apptranslator-tmp-backup.zip")
 	// TODO: do I need os.Remove() won't os.Create() over-write the file anyway?
 	os.Remove(zipLocalPath) // remove before trying to create a new one, just in cased
-	err := CreateZipWithDirContent(zipLocalPath, config.LocalDir)
+	err := u.CreateZipWithDirContent(zipLocalPath, config.LocalDir)
 	defer os.Remove(zipLocalPath)
 	if err != nil {
 		return
 	}
-	sha1, err := FileSha1(zipLocalPath)
+	sha1, err := u.FileSha1(zipLocalPath)
 	if err != nil {
 		return
 	}

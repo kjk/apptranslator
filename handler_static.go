@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+
+	"github.com/kjk/u"
 )
 
 func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName string) {
 	filePath := filepath.Join(dir, fileName)
-	if !PathExists(filePath) {
+	if !u.PathExists(filePath) {
 		fmt.Printf("serveFileFromDir() file=%s doesn't exist\n", filePath)
 	}
 	http.ServeFile(w, r, filePath)

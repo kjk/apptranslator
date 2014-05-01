@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/kjk/u"
 )
 
 // Translation log is append-only file. It consists of records. Each record
@@ -762,7 +764,7 @@ func (s *EncoderDecoderState) langInfos() []*LangInfo {
 
 func NewTranslationLog(path string) (*TranslationLog, error) {
 	state := NewEncoderDecoderState()
-	if PathExists(path) {
+	if u.PathExists(path) {
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err

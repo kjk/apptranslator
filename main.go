@@ -3,14 +3,11 @@ package main
 
 import (
 	"bytes"
-	"code.google.com/p/gorilla/mux"
-	"code.google.com/p/gorilla/securecookie"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/garyburd/go-oauth/oauth"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -19,6 +16,11 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"code.google.com/p/gorilla/mux"
+	"code.google.com/p/gorilla/securecookie"
+	"github.com/garyburd/go-oauth/oauth"
+	"github.com/kjk/u"
 )
 
 var (
@@ -114,11 +116,11 @@ func getDataDir() string {
 		return dataDir
 	}
 	dataDir = filepath.Join("..", "apptranslatordata")
-	if PathExists(dataDir) {
+	if u.PathExists(dataDir) {
 		return dataDir
 	}
 	dataDir = filepath.Join("..", "..", "data")
-	if PathExists(dataDir) {
+	if u.PathExists(dataDir) {
 		return dataDir
 	}
 	log.Fatal("data directory (../../data or ../apptranslatordata) doesn't exist")
@@ -180,7 +182,7 @@ func (a *App) translationLogFilePath() string {
 	// deploy anyway, so we force the admin to create those dirs
 	appDataDir := filepath.Join(getDataDir(), a.DataDir)
 	dataFilePath := filepath.Join(appDataDir, "translations.dat")
-	if !PathExists(dataFilePath) {
+	if !u.PathExists(dataFilePath) {
 		log.Fatalf("Data file %s for app %s doesn't exist. Prease create (empty file is ok)!\n", dataFilePath, a.Name)
 	}
 	return dataFilePath

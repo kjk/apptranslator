@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"github.com/kjk/u"
 )
 
 type LangTrans struct {
@@ -51,7 +52,7 @@ func translationsForApp(app *App) []byte {
 		ltarr := m[s]
 		io.WriteString(&w, fmt.Sprintf(":%s\n", s))
 		n := len(ltarr)
-		// TODO: to be more efficient, allocate translations array outside of loop	
+		// TODO: to be more efficient, allocate translations array outside of loop
 		translations := make([]string, n, n)
 		for _, lt := range ltarr {
 			n -= 1
@@ -91,8 +92,8 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b := translationsForApp(app)
-	sha1, err := DataSha1(b)
-	sha2, _ := DataSha1(b)
+	sha1, err := u.DataSha1(b)
+	sha2, _ := u.DataSha1(b)
 	if sha1 != sha2 {
 		logger.Errorf("sha1 != sha2 (%s != %s)", sha1, sha2)
 	}
