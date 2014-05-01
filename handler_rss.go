@@ -2,9 +2,9 @@
 package main
 
 import (
-	"atom"
 	"bytes"
 	"fmt"
+	atom "github.com/thomas11/atomgenerator"
 	"html/template"
 	"net/http"
 	"strings"
@@ -83,7 +83,7 @@ func getRssAll(app *App) string {
 	if err != nil {
 		return "Failed to generate XML feed"
 	}
-	return s
+	return string(s)
 }
 
 func getRssForLang(app *App, lang string) string {
@@ -118,7 +118,7 @@ func getRssForLang(app *App, lang string) string {
 	if err != nil {
 		return "Failed to generate XML feed"
 	}
-	return s
+	return string(s)
 }
 
 // url: /rss?app=$app[&lang=$lang]
