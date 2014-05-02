@@ -5,7 +5,7 @@
 		<h2><a href="/">Home</a> : Translations for {{.App.Name}}
 			<span style="font-size:50%;float:right;">{{if .LoggedUser}}Logged in as {{.LoggedUser}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
 		</h2>
-		<p class="lead">{{.App.StringsCount}} strings, {{.App.LangsCount}}
+		<p class="lead"><a href="/app/{{.App.Name}}/strings">{{.App.StringsCount}} strings</a>, {{.App.LangsCount}}
 		languages, {{.App.UntranslatedCount}} untranslated (in all languages)
 		</p>
 	</header>
@@ -14,7 +14,7 @@
 	<div>
 		<div id="langs" style="display: inline-block;">
 		{{if len .Langs}}
-		<p>Languages (sort by: 
+		<p>Languages (sort by:
 			{{ if .SortedByName }}name, <a href="/app/{{$appName}}">untranslated</a>{{else}}<a href="/app/{{$appName}}?sort=name">name</a>, untranslated{{end}})
 		</p>
 		<ul>
@@ -38,6 +38,7 @@
 				{{range .RecentEdits}}
 				<li><a href="/user/{{.User}}">{{.User}}</a> translated '{{.TextDisplay}}' in <a href="/app/{{$appName}}/{{.Lang}}">{{.Lang}}</a></li>
 				{{end}}
+				<li><a href="/app/{{$appName}}/edits">see all...</a></li>
 			</ul>
 			</div>
 			{{end}}

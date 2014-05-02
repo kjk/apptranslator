@@ -402,6 +402,8 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/app/{appname}", makeTimingHandler(handleApp))
+	r.HandleFunc("/app/{appname}/edits", makeTimingHandler(handleAppEdits))
+	r.HandleFunc("/app/{appname}/strings", makeTimingHandler(handleAppStrings))
 	r.HandleFunc("/app/{appname}/{lang}", makeTimingHandler(handleAppTranslations))
 	r.HandleFunc("/user/{user}", makeTimingHandler(handleUser))
 	r.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
