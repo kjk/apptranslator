@@ -2,27 +2,23 @@
 <html lang="en">
 <head>
 	<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
-	<link href="/s/css/bootstrap.css" rel="stylesheet">	
+	<link href="/s/css/bootstrap.css" rel="stylesheet">
 	<link href="/s/css/bootstrap-responsive.css" rel="stylesheet">
 	<!--[if lt IE 9]>
 	  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
 	<![endif]-->
-
 	<style type=text/css>
 	.trans {
 		padding-top: 2px;
 		padding-bottom: 2px;
 	}
-
 	.trans:hover {
 		background-color: #fafafa;
 	}
-
 	.inline-progress {
 		margin-bottom: -5px;
 		display: inline-block;
 	}
-
 	</style>
 </head>
 
@@ -34,7 +30,7 @@
 		 <span style="font-size:50%;float:right;">{{if .User}}Logged in as {{.User}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
 	</h2>
 	<div class="lead">{{.LangInfo.UntranslatedCount}} untranslated out of {{ .StringsCount}} total strings </div>
-	<div>Progress: 
+	<div>Progress:
 		<div style="width:256px" class="progress inline-progress">
 			<div class="bar inline-progress" style="width: {{.TransProgressPercent}}%;">
 			</div>
@@ -81,7 +77,7 @@
 				<input type="hidden" name="app" value="{{.App.Name}}">
 				<input type="hidden" name="lang" value="{{.LangInfo.Code}}">
 				<p id="mismatchedStringFormattingError" style="color:red;visibility:hidden"><bold>
-					Error: translation cannot be empty and string formatting directive (%s, %d etc.) 
+					Error: translation cannot be empty and string formatting directive (%s, %d etc.)
 					must be in the same order.
 				</bold></p>
 				<p></p>
@@ -138,7 +134,7 @@ function updateEditTransState() {
 	} else {
 		$("button[type=submit]").attr("disabled", "disabled");
 		$("#mismatchedStringFormattingError").css({"visibility":"visible"});
-	}	
+	}
 }
 
 $(document).ready(function() {

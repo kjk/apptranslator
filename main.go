@@ -67,13 +67,14 @@ var (
 
 	appState = AppState{}
 
-	tmplMain      = "main.html"
-	tmplApp       = "app.html"
-	tmplAppTrans  = "apptrans.html"
-	tmplUser      = "user.html"
-	tmplLogs      = "logs.html"
-	templateNames = [...]string{
-		tmplMain, tmplApp, tmplAppTrans, tmplUser, tmplLogs, "header.html",
+	tmplMain       = "main.html"
+	tmplApp        = "app.html"
+	tmplAppTrans   = "apptrans.html"
+	tmplAppStrings = "appstrings.html"
+	tmplUser       = "user.html"
+	tmplLogs       = "logs.html"
+	templateNames  = [...]string{
+		tmplMain, tmplApp, tmplAppTrans, tmplAppStrings, tmplUser, tmplLogs, "header.html",
 		"footer.html"}
 	templatePaths   []string
 	templates       *template.Template

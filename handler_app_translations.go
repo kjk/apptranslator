@@ -28,19 +28,20 @@ func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTransla
 
 	modelApp := buildModelApp(app, user, false)
 	for _, langInfo := range modelApp.Langs {
-		if langInfo.Code == langCode {
-			model.LangInfo = langInfo
-			model.StringsCount = len(langInfo.Translations)
-			if 0 == model.StringsCount {
-				model.TransProgressPercent = 100
-			} else {
-				total := float32(model.StringsCount)
-				translated := float32(model.StringsCount - langInfo.UntranslatedCount())
-				perc := (100. * translated) / total
-				model.TransProgressPercent = int(perc)
-			}
-			return model
+		if langInfo.Code != langCode {
+			continue
 		}
+		model.LangInfo = langInfo
+		model.StringsCount = len(langInfo.Translations)
+		if 0 == model.StringsCount {
+			model.TransProgressPercent = 100
+		} else {
+			total := float32(model.StringsCount)
+			translated := float32(model.StringsCount - langInfo.UntranslatedCount())
+			perc := (100. * translated) / total
+			model.TransProgressPercent = int(perc)
+		}
+		return model
 	}
 	panic("buildModelAppTranslations() failed")
 }

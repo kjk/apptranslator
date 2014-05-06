@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <link href="/s/css/bootstrap.css" rel="stylesheet">
+    <link href="/s/css/bootstrap-responsive.css" rel="stylesheet">
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <style type=text/css>
+    .trans {
+        padding-top: 2px;
+        padding-bottom: 2px;
+    }
+    .trans:hover {
+        background-color: #fafafa;
+    }
+    .inline-progress {
+        margin-bottom: -5px;
+        display: inline-block;
+    }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+<header class="jumbotron subhead" id="overview">
+    <h2><a href="/">Home</a> : <a href="/app/{{.App.Name}}">{{.App.Name}}</a> : strings
+         <span style="font-size:50%;float:right;">{{if .User}}Logged in as {{.User}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
+    </h2>
+    <div class="lead">{{ .StringsCount }} total strings </div>
+</header>
+
+<p style="margin-bottom:24px"></p>
+
+{{if len .Strings}}
+    {{range $idx, $el := .Strings}}
+    <div class="trans" id="idTrans{{$idx}}">
+        <span class="origstr">{{$el}}</span>
+        <a href="#" class="addbtn" id="idEdit{{$idx}}">Duplicate...</a>
+    </div>
+    {{end}}
+{{end}}
+
+<hr style="margin:4px">
+<center style="padding-bottom:12px"><a href="https://github.com/kjk/apptranslator">App Translator</a>, lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>
+
+<!-- placed at the end for faster loading -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script src="/s/js/bootstrap.js"></script>
+<script src="/s/js/apptranslator.js"></script>
+
+<script>
+
+var prevTranslationValue = "";
+function updateEditTransState() {
+    var txt = $("#idEditFormString").text();
+    prevTranslationValue = $("#idEditFormTrans").val();
+    if (canSubmitTranslation(txt, prevTranslationValue)) {
+        $("button[type=submit]").removeAttr("disabled");
+        $("#mismatchedStringFormattingError").css({"visibility":"hidden"});
+    } else {
+        $("button[type=submit]").attr("disabled", "disabled");
+        $("#mismatchedStringFormattingError").css({"visibility":"visible"});
+    }
+}
+
+$(document).ready(function() {
+
+    $(".addbtn").click(function() {
+        $("#idEditTransHdr").text("Add a translation");
+        var el = $(this).parent().find(".origstr");
+        $("#idEditFormString").text(el.text());
+        $("#idEditFormTrans").val("");
+        $("#idEditTrans").modal('show');
+        $("#idEditFormTrans").focus();
+        updateEditTransState();
+    });
+
+    $(".editbtn").click(function() {
+        $("#idEditTransHdr").text("Edit translation");
+        var el = $(this).parent().find(".origstr");
+        $("#idEditFormString").text(el.text());
+        el = $(this).parent().find(".transstr");
+        $("#idEditFormTrans").val(el.text());
+        $("#idEditTrans").modal('show');
+        $("#idEditFormTrans").focus();
+        updateEditTransState();
+    });
+    $("#idEditFormTrans").bind("keyup paste", function(e) {
+        if ($(this).val() == prevTranslationValue) { return; }
+        updateEditTransState();
+});
+
+});
+
+</script>
+
+</body>
+</html>
