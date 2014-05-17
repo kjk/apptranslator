@@ -20,6 +20,7 @@ import (
 	"code.google.com/p/gorilla/mux"
 	"code.google.com/p/gorilla/securecookie"
 	"github.com/garyburd/go-oauth/oauth"
+	"github.com/kjk/apptranslator/store"
 	"github.com/kjk/u"
 )
 
@@ -148,7 +149,7 @@ type User struct {
 
 type App struct {
 	AppConfig
-	translationLog *TranslationLog
+	translationLog *store.TranslationLog
 }
 
 type AppState struct {
@@ -163,7 +164,7 @@ func NewApp(config *AppConfig) *App {
 
 // used in templates
 func (a *App) LangsCount() int {
-	return len(Languages)
+	return len(store.Languages)
 	//return a.translationLog.LangsCount()
 }
 
@@ -190,7 +191,7 @@ func (a *App) translationLogFilePath() string {
 }
 
 func readAppData(app *App) error {
-	l, err := NewTranslationLog(app.translationLogFilePath())
+	l, err := store.NewTranslationLog(app.translationLogFilePath())
 	if err != nil {
 		return err
 	}

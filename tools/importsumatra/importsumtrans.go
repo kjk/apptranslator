@@ -201,7 +201,7 @@ func main() {
 		}
 		name := e.Name()
 		langCode := name[:len(name)-4]
-		if !IsValidLangCode(langCode) {
+		if !store.IsValidLangCode(langCode) {
 			log.Fatalf("'%s' is not a valid language code\n", langCode)
 		}
 		path := filepath.Join(dir, e.Name())

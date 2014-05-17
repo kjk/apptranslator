@@ -1,5 +1,5 @@
 // This code is under BSD license. See license-bsd.txt
-package main
+package store
 
 import (
 	"bytes"
@@ -267,7 +267,7 @@ func (s *EncoderDecoderState) untranslatedCount() int {
 	return n
 }
 
-func (s *EncoderDecoderState) UntranslatedForLang(lang string) int {
+func (s *EncoderDecoderState) untranslatedForLang(lang string) int {
 	translatedPerLang := s.translatedCountForLangs()
 	langId := s.langCodeMap[lang]
 	translated := translatedPerLang[langId]
@@ -695,7 +695,7 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
-func sortLangsByName(langs []*LangInfo) {
+func SortLangsByName(langs []*LangInfo) {
 	sort.Sort(ByName{langs})
 }
 
@@ -791,12 +791,12 @@ func NewTranslationLog(path string) (*TranslationLog, error) {
 	return l, nil
 }
 
-func (l *TranslationLog) close() {
+func (l *TranslationLog) Close() {
 	l.file.Close()
 	l.file = nil
 }
 
-func (l *TranslationLog) writeNewTranslation(txt, trans, lang, user string) error {
+func (l *TranslationLog) WriteNewTranslation(txt, trans, lang, user string) error {
 	l.Lock()
 	defer l.Unlock()
 	return l.state.writeNewTranslation(l.file, txt, trans, lang, user)
@@ -823,7 +823,7 @@ func (l *TranslationLog) UntranslatedCount() int {
 func (l *TranslationLog) UntranslatedForLang(lang string) int {
 	l.Lock()
 	defer l.Unlock()
-	return l.state.UntranslatedForLang(lang)
+	return l.state.untranslatedForLang(lang)
 }
 
 func (l *TranslationLog) LangInfos() []*LangInfo {
@@ -832,31 +832,31 @@ func (l *TranslationLog) LangInfos() []*LangInfo {
 	return l.state.langInfos()
 }
 
-func (l *TranslationLog) recentEdits(max int) []Edit {
+func (l *TranslationLog) RecentEdits(max int) []Edit {
 	l.Lock()
 	defer l.Unlock()
 	return l.state.recentEdits(max)
 }
 
-func (l *TranslationLog) editsByUser(user string) []Edit {
+func (l *TranslationLog) EditsByUser(user string) []Edit {
 	l.Lock()
 	defer l.Unlock()
 	return l.state.editsByUser(user)
 }
 
-func (l *TranslationLog) editsForLang(user string, max int) []Edit {
+func (l *TranslationLog) EditsForLang(user string, max int) []Edit {
 	l.Lock()
 	defer l.Unlock()
 	return l.state.editsForLang(user, max)
 }
 
-func (l *TranslationLog) translators() []*Translator {
+func (l *TranslationLog) Translators() []*Translator {
 	l.Lock()
 	defer l.Unlock()
 	return l.state.translators()
 }
 
-func (l *TranslationLog) updateStringsList(newStrings []string) ([]string, []string, []string, error) {
+func (l *TranslationLog) UpdateStringsList(newStrings []string) ([]string, []string, []string, error) {
 	l.Lock()
 	defer l.Unlock()
 

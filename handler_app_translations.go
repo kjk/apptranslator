@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/kjk/apptranslator/store"
+
 	"code.google.com/p/gorilla/mux"
 )
 
 type ModelAppTranslations struct {
 	App                      *App
-	LangInfo                 *LangInfo
+	LangInfo                 *store.LangInfo
 	User                     string
 	UserIsAdmin              bool
 	StringsCount             int
@@ -57,7 +59,7 @@ func handleAppTranslations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lang := vars["lang"]
-	if !IsValidLangCode(lang) {
+	if !store.IsValidLangCode(lang) {
 		serveErrorMsg(w, fmt.Sprintf("Invalid language: '%s'", lang))
 		return
 	}

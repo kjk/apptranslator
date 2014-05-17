@@ -8,19 +8,20 @@ import (
 	"strings"
 
 	"code.google.com/p/gorilla/mux"
+	"github.com/kjk/apptranslator/store"
 )
 
 type EditDisplay struct {
-	Edit
+	store.Edit
 	TextDisplay string
 }
 
 type ModelApp struct {
 	App          *App
 	PageTitle    string
-	Langs        []*LangInfo
+	Langs        []*store.LangInfo
 	RecentEdits  []EditDisplay
-	Translators  []*Translator
+	Translators  []*store.Translator
 	SortedByName bool
 	LoggedUser   string
 	UserIsAdmin  bool
@@ -28,7 +29,7 @@ type ModelApp struct {
 }
 
 // for sorting by count of translations
-type TranslatorsSeq []*Translator
+type TranslatorsSeq []*store.Translator
 
 func (s TranslatorsSeq) Len() int      { return len(s) }
 func (s TranslatorsSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
@@ -39,7 +40,7 @@ func (s ByCount) Less(i, j int) bool {
 	return s.TranslatorsSeq[i].TranslationsCount > s.TranslatorsSeq[j].TranslationsCount
 }
 
-func sortTranslatorsByCount(t []*Translator) {
+func sortTranslatorsByCount(t []*store.Translator) {
 	sort.Sort(ByCount{t})
 }
 
@@ -54,7 +55,7 @@ func strTruncate(s string, n int) string {
 }
 
 func buildModelApp(app *App, loggedUser string, sortedByName bool) *ModelApp {
-	edits := app.translationLog.recentEdits(10)
+	edits := app.translationLog.RecentEdits(10)
 	editsDisplay := make([]EditDisplay, len(edits), len(edits))
 	for i, e := range edits {
 		ed := EditDisplay{Edit: e, TextDisplay: strTruncate(e.Text, 42)}
@@ -68,11 +69,11 @@ func buildModelApp(app *App, loggedUser string, sortedByName bool) *ModelApp {
 		PageTitle:    fmt.Sprintf("Translations for %s", app.Name),
 		Langs:        app.translationLog.LangInfos(),
 		RecentEdits:  editsDisplay,
-		Translators:  app.translationLog.translators()}
+		Translators:  app.translationLog.Translators()}
 	sortTranslatorsByCount(model.Translators)
 	// by default they are sorted by untranslated count
 	if sortedByName {
-		sortLangsByName(model.Langs)
+		store.SortLangsByName(model.Langs)
 	}
 	return model
 }

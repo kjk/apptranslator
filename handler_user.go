@@ -27,7 +27,7 @@ type ModelUser struct {
 func buildModelUser(user, loginName string) *ModelUser {
 	edits := make([]EditByUser, 0)
 	for _, app := range appState.Apps {
-		for _, edit := range app.translationLog.editsByUser(user) {
+		for _, edit := range app.translationLog.EditsByUser(user) {
 			var e = EditByUser{
 				Lang:        edit.Lang,
 				App:         app.Name,

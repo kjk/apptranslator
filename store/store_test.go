@@ -1,5 +1,5 @@
 // This code is under BSD license. See license-bsd.txt
-package main
+package store
 
 import (
 	"bytes"
@@ -56,8 +56,8 @@ func (ts *TestState) undeleteString(str string) {
 	}
 }
 
-func (ts *TestState) updateStringsList(s []string) ([]string, []string, []string) {
-	added, deleted, undeleted, err := ts.l.updateStringsList(s)
+func (ts *TestState) UpdateStringsList(s []string) ([]string, []string, []string) {
+	added, deleted, undeleted, err := ts.l.UpdateStringsList(s)
 	if err != nil {
 		ts.t.Fatal(err)
 	}
@@ -226,7 +226,7 @@ func TestTransLog2(t *testing.T) {
 	ts = NewTranslationLogTestState(t, path)
 	ts.ensureStateAfter2()
 
-	added, deleted, undeleted := ts.updateStringsList([]string{"foo", "bar", "go"})
+	added, deleted, undeleted := ts.UpdateStringsList([]string{"foo", "bar", "go"})
 	if len(added) != 2 {
 		t.Fatalf("len(added) != 2")
 	}
@@ -238,12 +238,12 @@ func TestTransLog2(t *testing.T) {
 	}
 	ts.ensureStringsAre([]string{"foo", "bar", "go"})
 
-	_, deleted, _ = ts.updateStringsList([]string{"foo", "bar"})
+	_, deleted, _ = ts.UpdateStringsList([]string{"foo", "bar"})
 	if len(deleted) != 1 {
 		t.Fatalf("len(deleted) != 1")
 	}
 
-	_, _, undeleted = ts.updateStringsList([]string{"foo", "bar", "go"})
+	_, _, undeleted = ts.UpdateStringsList([]string{"foo", "bar", "go"})
 	if len(undeleted) != 1 {
 		t.Fatalf("len(undeleted) != 1")
 	}

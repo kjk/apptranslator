@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/kjk/apptranslator/store"
 )
 
 // url: /edittranslation
@@ -16,7 +18,7 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	langCode := strings.TrimSpace(r.FormValue("lang"))
-	if !IsValidLangCode(langCode) {
+	if !store.IsValidLangCode(langCode) {
 		serveErrorMsg(w, fmt.Sprintf("Invalid lang code '%s'", langCode))
 		return
 	}
@@ -29,7 +31,7 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	translation := strings.TrimSpace(r.FormValue("translation"))
 	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'", str, translation, langCode)
 
-	if err := app.translationLog.writeNewTranslation(str, translation, langCode, user); err != nil {
+	if err := app.translationLog.WriteNewTranslation(str, translation, langCode, user); err != nil {
 		serveErrorMsg(w, fmt.Sprintf("Failed to add a translation '%s'", err.Error()))
 		return
 	}

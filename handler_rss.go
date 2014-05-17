@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kjk/apptranslator/store"
 	atom "github.com/thomas11/atomgenerator"
 )
 
@@ -38,7 +39,7 @@ var tRssForLang = template.Must(template.New("rssforlang").Parse(tmplRssOneLang)
 
 type RssModel struct {
 	AppName      string
-	Translations []Edit
+	Translations []store.Edit
 	// only valid for tmplRssOneLang
 	Lang              string
 	UntranslatedCount int
@@ -56,7 +57,7 @@ func templateToString(t *template.Template, data interface{}) string {
 }
 
 func getRssAll(app *App) string {
-	edits := app.translationLog.recentEdits(10)
+	edits := app.translationLog.RecentEdits(10)
 	pubTime := time.Now()
 	if len(edits) > 0 {
 		pubTime = edits[0].Time
@@ -89,7 +90,7 @@ func getRssAll(app *App) string {
 
 func getRssForLang(app *App, lang string) string {
 	pubTime := time.Now()
-	edits := app.translationLog.editsForLang(lang, 10)
+	edits := app.translationLog.EditsForLang(lang, 10)
 	if len(edits) > 0 {
 		pubTime = edits[0].Time
 	}
@@ -137,7 +138,7 @@ func handleRss(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !IsValidLangCode(lang) {
+	if !store.IsValidLangCode(lang) {
 		serveErrorMsg(w, fmt.Sprintf("Language \"%s\" is not valid", lang))
 		return
 	}
