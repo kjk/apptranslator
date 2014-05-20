@@ -214,14 +214,14 @@ func TestTransLog2(t *testing.T) {
 
 	ts.writeNewTranslation("foo", "foo-us", "us", "user1")
 	ts.ensureStateAfter1()
-	ts.l.close()
+	ts.l.Close()
 
 	ts = NewTranslationLogTestState(t, path)
 	ts.ensureStateAfter1()
 
 	ts.writeNewTranslation("foo", "foo-pl", "pl", "user1")
 	ts.ensureStateAfter2()
-	ts.l.close()
+	ts.l.Close()
 
 	ts = NewTranslationLogTestState(t, path)
 	ts.ensureStateAfter2()
@@ -248,5 +248,5 @@ func TestTransLog2(t *testing.T) {
 		t.Fatalf("len(undeleted) != 1")
 	}
 
-	ts.l.close()
+	ts.l.Close()
 }
