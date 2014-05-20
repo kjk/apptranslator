@@ -413,6 +413,21 @@ func (s *EncoderDecoderState) undeleteString(w io.Writer, str string) error {
 	return nil
 }
 
+func (s *EncoderDecoderState) duplicateTranslation(w io.Writer, txt, user string) error {
+	for _, translation := range s.translations {
+		str := s.stringById(translation.stringId)
+		if str != txt {
+			continue
+		}
+		lang := s.langById(translation.langId)
+		err := s.writeNewTranslation(w, txt, translation.translation, lang, user)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *EncoderDecoderState) writeNewTranslation(w io.Writer, txt, trans, lang, user string) error {
 	var recs bytes.Buffer
 	langId := writeUniquifyStringRecord(&recs, lang, s.langCodeMap, newLangIdRec)
@@ -800,6 +815,12 @@ func (l *TranslationLog) WriteNewTranslation(txt, trans, lang, user string) erro
 	l.Lock()
 	defer l.Unlock()
 	return l.state.writeNewTranslation(l.file, txt, trans, lang, user)
+}
+
+func (l *TranslationLog) DuplicateTranslation(txt, user string) error {
+	l.Lock()
+	defer l.Unlock()
+	return l.state.duplicateTranslation(l.file, txt, user)
 }
 
 func (l *TranslationLog) LangsCount() int {
