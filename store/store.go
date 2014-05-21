@@ -511,13 +511,14 @@ func (s *StoreBinary) undeleteString(w io.Writer, str string) error {
 	return nil
 }
 
-func (s *StoreBinary) duplicateTranslation(w io.Writer, txt, user string) error {
+func (s *StoreBinary) duplicateTranslation(w io.Writer, txt string) error {
 	for _, translation := range s.translations {
 		str := s.stringById(translation.stringId)
 		if str != txt {
 			continue
 		}
 		lang := s.langById(translation.langId)
+		user := s.userById(translation.userId)
 		err := s.writeNewTranslation(w, txt, translation.translation, lang, user)
 		if err != nil {
 			return err
@@ -823,10 +824,10 @@ func (s *StoreBinary) WriteNewTranslation(txt, trans, lang, user string) error {
 	return s.writeNewTranslation(s.w, txt, trans, lang, user)
 }
 
-func (s *StoreBinary) DuplicateTranslation(txt, user string) error {
+func (s *StoreBinary) DuplicateTranslation(txt string) error {
 	s.Lock()
 	defer s.Unlock()
-	return s.duplicateTranslation(s.w, txt, user)
+	return s.duplicateTranslation(s.w, txt)
 }
 
 func (s *StoreBinary) LangsCount() int {
