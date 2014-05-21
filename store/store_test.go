@@ -3,7 +3,6 @@ package store
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"testing"
 )
@@ -14,35 +13,26 @@ type TestState struct {
 	s *StoreBinary
 }
 
-func (ts *TestState) getEncoderDecoderState() *StoreBinary {
-	return ts.s
-}
-
-func (ts *TestState) getWriter() io.Writer {
-	return ts.s.w
-}
-
-func (ts *TestState) getStateWriter() (*StoreBinary, io.Writer) {
-	return ts.getEncoderDecoderState(), ts.getWriter()
-}
-
 func (ts *TestState) writeNewTranslation(s1, s2, s3, s4 string) {
-	s, _ := ts.getStateWriter()
-	if err := s.WriteNewTranslation(s1, s2, s3, s4); err != nil {
+	if err := ts.s.WriteNewTranslation(s1, s2, s3, s4); err != nil {
+		ts.t.Fatal(err)
+	}
+}
+
+func (ts *TestState) DuplicateTranslation(origStr, newStr string) {
+	if err := ts.s.DuplicateTranslation(origStr, newStr); err != nil {
 		ts.t.Fatal(err)
 	}
 }
 
 func (ts *TestState) deleteString(str string) {
-	s, w := ts.getStateWriter()
-	if err := s.deleteString(w, str); err != nil {
+	if err := ts.s.deleteString(ts.s.w, str); err != nil {
 		ts.t.Fatal(err)
 	}
 }
 
 func (ts *TestState) undeleteString(str string) {
-	s, w := ts.getStateWriter()
-	if err := s.undeleteString(w, str); err != nil {
+	if err := ts.s.undeleteString(ts.s.w, str); err != nil {
 		ts.t.Fatal(err)
 	}
 }
@@ -56,57 +46,57 @@ func (ts *TestState) UpdateStringsList(s []string) ([]string, []string, []string
 }
 
 func (ts *TestState) ensureLangCount(expected int) {
-	if s := ts.getEncoderDecoderState(); len(s.langCodeMap) != expected {
+	if s := ts.s; len(s.langCodeMap) != expected {
 		ts.t.Fatalf("len(s.langCodeMap)=%d, expected: %d", len(s.langCodeMap), expected)
 	}
 }
 
 func (ts *TestState) ensureUserCount(expected int) {
-	if s := ts.getEncoderDecoderState(); len(s.userNameMap) != expected {
+	if s := ts.s; len(s.userNameMap) != expected {
 		ts.t.Fatalf("len(s.userNameMap)=%d, expected: %d", len(s.userNameMap), expected)
 	}
 }
 
 func (ts *TestState) ensureStringsCount(expected int) {
-	if s := ts.getEncoderDecoderState(); len(s.stringMap) != expected {
+	if s := ts.s; len(s.stringMap) != expected {
 		ts.t.Fatalf("len(s.stringMap)=%d, expected: %d", len(s.stringMap), expected)
 	}
 }
 
 func (ts *TestState) ensureUndeletedStringsCount(expected int) {
-	s := ts.getEncoderDecoderState()
+	s := ts.s
 	if n := s.stringsCount(); n != expected {
 		ts.t.Fatalf("len(s.stringsCount())=%d, expected: %d", s.stringsCount(), expected)
 	}
 }
 
 func (ts *TestState) ensureTranslationsCount(expected int) {
-	s := ts.getEncoderDecoderState()
+	s := ts.s
 	if len(s.translations) != expected {
 		ts.t.Fatalf("len(s.translations)=%d, expected: %d", len(s.translations), expected)
 	}
 }
 
 func (ts *TestState) ensureLangCode(name string, expected int) {
-	if s := ts.getEncoderDecoderState(); s.langCodeMap[name] != expected {
+	if s := ts.s; s.langCodeMap[name] != expected {
 		ts.t.Fatalf("s.langCodeMap['%s']=%d, expected: %d", name, s.langCodeMap[name], expected)
 	}
 }
 
 func (ts *TestState) ensureUserCode(name string, expected int) {
-	if s := ts.getEncoderDecoderState(); s.userNameMap[name] != expected {
+	if s := ts.s; s.userNameMap[name] != expected {
 		ts.t.Fatalf("s.userNameMap['%s']=%d, expected: %d", name, s.userNameMap[name], expected)
 	}
 }
 
 func (ts *TestState) ensureStringCode(name string, expected int) {
-	if s := ts.getEncoderDecoderState(); s.stringMap[name] != expected {
+	if s := ts.s; s.stringMap[name] != expected {
 		ts.t.Fatalf("s.stringMap['%s']=%d, expected: %d", name, s.stringMap[name], expected)
 	}
 }
 
 func (ts *TestState) ensureDeletedCount(expected int) {
-	if s := ts.getEncoderDecoderState(); len(s.deletedStrings) != expected {
+	if s := ts.s; len(s.deletedStrings) != expected {
 		ts.t.Fatalf("len(s.deletedStrings)=%d, expected: %d", len(s.deletedStrings), expected)
 	}
 }
@@ -142,9 +132,18 @@ func (ts *TestState) ensureStateAfter3() {
 	ts.ensureTranslationsCount(3)
 }
 
+func (ts *TestState) ensureStateAfter4() {
+	ts.ensureLangCount(2)
+	ts.ensureUserCount(1)
+	ts.ensureLangCode("us", 1)
+	ts.ensureUserCode("user1", 1)
+	ts.ensureLangCode("pl", 2)
+	ts.ensureTranslationsCount(4)
+}
+
 func (ts *TestState) ensureStringsAre(strs []string) {
 	ts.ensureUndeletedStringsCount(len(strs))
-	s := ts.getEncoderDecoderState()
+	s := ts.s
 	for _, str := range strs {
 		if _, exist := s.stringMap[str]; !exist {
 			ts.t.Fatalf("'%s' doesn't exist in s.stringMap", str)
@@ -176,6 +175,9 @@ func TestTransLog(t *testing.T) {
 
 	ts.writeNewTranslation("bar", "bar-pl", "pl", "user1")
 	ts.ensureStateAfter3()
+
+	//ts.DuplicateTranslation("bar", "bar2")
+	//ts.ensureStateAfter4()
 
 	ts.deleteString("bar")
 	ts.ensureDeletedCount(1)
