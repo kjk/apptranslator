@@ -190,11 +190,11 @@ func main() {
 	if u.PathExists(dataFileName) {
 		log.Fatalf("%s already exists", dataFileName)
 	}
-	translog, err := NewTranslationLog(dataFileName)
-	if translog == nil {
+	store, err := NewStoreBinary(dataFileName)
+	if store == nil {
 		return
 	}
-	defer translog.close()
+	defer store.close()
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".txt") {
 			continue
@@ -205,6 +205,6 @@ func main() {
 			log.Fatalf("'%s' is not a valid language code\n", langCode)
 		}
 		path := filepath.Join(dir, e.Name())
-		parseSumatraTranslationsFile(path, translog)
+		parseSumatraTranslationsFile(path, store)
 	}
 }

@@ -149,7 +149,7 @@ type User struct {
 
 type App struct {
 	AppConfig
-	translationLog *store.TranslationLog
+	translationLog *store.StoreBinary
 }
 
 type AppState struct {
@@ -191,7 +191,7 @@ func (a *App) translationLogFilePath() string {
 }
 
 func readAppData(app *App) error {
-	l, err := store.NewTranslationLog(app.translationLogFilePath())
+	l, err := store.NewStoreBinary(app.translationLogFilePath())
 	if err != nil {
 		return err
 	}
