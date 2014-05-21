@@ -11,33 +11,24 @@ import (
 type TestState struct {
 	t *testing.T
 	// ether l is set or both s and w
-	l *TranslationLog
-
-	s *EncoderDecoderState
-	w io.Writer
+	s *StoreBinary
 }
 
-func (ts *TestState) getEncoderDecoderState() *EncoderDecoderState {
-	if nil != ts.s {
-		return ts.s
-	}
-	return ts.l.state
+func (ts *TestState) getEncoderDecoderState() *StoreBinary {
+	return ts.s
 }
 
 func (ts *TestState) getWriter() io.Writer {
-	if nil != ts.l {
-		return ts.l.file
-	}
-	return ts.w
+	return ts.s.w
 }
 
-func (ts *TestState) getStateWriter() (*EncoderDecoderState, io.Writer) {
+func (ts *TestState) getStateWriter() (*StoreBinary, io.Writer) {
 	return ts.getEncoderDecoderState(), ts.getWriter()
 }
 
 func (ts *TestState) writeNewTranslation(s1, s2, s3, s4 string) {
-	s, w := ts.getStateWriter()
-	if err := s.writeNewTranslation(w, s1, s2, s3, s4); err != nil {
+	s, _ := ts.getStateWriter()
+	if err := s.WriteNewTranslation(s1, s2, s3, s4); err != nil {
 		ts.t.Fatal(err)
 	}
 }
@@ -57,7 +48,7 @@ func (ts *TestState) undeleteString(str string) {
 }
 
 func (ts *TestState) UpdateStringsList(s []string) ([]string, []string, []string) {
-	added, deleted, undeleted, err := ts.l.UpdateStringsList(s)
+	added, deleted, undeleted, err := ts.s.UpdateStringsList(s)
 	if err != nil {
 		ts.t.Fatal(err)
 	}
@@ -159,24 +150,22 @@ func (ts *TestState) ensureStringsAre(strs []string) {
 			ts.t.Fatalf("'%s' doesn't exist in s.stringMap", str)
 		}
 	}
-
 }
 
 func NewTranslationLogTestState(t *testing.T, path string) *TestState {
-	if l, err := NewTranslationLog(path); err != nil {
+	if s, err := NewStoreBinary(path); err != nil {
 		t.Fatal("Failed to create new trans_test.dat")
 	} else {
-		return &TestState{t, l, nil, nil}
+		return &TestState{t, s}
 	}
 	return nil
 }
 
 func TestTransLog(t *testing.T) {
 	var buf bytes.Buffer
-	var err error
 
-	s := NewEncoderDecoderState()
-	ts := &TestState{t, nil, s, &buf}
+	s, err := NewStoreBinaryWithWriter(&buf)
+	ts := &TestState{t, s}
 	ts.ensureStateEmpty()
 
 	ts.writeNewTranslation("foo", "foo-us", "us", "user1")
@@ -197,7 +186,7 @@ func TestTransLog(t *testing.T) {
 	ts.ensureUndeletedStringsCount(2)
 
 	// test reading from scratch
-	s = NewEncoderDecoderState()
+	s, _ = NewStoreBinaryWithWriter(nil)
 	if err = s.readExistingRecords(&ReaderByteReader{&buf}); err != nil {
 		t.Fatal(err)
 	}
@@ -214,14 +203,14 @@ func TestTransLog2(t *testing.T) {
 
 	ts.writeNewTranslation("foo", "foo-us", "us", "user1")
 	ts.ensureStateAfter1()
-	ts.l.Close()
+	ts.s.Close()
 
 	ts = NewTranslationLogTestState(t, path)
 	ts.ensureStateAfter1()
 
 	ts.writeNewTranslation("foo", "foo-pl", "pl", "user1")
 	ts.ensureStateAfter2()
-	ts.l.Close()
+	ts.s.Close()
 
 	ts = NewTranslationLogTestState(t, path)
 	ts.ensureStateAfter2()
@@ -248,5 +237,5 @@ func TestTransLog2(t *testing.T) {
 		t.Fatalf("len(undeleted) != 1")
 	}
 
-	ts.l.Close()
+	ts.s.Close()
 }

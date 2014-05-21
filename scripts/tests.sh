@@ -4,4 +4,6 @@ set -o nounset
 set -o errexit
 set -o pipefail
 
-go test ./...
+cd store
+go test
+

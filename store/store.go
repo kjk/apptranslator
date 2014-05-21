@@ -207,6 +207,7 @@ type StoreBinary struct {
 	deletedStrings map[int]bool
 	translations   []TranslationRec
 	filePath       string
+	w              io.Writer
 	file           *os.File
 }
 
@@ -761,6 +762,18 @@ func (s *StoreBinary) langInfos() []*LangInfo {
 	return res
 }
 
+func NewStoreBinaryWithWriter(w io.Writer) (*StoreBinary, error) {
+	s := &StoreBinary{
+		langCodeMap:    make(map[string]int),
+		userNameMap:    make(map[string]int),
+		stringMap:      make(map[string]int),
+		translations:   make([]TranslationRec, 0),
+		deletedStrings: make(map[int]bool),
+		w:              w,
+	}
+	return s, nil
+}
+
 func NewStoreBinary(path string) (*StoreBinary, error) {
 	s := &StoreBinary{
 		filePath:       path,
@@ -793,24 +806,27 @@ func NewStoreBinary(path string) (*StoreBinary, error) {
 		return nil, err
 	}
 	s.file = file
+	s.w = file
 	return s, nil
 }
 
 func (s *StoreBinary) Close() {
-	s.file.Close()
-	s.file = nil
+	if s.file != nil {
+		s.file.Close()
+		s.file = nil
+	}
 }
 
 func (s *StoreBinary) WriteNewTranslation(txt, trans, lang, user string) error {
 	s.Lock()
 	defer s.Unlock()
-	return s.writeNewTranslation(s.file, txt, trans, lang, user)
+	return s.writeNewTranslation(s.w, txt, trans, lang, user)
 }
 
 func (s *StoreBinary) DuplicateTranslation(txt, user string) error {
 	s.Lock()
 	defer s.Unlock()
-	return s.duplicateTranslation(s.file, txt, user)
+	return s.duplicateTranslation(s.w, txt, user)
 }
 
 func (s *StoreBinary) LangsCount() int {
@@ -901,17 +917,17 @@ func (s *StoreBinary) UpdateStringsList(newStrings []string) ([]string, []string
 	}
 
 	for _, str := range toUndelete {
-		if err := s.undeleteString(s.file, str); err != nil {
+		if err := s.undeleteString(s.w, str); err != nil {
 			return nil, nil, nil, err
 		}
 	}
 	for _, str := range toDelete {
-		if err := s.deleteString(s.file, str); err != nil {
+		if err := s.deleteString(s.w, str); err != nil {
 			return nil, nil, nil, err
 		}
 	}
 	for _, str := range toAdd {
-		if err := s.writeNewStringRecord(s.file, str); err != nil {
+		if err := s.writeNewStringRecord(s.w, str); err != nil {
 			return nil, nil, nil, err
 		}
 	}
