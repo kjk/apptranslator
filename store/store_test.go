@@ -3,6 +3,7 @@ package store
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 )
@@ -66,7 +67,9 @@ func (ts *TestState) ensureStringsCount(expected int) {
 func (ts *TestState) ensureUndeletedStringsCount(expected int) {
 	s := ts.s
 	if n := s.stringsCount(); n != expected {
-		ts.t.Fatalf("len(s.stringsCount())=%d, expected: %d", s.stringsCount(), expected)
+		msg := fmt.Sprintf("len(s.stringsCount())=%d, expected: %d", s.stringsCount(), expected)
+		panic(msg)
+		ts.t.Fatal(msg)
 	}
 }
 
@@ -138,7 +141,7 @@ func (ts *TestState) ensureStateAfter4() {
 	ts.ensureLangCode("us", 1)
 	ts.ensureUserCode("user1", 1)
 	ts.ensureLangCode("pl", 2)
-	ts.ensureTranslationsCount(4)
+	ts.ensureTranslationsCount(5)
 }
 
 func (ts *TestState) ensureStringsAre(strs []string) {
@@ -176,23 +179,23 @@ func TestTransLog(t *testing.T) {
 	ts.writeNewTranslation("bar", "bar-pl", "pl", "user1")
 	ts.ensureStateAfter3()
 
-	//ts.DuplicateTranslation("bar", "bar2")
-	//ts.ensureStateAfter4()
+	ts.DuplicateTranslation("foo", "foo2")
+	ts.ensureStateAfter4()
 
 	ts.deleteString("bar")
 	ts.ensureDeletedCount(1)
-	ts.ensureUndeletedStringsCount(1)
+	ts.ensureUndeletedStringsCount(2)
 
 	ts.undeleteString("bar")
 	ts.ensureDeletedCount(0)
-	ts.ensureUndeletedStringsCount(2)
+	ts.ensureUndeletedStringsCount(3)
 
 	// test reading from scratch
 	s, _ = NewStoreBinaryWithWriter(nil)
 	if err = s.readExistingRecords(&ReaderByteReader{&buf}); err != nil {
 		t.Fatal(err)
 	}
-	ts.ensureStateAfter3()
+	ts.ensureStateAfter4()
 }
 
 // test appending to existing translation log works
