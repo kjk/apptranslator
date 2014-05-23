@@ -488,6 +488,10 @@ func (s *StoreBinary) deleteString(w io.Writer, str string) error {
 	if strId, ok := s.stringMap[str]; !ok {
 		log.Fatalf("deleteString() '%s' doesn't exist in stringMap\n", str)
 	} else {
+		if _, exists := s.deletedStrings[strId]; exists {
+			log.Printf("deleteString: skipping deleting %d ('%s') because already deleted", strId, str)
+			return nil
+		}
 		if err := writeDeleteStringRecord(w, strId); err != nil {
 			return err
 		}
@@ -582,7 +586,8 @@ func (s *StoreBinary) decodeStringDeleteRecord(rec []byte) error {
 	//fmt.Printf("Deleting %d\n", int(id))
 	if s.isDeleted(int(id)) {
 		//log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
-		log.Printf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
+		txt := s.stringById(int(id))
+		log.Printf("decodeStringDeleteRecord(): %d ('%s') already exists in deletedString\n", id, txt)
 	}
 	if logging {
 		fmt.Printf("decodeStringDeleteRecord(): %d\n", id)
@@ -602,7 +607,7 @@ func (s *StoreBinary) decodeStringUndeleteRecord(rec []byte) error {
 	if logging {
 		fmt.Printf("decodeStringUndeleteRecord(): %d\n", id)
 	}
-	//fmt.Printf("Undeleting %d\n", int(id))
+	fmt.Printf("Undeleting %d\n", int(id))
 	delete(s.deletedStrings, int(id))
 	return nil
 }
