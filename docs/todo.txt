@@ -1,7 +1,7 @@
 List of things to do for app translator.
 
 Nice to have:
-- ability to rename original string while preserving the translation
+- show "deleted" strings in handler_app_strings.go page
 - ability to see history of translations for a given string and revert to any
   past translations
 - ability to disable languages per project (in secrets.json)
