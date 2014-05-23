@@ -11,9 +11,15 @@ import (
 type ModelAppStrings struct {
 	App          *App
 	User         string
+	CanDuplicate bool
 	StringsCount int
 	Strings      []string
 	RedirectUrl  string
+}
+
+// the only people that can duplicate translations
+func canUserDuplicate(user string) bool {
+	return user == "kjk" || user == "zeniko_ch"
 }
 
 func buildModelAppStrings(app *App, user string) *ModelAppStrings {
@@ -28,6 +34,7 @@ func buildModelAppStrings(app *App, user string) *ModelAppStrings {
 	model := &ModelAppStrings{
 		App:          app,
 		User:         user,
+		CanDuplicate: canUserDuplicate(user),
 		Strings:      strings,
 		StringsCount: len(strings),
 	}
@@ -46,10 +53,4 @@ func handleAppStrings(w http.ResponseWriter, r *http.Request) {
 	model := buildModelAppStrings(app, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
 	ExecTemplate(w, tmplAppStrings, model)
-	//serveErrorMsg(w, fmt.Sprintf("strings NYI, app: '%s'", appName))
-	/*
-		//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, lang)
-		model := buildModelAppTranslations(app, lang, decodeUserFromCookie(r))
-		model.RedirectUrl = r.URL.String()
-	*/
 }

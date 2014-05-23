@@ -409,6 +409,7 @@ func main() {
 	r.HandleFunc("/app/{appname}/{lang}", makeTimingHandler(handleAppTranslations))
 	r.HandleFunc("/user/{user}", makeTimingHandler(handleUser))
 	r.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
+	r.HandleFunc("/duptranslation", makeTimingHandler(handleDuplicateTranslation))
 	r.HandleFunc("/dltrans", makeTimingHandler(handleDownloadTranslations))
 	r.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
 	r.HandleFunc("/rss", makeTimingHandler(handleRss))

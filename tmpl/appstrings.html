@@ -29,18 +29,74 @@
     <h2><a href="/">Home</a> : <a href="/app/{{.App.Name}}">{{.App.Name}}</a> : strings
          <span style="font-size:50%;float:right;">{{if .User}}Logged in as {{.User}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
     </h2>
-    <div class="lead">{{ .StringsCount }} total strings </div>
+    <div class="lead">{{.StringsCount}} total strings {{if not .User}}(log in to duplicate translations){{end}}</div>
 </header>
 
 <p style="margin-bottom:24px"></p>
+
+{{$canDuplicate := .CanDuplicate}}
 
 {{if len .Strings}}
     {{range $idx, $el := .Strings}}
     <div class="trans" id="idTrans{{$idx}}">
         <span class="origstr">{{$el}}</span>
-        <a href="#" class="addbtn" id="idEdit{{$idx}}">Duplicate...</a>
+        {{if $canDuplicate}}
+        <a href="#" class="dupbtn" id="idDup{{$idx}}">Duplicate translation...</a>
+        {{end}}
     </div>
     {{end}}
+{{end}}
+
+{{if .User}}
+<div class="modal hide" id="idEditTrans">
+    <div class="modal-header">
+        <a class="close" data-dismiss="modal">×</a>
+        <h3><span id="idEditTransHdr"></span></h3>
+    </div>
+    <div>
+        <form class="well" action="/duptranslation" method="POST">
+            <div class="modal-body">
+                <label>Duplicate translation of string:</label>
+                <textarea rows=3 readonly="readonly" name="string" id="idEditFormString" style="width:90%"></textarea>
+                <label>As:</label>
+                <textarea rows=3 name="duplicate" id="idEditFormTrans" style="width:90%"></textarea>
+                <input type="hidden" name="app" value="{{.App.Name}}">
+                <p id="mismatchedStringFormattingError" style="color:red;visibility:hidden"><bold>
+                    Error: translation cannot be empty and string formatting directives (%s, %d etc.)
+                    must be in the same order.
+                </bold></p>
+                <p></p>
+                <p>Note: by adding/editing a translation you agree to place your translations
+                into <a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a>.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Submit</button>
+                <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{{else}}
+<div class="modal hide" id="idEditTrans">
+    <div class="modal-header">
+        <a class="close" data-dismiss="modal">×</a>
+        <h3><span id="idEditTransHdr"></span></h3>
+    </div>
+    <div>
+        <form class="well" action="/nowhere" method="POST">
+            <div class="modal-body">
+                <p>You must be logged in to edit translations.
+                <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>.</p>
+
+                <p>Note: by logging in you agree that your translations
+                are placed into <a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a>.</p>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn" data-dismiss="modal">Close</a>
+            </div>
+        </form>
+    </div>
+</div>
 {{end}}
 
 <hr style="margin:4px">
@@ -53,11 +109,19 @@
 
 <script>
 
+// 1. can't be the same
+// 2. their string formatting instructions (%d, %s etc.) match
+function canSubmitDuplication(text, translation) {
+    var t = $.trim(translation);
+    if (t.length == 0) { return false; }
+    return stringFormattingModifiersAreSame(text, translation);
+}
+
 var prevTranslationValue = "";
 function updateEditTransState() {
     var txt = $("#idEditFormString").text();
     prevTranslationValue = $("#idEditFormTrans").val();
-    if (canSubmitTranslation(txt, prevTranslationValue)) {
+    if (canSubmitDuplication(txt, prevTranslationValue)) {
         $("button[type=submit]").removeAttr("disabled");
         $("#mismatchedStringFormattingError").css({"visibility":"hidden"});
     } else {
@@ -68,26 +132,16 @@ function updateEditTransState() {
 
 $(document).ready(function() {
 
-    $(".addbtn").click(function() {
-        $("#idEditTransHdr").text("Add a translation");
+    $(".dupbtn").click(function() {
+        $("#idEditTransHdr").text("Duplicate translation");
         var el = $(this).parent().find(".origstr");
         $("#idEditFormString").text(el.text());
-        $("#idEditFormTrans").val("");
+        $("#idEditFormTrans").text(el.text());
         $("#idEditTrans").modal('show');
         $("#idEditFormTrans").focus();
         updateEditTransState();
     });
 
-    $(".editbtn").click(function() {
-        $("#idEditTransHdr").text("Edit translation");
-        var el = $(this).parent().find(".origstr");
-        $("#idEditFormString").text(el.text());
-        el = $(this).parent().find(".transstr");
-        $("#idEditFormTrans").val(el.text());
-        $("#idEditTrans").modal('show');
-        $("#idEditFormTrans").focus();
-        updateEditTransState();
-    });
     $("#idEditFormTrans").bind("keyup paste", function(e) {
         if ($(this).val() == prevTranslationValue) { return; }
         updateEditTransState();
