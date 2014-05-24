@@ -19,7 +19,7 @@ type LangTrans struct {
 
 func translationsForApp(app *App) []byte {
 	m := make(map[string][]LangTrans)
-	langInfos := app.translationLog.LangInfos()
+	langInfos := app.store.LangInfos()
 	for _, li := range langInfos {
 		code := li.Code
 		for _, t := range li.Translations {

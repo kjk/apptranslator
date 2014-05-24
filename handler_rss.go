@@ -57,7 +57,7 @@ func templateToString(t *template.Template, data interface{}) string {
 }
 
 func getRssAll(app *App) string {
-	edits := app.translationLog.RecentEdits(10)
+	edits := app.store.RecentEdits(10)
 	pubTime := time.Now()
 	if len(edits) > 0 {
 		pubTime = edits[0].Time
@@ -90,7 +90,7 @@ func getRssAll(app *App) string {
 
 func getRssForLang(app *App, lang string) string {
 	pubTime := time.Now()
-	edits := app.translationLog.EditsForLang(lang, 10)
+	edits := app.store.EditsForLang(lang, 10)
 	if len(edits) > 0 {
 		pubTime = edits[0].Time
 	}
@@ -105,7 +105,7 @@ func getRssForLang(app *App, lang string) string {
 	}
 
 	model := &RssModel{AppName: app.Name, Translations: edits}
-	model.UntranslatedCount = app.translationLog.UntranslatedForLang(lang)
+	model.UntranslatedCount = app.store.UntranslatedForLang(lang)
 	html := templateToString(tRssForLang, model)
 	title = fmt.Sprintf("%d missing %s %s translations", model.UntranslatedCount, app.Name, lang)
 	link = fmt.Sprintf("http://www.apptranslator.org/app/%s/%s", app.Name, lang)

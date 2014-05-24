@@ -149,7 +149,7 @@ type User struct {
 
 type App struct {
 	AppConfig
-	translationLog *store.StoreBinary
+	store *store.StoreBinary
 }
 
 type AppState struct {
@@ -165,17 +165,17 @@ func NewApp(config *AppConfig) *App {
 // used in templates
 func (a *App) LangsCount() int {
 	return len(store.Languages)
-	//return a.translationLog.LangsCount()
+	//return a.store.LangsCount()
 }
 
 // used in templates
 func (a *App) StringsCount() int {
-	return a.translationLog.StringsCount()
+	return a.store.StringsCount()
 }
 
 // used in templates
 func (a *App) UntranslatedCount() int {
-	return a.translationLog.UntranslatedCount()
+	return a.store.UntranslatedCount()
 }
 
 func (a *App) translationLogFilePath() string {
@@ -195,7 +195,7 @@ func readAppData(app *App) error {
 	if err != nil {
 		return err
 	}
-	app.translationLog = l
+	app.store = l
 	return nil
 }
 

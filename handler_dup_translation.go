@@ -28,7 +28,7 @@ func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
 	duplicate := strings.TrimSpace(r.FormValue("duplicate"))
 	fmt.Printf("Duplicating translation: '%s'=>'%s'\n", str, duplicate)
 
-	if err := app.translationLog.DuplicateTranslation(str, duplicate); err != nil {
+	if err := app.store.DuplicateTranslation(str, duplicate); err != nil {
 		serveErrorMsg(w, fmt.Sprintf("Failed to duplicate translation '%s'", err.Error()))
 		return
 	}

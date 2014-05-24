@@ -55,7 +55,7 @@ func strTruncate(s string, n int) string {
 }
 
 func buildModelApp(app *App, loggedUser string, sortedByName bool) *ModelApp {
-	edits := app.translationLog.RecentEdits(10)
+	edits := app.store.RecentEdits(10)
 	editsDisplay := make([]EditDisplay, len(edits), len(edits))
 	for i, e := range edits {
 		ed := EditDisplay{Edit: e, TextDisplay: strTruncate(e.Text, 42)}
@@ -67,9 +67,9 @@ func buildModelApp(app *App, loggedUser string, sortedByName bool) *ModelApp {
 		SortedByName: sortedByName,
 		UserIsAdmin:  userIsAdmin(app, loggedUser),
 		PageTitle:    fmt.Sprintf("Translations for %s", app.Name),
-		Langs:        app.translationLog.LangInfos(),
+		Langs:        app.store.LangInfos(),
 		RecentEdits:  editsDisplay,
-		Translators:  app.translationLog.Translators()}
+		Translators:  app.store.Translators()}
 	sortTranslatorsByCount(model.Translators)
 	// by default they are sorted by untranslated count
 	if sortedByName {

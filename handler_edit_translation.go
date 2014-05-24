@@ -31,7 +31,7 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	translation := strings.TrimSpace(r.FormValue("translation"))
 	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'\n", str, translation, langCode)
 
-	if err := app.translationLog.WriteNewTranslation(str, translation, langCode, user); err != nil {
+	if err := app.store.WriteNewTranslation(str, translation, langCode, user); err != nil {
 		serveErrorMsg(w, fmt.Sprintf("Failed to add a translation '%s'", err.Error()))
 		return
 	}

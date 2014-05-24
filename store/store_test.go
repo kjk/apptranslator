@@ -154,7 +154,7 @@ func (ts *TestState) ensureStringsAre(strs []string) {
 	}
 }
 
-func NewTranslationLogTestState(t *testing.T, path string) *TestState {
+func NewStoreTestState(t *testing.T, path string) *TestState {
 	if s, err := NewStoreBinary(path); err != nil {
 		t.Fatal("Failed to create new trans_test.dat")
 	} else {
@@ -203,21 +203,21 @@ func TestTransLog2(t *testing.T) {
 	path := "transtest.dat"
 	os.Remove(path) // just in case
 
-	ts := NewTranslationLogTestState(t, path)
+	ts := NewStoreTestState(t, path)
 	ts.ensureStateEmpty()
 
 	ts.writeNewTranslation("foo", "foo-us", "us", "user1")
 	ts.ensureStateAfter1()
 	ts.s.Close()
 
-	ts = NewTranslationLogTestState(t, path)
+	ts = NewStoreTestState(t, path)
 	ts.ensureStateAfter1()
 
 	ts.writeNewTranslation("foo", "foo-pl", "pl", "user1")
 	ts.ensureStateAfter2()
 	ts.s.Close()
 
-	ts = NewTranslationLogTestState(t, path)
+	ts = NewStoreTestState(t, path)
 	ts.ensureStateAfter2()
 
 	added, deleted, undeleted := ts.UpdateStringsList([]string{"foo", "bar", "go"})

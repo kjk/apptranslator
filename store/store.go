@@ -342,6 +342,16 @@ func (s *StoreBinary) isDeleted(strId int) bool {
 	return exists
 }
 
+func (s *StoreBinary) getDeletedStrings() []string {
+	res := make([]string, 0)
+	for strId, _ := range s.deletedStrings {
+		str := s.stringById(strId)
+		res = append(res, str)
+	}
+	sort.Strings(res)
+	return res
+}
+
 func (s *StoreBinary) translatedCountForLangs() map[int]int {
 	m := make(map[int][]bool)
 	totalStrings := len(s.stringMap)
@@ -938,4 +948,10 @@ func (s *StoreBinary) UpdateStringsList(newStrings []string) ([]string, []string
 		}
 	}
 	return toAdd, toDelete, toUndelete, nil
+}
+
+func (s *StoreBinary) GetDeletedStrings() []string {
+	s.Lock()
+	defer s.Unlock()
+	return s.getDeletedStrings()
 }

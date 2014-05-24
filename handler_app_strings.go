@@ -9,12 +9,13 @@ import (
 )
 
 type ModelAppStrings struct {
-	App          *App
-	User         string
-	CanDuplicate bool
-	StringsCount int
-	Strings      []string
-	RedirectUrl  string
+	App            *App
+	User           string
+	CanDuplicate   bool
+	StringsCount   int
+	Strings        []string
+	DeletedStrings []string
+	RedirectUrl    string
 }
 
 // the only people that can duplicate translations
@@ -23,7 +24,7 @@ func canUserDuplicate(user string) bool {
 }
 
 func buildModelAppStrings(app *App, user string) *ModelAppStrings {
-	langInfos := app.translationLog.LangInfos()
+	langInfos := app.store.LangInfos()
 	// it doesn't matter which language, they all have the same strings
 	langInfo := langInfos[0]
 	strings := make([]string, 0)
@@ -32,11 +33,12 @@ func buildModelAppStrings(app *App, user string) *ModelAppStrings {
 	}
 	sort.Strings(strings)
 	model := &ModelAppStrings{
-		App:          app,
-		User:         user,
-		CanDuplicate: canUserDuplicate(user),
-		Strings:      strings,
-		StringsCount: len(strings),
+		App:            app,
+		User:           user,
+		CanDuplicate:   canUserDuplicate(user),
+		Strings:        strings,
+		DeletedStrings: app.store.GetDeletedStrings(),
+		StringsCount:   len(strings),
 	}
 	return model
 }

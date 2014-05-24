@@ -69,7 +69,7 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		logger.Noticef("handleUploadString(): uploading %d strings for %s", len(newStrings), appName)
-		added, deleted, undeleted, err := app.translationLog.UpdateStringsList(newStrings)
+		added, deleted, undeleted, err := app.store.UpdateStringsList(newStrings)
 		if err != nil {
 			logger.Errorf("UpdateStringsList() failed with %s", err.Error())
 		} else {
