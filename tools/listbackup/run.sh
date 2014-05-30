@@ -1,9 +1,11 @@
 #!/bin/bash
 
-cd tools/listbackup
+set -o nounset
+set -o errexit
+set -o pipefail
+
+if [ -e tools/listbackup ]; then cd tools/listbackup; fi
 go build -o listbackup *.go
-if [ "$?" -ne 0 ]; then echo "failed to build"; exit 1; fi
-#rm translog.go util.go langs.go # we used you so now we discard you
 cd ../..
 ./tools/listbackup/listbackup
 rm tools/listbackup/listbackup

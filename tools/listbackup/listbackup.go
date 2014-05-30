@@ -64,8 +64,8 @@ func readConfig(configFile string) error {
 	return json.Unmarshal(b, &config)
 }
 
-func fullUrl(bucket, path string) string {
-	return fmt.Sprintf("http://%s.s3.amazonaws.com%s", bucket, path)
+func fullUrl(bucket string) string {
+	return fmt.Sprintf("http://%s.s3.amazonaws.com/", bucket)
 }
 
 // removes "/" if exists and adds delim if missing
@@ -84,17 +84,17 @@ func listBackups() {
 	dir := sanitizeDirForList(*config.S3BackupDir, bucketDelim)
 	auth := aws.Auth{AccessKey: *config.AwsAccess, SecretKey: *config.AwsSecret}
 	b := s3.New(auth, aws.USEast).Bucket(bucketName)
-	fmt.Printf("Listing files in %s\n", fullUrl(bucketName, dir))
+	fmt.Printf("Listing files in %s\n", fullUrl(bucketName))
 	rsp, err := b.List(dir, bucketDelim, "", 1000)
 	if err != nil {
 		log.Fatalf("Invalid s3 backup: bucket.List failed %s\n", err.Error())
 	}
 	//fmt.Printf("rsp: %v\n", rsp)
 	if 0 == len(rsp.Contents) {
-		fmt.Printf("There are no files in %s\n", fullUrl(*config.S3BackupBucket, *config.S3BackupDir))
+		fmt.Printf("There are no files in %s\n", fullUrl(*config.S3BackupBucket))
 		return
 	}
-	//fmt.Printf("Backup files in %s:\n", fullUrl(*config.S3BackupBucket, *config.S3BackupDir))
+	//fmt.Printf("Backup files in %s:\n", fullUrl(*config.S3BackupBucket))
 	for _, key := range rsp.Contents {
 		fmt.Printf("  %s %d\n", key.Key, key.Size)
 	}
