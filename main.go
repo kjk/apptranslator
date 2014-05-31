@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -111,13 +112,13 @@ func S3BackupEnabled() bool {
 	return true
 }
 
-// data dir is ../../data on the server or ../apptranslatordata locally
+// data dir is ../../data on the server or ~/data/apptranslator locally
 // the important part is that it's outside of directory with the code
 func getDataDir() string {
 	if dataDir != "" {
 		return dataDir
 	}
-	dataDir = filepath.Join("..", "apptranslatordata")
+	dataDir = u.ExpandTildeInPath("~/data/apptranslator")
 	if u.PathExists(dataDir) {
 		return dataDir
 	}
@@ -357,6 +358,32 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 	}
 }
 
+func rewriteStore(binaryPath, csvPath string) {
+	fmt.Printf("rewriteStore('%s', '%s')\n", binaryPath, csvPath)
+}
+
+func rewriteStoreIfNecessary(app *AppConfig) {
+	dir := filepath.Join(getDataDir(), app.DataDir)
+	storeCsvPath := filepath.Join(dir, "translations.csv")
+	if u.PathExists(storeCsvPath) {
+		fmt.Printf("rewriteStoreIfNecessary: '%s' already exists\n", storeCsvPath)
+		return
+	}
+	storeBinaryPath := filepath.Join(dir, "translations.dat")
+	if !u.PathExists(storeBinaryPath) {
+		fmt.Printf("rewriteStoreIfNecessary: '%s' doesn't exist\n", storeBinaryPath)
+		return
+	}
+	rewriteStore(storeBinaryPath, storeCsvPath)
+}
+
+func rewriteStoresIfNecessary() {
+	for _, appData := range config.Apps {
+		rewriteStoreIfNecessary(&appData)
+	}
+	os.Exit(1)
+}
+
 func main() {
 	// set number of goroutines to number of cpus, but capped at 4 since
 	// I don't expect this to be heavily trafficed website
@@ -389,6 +416,8 @@ func main() {
 	if err := readConfig(*configPath); err != nil {
 		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err.Error())
 	}
+
+	//rewriteStoresIfNecessary()
 
 	for _, appData := range config.Apps {
 		app := NewApp(&appData)
