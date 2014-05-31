@@ -21,6 +21,36 @@ func decodeStringDeleteRecord(rec []byte) {
 	fmt.Printf("Delete: %s\n", txt)
 }
 
+func decodeStringUndeleteRecord(rec []byte) {
+	id, n := binary.Uvarint(rec)
+	panicIf(n != len(rec), "decodeStringUndeleteRecord")
+	txt := stringById(stringMap, int(id))
+	fmt.Printf("Undelete: %s\n", txt)
+}
+
+func decodeNewTranslation(rec []byte, time time.Time) {
+	var stringId, userId, langId uint64
+	var n int
+
+	langId, n = binary.Uvarint(rec)
+	panicIf(n <= 0 || n == len(rec), "decodeNewTranslation() langId")
+	//panicIf(!s.validLangId(int(langId)), "decodeNewTranslation(): !s.validLangId()")
+	rec = rec[n:]
+
+	userId, n = binary.Uvarint(rec)
+	panicIf(n == len(rec), "decodeNewTranslation() userId")
+	//panicIf(!s.validUserId(int(userId)), "decodeNewTranslation(): !s.validUserId()")
+	rec = rec[n:]
+
+	stringId, n = binary.Uvarint(rec)
+	panicIf(n == 0 || n == len(rec), "decodeNewTranslation() stringId")
+	//panicIf(!s.validStringId(int(stringId)), fmt.Sprintf("decodeNewTranslation(): !s.validStringId(%v)", stringId))
+	rec = rec[n:]
+
+	translation := string(rec)
+	fmt.Printf("newTrans: %d, %d, %d, %s, %d\n", int(langId), int(userId), int(stringId), translation, time.Unix())
+}
+
 func decodeRecord(rec []byte, time time.Time) {
 	panicIf(len(rec) < 2, "decodeRecord(), len(rec) < 2")
 	if 0 == rec[0] {
@@ -35,14 +65,12 @@ func decodeRecord(rec []byte, time time.Time) {
 		case strDelRec:
 			decodeStringDeleteRecord(rec[2:])
 		case strUndelRec:
-			log.Fatalf("strUndelRec not implemented yet")
-			//return s.decodeStringUndeleteRecord(rec[2:])
+			decodeStringUndeleteRecord(rec[2:])
 		default:
 			log.Fatalf("Unexpected t=%d", t)
 		}
 	} else {
-		log.Fatalf("decodeNewTranslation not implemented yet")
-		//return s.decodeNewTranslation(rec, time)
+		decodeNewTranslation(rec, time)
 	}
 }
 
