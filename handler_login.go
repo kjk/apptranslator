@@ -30,7 +30,7 @@ func setSecureCookie(w http.ResponseWriter, cookieVal *SecureCookieValue) {
 		}
 		http.SetCookie(w, cookie)
 	} else {
-		fmt.Printf("setSecureCookie(): error encoding secure cookie %s\n", err.Error())
+		fmt.Printf("setSecureCookie(): error encoding secure cookie %s\n", err)
 	}
 }
 
@@ -60,7 +60,7 @@ func getSecureCookie(r *http.Request) *SecureCookieValue {
 			// most likely expired cookie, so ignore. Ideally should delete the
 			// cookie, but that requires access to http.ResponseWriter, so not
 			// convenient for us
-			//fmt.Printf("Error decoding cookie %s\n", err.Error())
+			//fmt.Printf("Error decoding cookie %s\n", err)
 			return nil
 		}
 		//fmt.Printf("Got cookie %q\n", val)

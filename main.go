@@ -272,7 +272,7 @@ func GetTemplates() *template.Template {
 func ExecTemplate(w http.ResponseWriter, templateName string, model interface{}) bool {
 	var buf bytes.Buffer
 	if err := GetTemplates().ExecuteTemplate(&buf, templateName, model); err != nil {
-		logger.Errorf("Failed to execute template '%s', error: %s", templateName, err.Error())
+		logger.Errorf("Failed to execute template '%s', error: %s", templateName, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return false
 	} else {
@@ -403,14 +403,14 @@ func main() {
 		} else {
 			loggerFile, err := os.OpenFile(*logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 			if err != nil {
-				log.Fatalf("Failed to open log file '%s', %s\n", *logPath, err.Error())
+				log.Fatalf("Failed to open log file '%s', %s\n", *logPath, err)
 			}
 			defer loggerFile.Close()
 			logger = log.New(loggerFile, "", 0)
 		}*/
 
 	if err := readConfig(*configPath); err != nil {
-		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err.Error())
+		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err)
 	}
 
 	rewriteStoresIfNecessary()
@@ -418,7 +418,7 @@ func main() {
 	for _, appData := range config.Apps {
 		app := NewApp(&appData)
 		if err := addApp(app); err != nil {
-			log.Fatalf("Failed to add the app: %s, err: %s\n", app.Name, err.Error())
+			log.Fatalf("Failed to add the app: %s, err: %s\n", app.Name, err)
 		}
 	}
 
@@ -462,7 +462,7 @@ func main() {
 
 	logger.Noticef(fmt.Sprintf("Started running on %s", *httpAddr))
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
-		fmt.Printf("http.ListendAndServer() failed with %s\n", err.Error())
+		fmt.Printf("http.ListendAndServer() failed with '%s'\n", err)
 	}
 	fmt.Printf("Exited\n")
 }

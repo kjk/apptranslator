@@ -8,5 +8,5 @@ type StoreCsv struct {
 }
 
 const (
-	TransRecId = "tr"
+	transRecId = "tr"
 )

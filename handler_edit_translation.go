@@ -32,7 +32,7 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("Adding translation: '%s'=>'%s', lang='%s'\n", str, translation, langCode)
 
 	if err := app.store.WriteNewTranslation(str, translation, langCode, user); err != nil {
-		serveErrorMsg(w, fmt.Sprintf("Failed to add a translation '%s'", err.Error()))
+		serveErrorMsg(w, fmt.Sprintf("Failed to add a translation '%s'", err))
 		return
 	}
 	// TODO: use a redirect with message passed in as an argument

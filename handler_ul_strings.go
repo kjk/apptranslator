@@ -64,14 +64,14 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 	}
 	s := r.FormValue("strings")
 	if newStrings, err := parseUploadedStrings(s); err != nil {
-		logger.Noticef("parseUploadedStrings() failed with %s", err.Error())
+		logger.Noticef("parseUploadedStrings() failed with %s", err)
 		serveErrorMsg(w, "Error parsing uploaded strings")
 		return
 	} else {
 		logger.Noticef("handleUploadString(): uploading %d strings for %s", len(newStrings), appName)
 		added, deleted, undeleted, err := app.store.UpdateStringsList(newStrings)
 		if err != nil {
-			logger.Errorf("UpdateStringsList() failed with %s", err.Error())
+			logger.Errorf("UpdateStringsList() failed with %s", err)
 		} else {
 			msg := ""
 			if len(added) > 0 {

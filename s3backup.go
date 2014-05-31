@@ -97,7 +97,7 @@ func ensureValidConfig(config *BackupConfig) {
 	}
 	_, err := listBackupFiles(config, 10)
 	if err != nil {
-		log.Fatalf("Invalid s3 backup: bucket.List failed %s\n", err.Error())
+		log.Fatalf("Invalid s3 backup: bucket.List failed %s\n", err)
 	}
 }
 
@@ -108,7 +108,7 @@ func ensureValidConfig(config *BackupConfig) {
 func alreadyUploaded(config *BackupConfig, sha1 string) bool {
 	rsp, err := listBackupFiles(config, 1024)
 	if err != nil {
-		logger.Errorf("alreadyUploaded(): listBackupFiles() failed with %s", err.Error())
+		logger.Errorf("alreadyUploaded(): listBackupFiles() failed with '%s'", err)
 		return false
 	}
 	for _, key := range rsp.Contents {
@@ -143,7 +143,7 @@ func isBackupFile(s string) bool {
 func deleteOldBackups(config *BackupConfig, maxToKeep int) {
 	rsp, err := listBackupFiles(config, 1024)
 	if err != nil {
-		logger.Errorf("deleteOldBackups(): listBackupFiles() failed with %s", err.Error())
+		logger.Errorf("deleteOldBackups(): listBackupFiles() failed with %s", err)
 		return
 	}
 	keys := make([]string, 0)
@@ -162,7 +162,7 @@ func deleteOldBackups(config *BackupConfig, maxToKeep int) {
 	for i := 0; i < toDelete; i++ {
 		key := keys[i]
 		if err = s3Del(config, key); err != nil {
-			logger.Noticef("deleteOldBackups(): failed to delete %s, error: %s", key, err.Error())
+			logger.Noticef("deleteOldBackups(): failed to delete %s, error: %s", key, err)
 		} else {
 			logger.Noticef("deleteOldBackups(): deleted %s", key)
 		}
@@ -192,7 +192,7 @@ func doBackup(config *BackupConfig) {
 	zipS3Path := path.Join(config.S3Dir, timeStr+sha1+".zip")
 
 	if err = s3Put(config, zipLocalPath, zipS3Path, true); err != nil {
-		logger.Errorf("s3Put of '%s' to '%s' failed with %s", zipLocalPath, zipS3Path, err.Error())
+		logger.Errorf("s3Put of '%s' to '%s' failed with %s", zipLocalPath, zipS3Path, err)
 		return
 	}
 

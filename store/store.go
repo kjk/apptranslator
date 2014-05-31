@@ -460,7 +460,7 @@ func (s *StoreBinary) writeNewStringRecord(w io.Writer, str string) error {
 	//fmt.Printf("%v\n", recs.Bytes())
 	_, err := w.Write(recs.Bytes())
 	if err != nil && logging {
-		fmt.Printf("writeNewStringRecord() failed with %s\n", err.Error())
+		fmt.Printf("writeNewStringRecord() failed with %s\n", err)
 	}
 	return err
 }
@@ -574,7 +574,7 @@ func readRecord(r *ReaderByteReader) ([]byte, time.Time, error) {
 		if err == io.EOF {
 			return nil, t, nil
 		}
-		log.Fatalf("readRecord(), err: %s", err.Error())
+		log.Fatalf("readRecord(), err: %s", err)
 	}
 	panicIf(n <= 4, "record too small")
 	var timeUnix int64
@@ -600,7 +600,7 @@ func (s *StoreBinary) readExistingRecords(r *ReaderByteReader) error {
 		buf, time, err := readRecord(r)
 		if err != nil {
 			// TODO: do something on error
-			fmt.Printf("readExistingRecords(): error=%s\n", err.Error())
+			fmt.Printf("readExistingRecords(): error=%s\n", err)
 			panic("readExistingRecords")
 		}
 		if buf == nil {
@@ -698,7 +698,7 @@ func NewStoreBinary(path string) (*StoreBinary, error) {
 		err = s.readExistingRecords(&ReaderByteReader{file})
 		file.Close()
 		if err != nil {
-			log.Fatalf("Failed to read log '%s', err: %s\n", path, err.Error())
+			log.Fatalf("Failed to read log '%s', err: %s\n", path, err)
 		}
 	} else {
 		file, err := os.Create(path)
@@ -709,7 +709,7 @@ func NewStoreBinary(path string) (*StoreBinary, error) {
 	}
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
-		fmt.Printf("NewStoreBinary(): failed to open file '%s', %s\n", path, err.Error())
+		fmt.Printf("NewStoreBinary(): failed to open file '%s', %s\n", path, err)
 		return nil, err
 	}
 	s.file = file

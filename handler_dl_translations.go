@@ -99,7 +99,7 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("sha1 != sha2 (%s != %s)", sha1, sha2)
 	}
 	if err != nil {
-		serveErrorMsg(w, fmt.Sprintf("Error from DataSha1 %s", err.Error()))
+		serveErrorMsg(w, fmt.Sprintf("Error from DataSha1 %s", err))
 		return
 	}
 	if sha1 == sha1In {

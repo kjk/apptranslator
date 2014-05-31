@@ -87,7 +87,7 @@ func listBackups() {
 	fmt.Printf("Listing files in %s\n", fullUrl(bucketName))
 	rsp, err := b.List(dir, bucketDelim, "", 1000)
 	if err != nil {
-		log.Fatalf("Invalid s3 backup: bucket.List failed %s\n", err.Error())
+		log.Fatalf("Invalid s3 backup: bucket.List failed %s\n", err)
 	}
 	//fmt.Printf("rsp: %v\n", rsp)
 	if 0 == len(rsp.Contents) {

@@ -29,7 +29,7 @@ func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Duplicating translation: '%s'=>'%s'\n", str, duplicate)
 
 	if err := app.store.DuplicateTranslation(str, duplicate); err != nil {
-		serveErrorMsg(w, fmt.Sprintf("Failed to duplicate translation '%s'", err.Error()))
+		serveErrorMsg(w, fmt.Sprintf("Failed to duplicate translation '%s'", err))
 		return
 	}
 	// TODO: use a redirect with message passed in as an argument
