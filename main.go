@@ -358,10 +358,6 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 	}
 }
 
-func rewriteStore(binaryPath, csvPath string) {
-	fmt.Printf("rewriteStore('%s', '%s')\n", binaryPath, csvPath)
-}
-
 func rewriteStoreIfNecessary(app *AppConfig) {
 	dir := filepath.Join(getDataDir(), app.DataDir)
 	storeCsvPath := filepath.Join(dir, "translations.csv")
@@ -374,7 +370,7 @@ func rewriteStoreIfNecessary(app *AppConfig) {
 		fmt.Printf("rewriteStoreIfNecessary: '%s' doesn't exist\n", storeBinaryPath)
 		return
 	}
-	rewriteStore(storeBinaryPath, storeCsvPath)
+	store.RewriteStore(storeBinaryPath, storeCsvPath)
 }
 
 func rewriteStoresIfNecessary() {
@@ -417,7 +413,7 @@ func main() {
 		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err.Error())
 	}
 
-	//rewriteStoresIfNecessary()
+	rewriteStoresIfNecessary()
 
 	for _, appData := range config.Apps {
 		app := NewApp(&appData)

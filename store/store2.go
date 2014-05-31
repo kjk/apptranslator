@@ -6,3 +6,7 @@ import "sync"
 type StoreCsv struct {
 	sync.Mutex
 }
+
+const (
+	TransRecId = "tr"
+)
