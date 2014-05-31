@@ -122,13 +122,17 @@ func (s *StoreBinary) userById(userId int) string {
 	panic("didn't find the user")
 }
 
-func (s *StoreBinary) stringById(strId int) string {
-	for str, id := range s.stringMap {
+func stringById(stringMap map[string]int, strId int) string {
+	for str, id := range stringMap {
 		if id == strId {
 			return str
 		}
 	}
 	panic("didn't find the string")
+}
+
+func (s *StoreBinary) stringById(strId int) string {
+	return stringById(s.stringMap, strId)
 }
 
 func (s *StoreBinary) recentEdits(max int) []Edit {

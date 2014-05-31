@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/binary"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +13,13 @@ var (
 	userNameMap map[string]int
 	stringMap   map[string]int
 )
+
+func decodeStringDeleteRecord(rec []byte) {
+	id, n := binary.Uvarint(rec)
+	panicIf(n != len(rec), "decodeStringDeleteRecord")
+	txt := stringById(stringMap, int(id))
+	fmt.Printf("Delete: %s\n", txt)
+}
 
 func decodeRecord(rec []byte, time time.Time) {
 	panicIf(len(rec) < 2, "decodeRecord(), len(rec) < 2")
@@ -25,8 +33,7 @@ func decodeRecord(rec []byte, time time.Time) {
 		case newStringIdRec:
 			decodeStrRecord(rec[2:], stringMap, "stringMap")
 		case strDelRec:
-			log.Fatalf("strDelRec not implemented yet")
-			//return s.decodeStringDeleteRecord(rec[2:])
+			decodeStringDeleteRecord(rec[2:])
 		case strUndelRec:
 			log.Fatalf("strUndelRec not implemented yet")
 			//return s.decodeStringUndeleteRecord(rec[2:])
