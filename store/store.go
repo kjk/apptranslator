@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -394,7 +395,7 @@ func (s *StoreBinary) deleteString(w io.Writer, str string) error {
 		log.Fatalf("deleteString() '%s' doesn't exist in stringMap\n", str)
 	} else {
 		if _, exists := s.deletedStrings[strId]; exists {
-			log.Printf("deleteString: skipping deleting %d ('%s') because already deleted", strId, str)
+			fmt.Printf("deleteString: skipping deleting %d ('%s') because already deleted", strId, str)
 			return nil
 		}
 		if err := writeDeleteStringRecord(w, strId); err != nil {
@@ -492,7 +493,7 @@ func (s *StoreBinary) decodeStringDeleteRecord(rec []byte) error {
 	if s.isDeleted(int(id)) {
 		//log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
 		txt := s.stringById(int(id))
-		log.Printf("decodeStringDeleteRecord(): %d ('%s') already exists in deletedString\n", id, txt)
+		fmt.Printf("decodeStringDeleteRecord(): %d ('%s') already exists in deletedString\n", id, txt)
 	}
 	if logging {
 		fmt.Printf("decodeStringDeleteRecord(): %d\n", id)
@@ -507,7 +508,7 @@ func (s *StoreBinary) decodeStringUndeleteRecord(rec []byte) error {
 	panicIf(n != len(rec), "decodeStringUndeleteRecord")
 	if !s.isDeleted(int(id)) {
 		//log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
-		log.Printf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
+		fmt.Printf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
 	}
 	if logging {
 		fmt.Printf("decodeStringUndeleteRecord(): %d\n", id)
@@ -541,6 +542,15 @@ func (s *StoreBinary) decodeNewTranslation(rec []byte, time time.Time) error {
 	s.addTranslationRec(int(langId), int(userId), int(stringId), translation, time)
 	if logging {
 		fmt.Printf("decodeNewTranslation(): %v, %v, %v, %s\n", langId, userId, stringId, translation)
+	}
+
+	if csvWriter != nil {
+		timeSecsStr := strconv.FormatInt(time.Unix(), 10)
+		langStr := s.langById(int(langId))
+		userStr := s.userById(int(userId))
+		stringStr := s.stringById(int(stringId))
+		recs := []string{recIdTrans, timeSecsStr, userStr, langStr, stringStr, translation}
+		writeCsv(recs)
 	}
 	return nil
 }
