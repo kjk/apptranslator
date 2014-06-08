@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -150,7 +149,7 @@ type User struct {
 
 type App struct {
 	AppConfig
-	store *store.StoreBinary
+	store store.Store
 }
 
 type AppState struct {
@@ -377,7 +376,7 @@ func rewriteStoresIfNecessary() {
 	for _, appData := range config.Apps {
 		rewriteStoreIfNecessary(&appData)
 	}
-	os.Exit(1)
+	//os.Exit(1)
 }
 
 func main() {
