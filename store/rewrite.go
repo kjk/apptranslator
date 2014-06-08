@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"time"
 )
 
 var (
@@ -52,6 +54,27 @@ func RewriteStore(binaryPath, csvPath string) {
 	s, err := NewStoreBinary(binaryPath)
 	if err != nil {
 		log.Fatalf("NewStoreBinary() failed with '%s'", err)
+	}
+
+	activeStrings := s.getActiveStrings()
+	timeSecsStr := strconv.FormatInt(time.Now().Unix(), 10)
+	n := len(activeStrings) + 2
+	rec := make([]string, n, n)
+	rec[0] = recIdActiveSet
+	rec[1] = timeSecsStr
+	fmt.Printf("Active strings (%d):\n", len(activeStrings))
+	for i := 0; i < len(activeStrings); i++ {
+		str := activeStrings[i]
+		strId, isNew := internedStrings.GetId(str)
+		panicIf(isNew, "isNew is true")
+		rec[2+i] = strconv.Itoa(strId)
+		fmt.Printf("  '%s'\n", str)
+	}
+	writeCsv(rec)
+	deleted := s.GetDeletedStrings()
+	fmt.Printf("Deleted strings (%d):\n", len(deleted))
+	for _, str := range deleted {
+		fmt.Printf("  '%s'\n", str)
 	}
 	s.Close()
 }

@@ -248,6 +248,17 @@ func (s *StoreBinary) getDeletedStrings() []string {
 	return res
 }
 
+func (s *StoreBinary) getActiveStrings() []string {
+	res := make([]string, 0)
+	for str, strId := range s.stringMap {
+		if !s.isDeleted(strId) {
+			res = append(res, str)
+		}
+	}
+	return res
+}
+
+
 func (s *StoreBinary) translatedCountForLangs() map[int]int {
 	m := make(map[int][]bool)
 	totalStrings := len(s.stringMap)
