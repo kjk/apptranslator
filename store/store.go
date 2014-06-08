@@ -546,10 +546,17 @@ func (s *StoreBinary) decodeNewTranslation(rec []byte, time time.Time) error {
 
 	if csvWriter != nil {
 		timeSecsStr := strconv.FormatInt(time.Unix(), 10)
+
+		stringStr := s.stringById(int(stringId))
+		strId, newString := internedStrings.GetId(stringStr)
+		if newString {
+			recs := []string{recIdNewString, strconv.Itoa(strId), stringStr}
+			writeCsv(recs)
+		}
+
 		langStr := s.langById(int(langId))
 		userStr := s.userById(int(userId))
-		stringStr := s.stringById(int(stringId))
-		recs := []string{recIdTrans, timeSecsStr, userStr, langStr, stringStr, translation}
+		recs := []string{recIdTrans, timeSecsStr, userStr, langStr, strconv.Itoa(strId), translation}
 		writeCsv(recs)
 	}
 	return nil

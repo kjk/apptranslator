@@ -10,10 +10,13 @@ import (
 var (
 	stdoutCsvWriter *csv.Writer
 	csvWriter       *csv.Writer
+	internedStrings *StringInterner
 )
 
 const (
-	recIdTrans = "t"
+	recIdTrans     = "t"
+	recIdNewString = "s"
+	recIdActiveSet = "as"
 )
 
 func writeCsv(record []string) {
@@ -26,7 +29,6 @@ func writeCsv(record []string) {
 			log.Fatalf("writeCsv: csv.Writer.WriteAll() failed with '%s'", err)
 		}
 	}
-
 }
 
 func RewriteStore(binaryPath, csvPath string) {
@@ -38,6 +40,7 @@ func RewriteStore(binaryPath, csvPath string) {
 	}
 	defer dst.Close()
 
+	internedStrings = NewStringInterner()
 	csvWriter = csv.NewWriter(dst)
 	csvWriter.Comma = ','
 	defer csvWriter.Flush()
