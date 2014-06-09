@@ -46,61 +46,61 @@ func (ts *TestState) UpdateStringsList(s []string) ([]string, []string, []string
 	return added, deleted, undeleted
 }
 
-func (ts *TestState) ensureLangCount(expected int) {
-	if s := ts.s; len(s.langCodeMap) != expected {
-		ts.t.Fatalf("len(s.langCodeMap)=%d, expected: %d", len(s.langCodeMap), expected)
+func (ts *TestState) ensureLangCount(exp int) {
+	if s := ts.s; len(s.langCodeMap) != exp {
+		ts.t.Fatalf("len(s.langCodeMap)=%d, exp: %d", len(s.langCodeMap), exp)
 	}
 }
 
-func (ts *TestState) ensureUserCount(expected int) {
-	if s := ts.s; len(s.userNameMap) != expected {
-		ts.t.Fatalf("len(s.userNameMap)=%d, expected: %d", len(s.userNameMap), expected)
+func (ts *TestState) ensureUserCount(exp int) {
+	if s := ts.s; len(s.userNameMap) != exp {
+		ts.t.Fatalf("len(s.userNameMap)=%d, exp: %d", len(s.userNameMap), exp)
 	}
 }
 
-func (ts *TestState) ensureStringsCount(expected int) {
-	if s := ts.s; len(s.stringMap) != expected {
-		ts.t.Fatalf("len(s.stringMap)=%d, expected: %d", len(s.stringMap), expected)
+func (ts *TestState) ensureStringsCount(exp int) {
+	if s := ts.s; len(s.stringMap) != exp {
+		ts.t.Fatalf("len(s.stringMap)=%d, exp: %d", len(s.stringMap), exp)
 	}
 }
 
-func (ts *TestState) ensureUndeletedStringsCount(expected int) {
+func (ts *TestState) ensureUndeletedStringsCount(exp int) {
 	s := ts.s
-	if n := s.stringsCount(); n != expected {
-		msg := fmt.Sprintf("len(s.stringsCount())=%d, expected: %d", s.stringsCount(), expected)
+	if n := s.stringsCount(); n != exp {
+		msg := fmt.Sprintf("len(s.stringsCount())=%d, exp: %d", s.stringsCount(), exp)
 		panic(msg)
 		ts.t.Fatal(msg)
 	}
 }
 
-func (ts *TestState) ensureTranslationsCount(expected int) {
+func (ts *TestState) ensureTranslationsCount(exp int) {
 	s := ts.s
-	if len(s.translations) != expected {
-		ts.t.Fatalf("len(s.translations)=%d, expected: %d", len(s.translations), expected)
+	if len(s.edits) != exp {
+		ts.t.Fatalf("len(s.translations)=%d, exp: %d", len(s.edits), exp)
 	}
 }
 
-func (ts *TestState) ensureLangCode(name string, expected int) {
-	if s := ts.s; s.langCodeMap[name] != expected {
-		ts.t.Fatalf("s.langCodeMap['%s']=%d, expected: %d", name, s.langCodeMap[name], expected)
+func (ts *TestState) ensureLangCode(name string, exp int) {
+	if s := ts.s; s.langCodeMap[name] != exp {
+		ts.t.Fatalf("s.langCodeMap['%s']=%d, exp: %d", name, s.langCodeMap[name], exp)
 	}
 }
 
-func (ts *TestState) ensureUserCode(name string, expected int) {
-	if s := ts.s; s.userNameMap[name] != expected {
-		ts.t.Fatalf("s.userNameMap['%s']=%d, expected: %d", name, s.userNameMap[name], expected)
+func (ts *TestState) ensureUserCode(name string, exp int) {
+	if s := ts.s; s.userNameMap[name] != exp {
+		ts.t.Fatalf("s.userNameMap['%s']=%d, exp: %d", name, s.userNameMap[name], exp)
 	}
 }
 
-func (ts *TestState) ensureStringCode(name string, expected int) {
-	if s := ts.s; s.stringMap[name] != expected {
-		ts.t.Fatalf("s.stringMap['%s']=%d, expected: %d", name, s.stringMap[name], expected)
+func (ts *TestState) ensureStringCode(name string, exp int) {
+	if s := ts.s; s.stringMap[name] != exp {
+		ts.t.Fatalf("s.stringMap['%s']=%d, exp: %d", name, s.stringMap[name], exp)
 	}
 }
 
-func (ts *TestState) ensureDeletedCount(expected int) {
-	if s := ts.s; len(s.deletedStrings) != expected {
-		ts.t.Fatalf("len(s.deletedStrings)=%d, expected: %d", len(s.deletedStrings), expected)
+func (ts *TestState) ensureDeletedCount(exp int) {
+	if s := ts.s; len(s.deletedStrings) != exp {
+		ts.t.Fatalf("len(s.deletedStrings)=%d, exp: %d", len(s.deletedStrings), exp)
 	}
 }
 
