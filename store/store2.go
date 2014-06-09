@@ -2,6 +2,7 @@
 package store
 
 import (
+	"fmt"
 	"os"
 	"sync"
 
@@ -61,6 +62,7 @@ type StoreCsv struct {
 }
 
 func NewStoreCsv(path string) (*StoreCsv, error) {
+	fmt.Printf("NewStoreCsv: '%s'\n", path)
 	s := &StoreCsv{
 		filePath: path,
 		strings:  NewStringInterner(),
