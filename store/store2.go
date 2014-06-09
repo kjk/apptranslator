@@ -78,6 +78,14 @@ func (i *StringInterner) GetById(id int) (string, bool) {
 	return i.strings[id], true
 }
 
+func (i *StringInterner) IdByStrMust(s string) int {
+	if id, exists := i.strToId[s]; !exists {
+		panic("s not in i.strToId")
+	} else {
+		return id
+	}
+}
+
 func (i *StringInterner) Count() int {
 	return len(i.strings)
 }
@@ -233,9 +241,45 @@ func (s *StoreCsv) stringsCount() int {
 	return len(s.activeStrings)
 }
 
+func (s *StoreCsv) translatedCountForLangs() map[int]int {
+	m := make(map[int][]bool)
+	totalStrings := s.strings.Count()
+	for _, langId := range s.langs.strToId {
+		m[langId] = make([]bool, totalStrings, totalStrings)
+	}
+	res := make(map[int]int)
+	for _, trec := range s.edits {
+		if !s.isDeleted(trec.stringId) {
+			arr := m[trec.langId]
+			arr[trec.stringId] = true
+		}
+	}
+	for langId, arr := range m {
+		count := 0
+		for _, isTranslated := range arr {
+			if isTranslated {
+				count += 1
+			}
+		}
+		res[langId] = count
+	}
+	return res
+}
+
 func (s *StoreCsv) untranslatedCount() int {
-	return 0
-	//panic("NYI")
+	n := 0
+	totalStrings := s.stringsCount()
+	for _, translatedCount := range s.translatedCountForLangs() {
+		n += (totalStrings - translatedCount)
+	}
+	return n
+}
+
+func (s *StoreCsv) untranslatedForLang(lang string) int {
+	translatedPerLang := s.translatedCountForLangs()
+	langId := s.langs.IdByStrMust(lang)
+	translated := translatedPerLang[langId]
+	return s.stringsCount() - translated
 }
 
 func (s *StoreCsv) userById(id int) string {
@@ -273,32 +317,6 @@ func (s *StoreCsv) recentEdits(max int) []Edit {
 		e.Translation = tr.translation
 		e.Time = tr.time
 		res[i] = e
-	}
-	return res
-}
-
-func (s *StoreCsv) translators() []*Translator {
-	m := make(map[int]*Translator)
-	unknownUserId := 0
-	for _, tr := range s.edits {
-		userId := tr.userId
-		// filter out edits by the dummy 'unknown' user (used for translations
-		// imported from the code before we had apptranslator)
-		if userId == unknownUserId {
-			continue
-		}
-		if t, ok := m[userId]; ok {
-			t.TranslationsCount += 1
-		} else {
-			m[userId] = &Translator{Name: s.userById(userId), TranslationsCount: 1}
-		}
-	}
-	n := len(m)
-	res := make([]*Translator, n, n)
-	i := 0
-	for _, t := range m {
-		res[i] = t
-		i += 1
 	}
 	return res
 }
@@ -380,6 +398,55 @@ func (s *StoreCsv) editsByUser(user string) []Edit {
 	return res
 }
 
+func (s *StoreCsv) editsForLang(lang string, max int) []Edit {
+	res := make([]Edit, 0)
+	transCount := len(s.edits)
+	for i := 0; i < transCount; i++ {
+		tr := &(s.edits[transCount-i-1])
+		editLang := s.langById(tr.langId)
+		if editLang == lang {
+			var e = Edit{
+				Lang:        s.langById(tr.langId),
+				User:        s.userById(tr.userId),
+				Text:        s.stringById(tr.stringId),
+				Translation: tr.translation,
+				Time:        tr.time,
+			}
+			res = append(res, e)
+			if max != -1 && len(res) >= max {
+				return res
+			}
+		}
+	}
+	return res
+}
+
+func (s *StoreCsv) translators() []*Translator {
+	m := make(map[int]*Translator)
+	unknownUserId := 0
+	for _, tr := range s.edits {
+		userId := tr.userId
+		// filter out edits by the dummy 'unknown' user (used for translations
+		// imported from the code before we had apptranslator)
+		if userId == unknownUserId {
+			continue
+		}
+		if t, ok := m[userId]; ok {
+			t.TranslationsCount += 1
+		} else {
+			m[userId] = &Translator{Name: s.userById(userId), TranslationsCount: 1}
+		}
+	}
+	n := len(m)
+	res := make([]*Translator, n, n)
+	i := 0
+	for _, t := range m {
+		res[i] = t
+		i += 1
+	}
+	return res
+}
+
 func (s *StoreCsv) getDeletedStringsBitmap() []bool {
 	n := s.strings.Count()
 	res := make([]bool, n, n)
@@ -438,7 +505,7 @@ func (s *StoreCsv) UntranslatedCount() int {
 func (s *StoreCsv) UntranslatedForLang(lang string) int {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.untranslatedForLang(lang)
 }
 
 func (s *StoreCsv) LangInfos() []*LangInfo {
@@ -462,7 +529,7 @@ func (s *StoreCsv) EditsByUser(user string) []Edit {
 func (s *StoreCsv) EditsForLang(user string, max int) []Edit {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.editsForLang(user, max)
 }
 
 func (s *StoreCsv) Translators() []*Translator {
