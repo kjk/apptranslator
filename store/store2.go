@@ -358,6 +358,26 @@ func (s *StoreCsv) langInfos() []*LangInfo {
 	return res
 }
 
+func (s *StoreCsv) editsByUser(user string) []Edit {
+	res := make([]Edit, 0)
+	transCount := len(s.edits)
+	for i := 0; i < transCount; i++ {
+		tr := &(s.edits[transCount-i-1])
+		editUser := s.userById(tr.userId)
+		if editUser == user {
+			var e = Edit{
+				Lang:        s.langById(tr.langId),
+				User:        editUser,
+				Text:        s.stringById(tr.stringId),
+				Translation: tr.translation,
+				Time:        tr.time,
+			}
+			res = append(res, e)
+		}
+	}
+	return res
+}
+
 func (s *StoreCsv) WriteNewTranslation(txt, trans, lang, user string) error {
 	s.Lock()
 	defer s.Unlock()
@@ -409,7 +429,7 @@ func (s *StoreCsv) RecentEdits(max int) []Edit {
 func (s *StoreCsv) EditsByUser(user string) []Edit {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.editsByUser(user)
 }
 
 func (s *StoreCsv) EditsForLang(user string, max int) []Edit {
