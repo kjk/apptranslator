@@ -71,14 +71,15 @@ func (i *StringInterner) Intern(s string) (id int, isNew bool) {
 }
 
 func (i *StringInterner) GetById(id int) (string, bool) {
-	if id < 0 || id > len(i.strings) {
+	if id < 0 || id >= len(i.strings) {
+		//fmt.Printf("no id %d in i.strings of len %d\n", id, len(i.strings))
 		return "", false
 	}
 	return i.strings[id], true
 }
 
 func (i *StringInterner) Count() int {
-	return len(i.strings) + 1
+	return len(i.strings)
 }
 
 type StoreCsv struct {
@@ -250,6 +251,7 @@ func (s *StoreCsv) langById(id int) string {
 }
 
 func (s *StoreCsv) stringById(id int) string {
+	//fmt.Printf("id: %d, total: %d\n", id, s.strings.Count())
 	str, ok := s.strings.GetById(id)
 	panicIf(!ok, "no id in s.strings")
 	return str
@@ -378,6 +380,31 @@ func (s *StoreCsv) editsByUser(user string) []Edit {
 	return res
 }
 
+func (s *StoreCsv) getDeletedStringsBitmap() []bool {
+	n := s.strings.Count()
+	res := make([]bool, n, n)
+	for i := 0; i < n; i++ {
+		res[i] = true
+	}
+	for _, id := range s.activeStrings {
+		res[id] = false
+	}
+	return res
+}
+
+func (s *StoreCsv) getDeletedStrings() []string {
+	deletedBitmap := s.getDeletedStringsBitmap()
+	res := make([]string, 0)
+	for strId, isDeleted := range deletedBitmap {
+		if isDeleted {
+			str := s.stringById(strId)
+			res = append(res, str)
+		}
+	}
+	sort.Strings(res)
+	return res
+}
+
 func (s *StoreCsv) WriteNewTranslation(txt, trans, lang, user string) error {
 	s.Lock()
 	defer s.Unlock()
@@ -453,5 +480,5 @@ func (s *StoreCsv) UpdateStringsList(newStrings []string) ([]string, []string, [
 func (s *StoreCsv) GetDeletedStrings() []string {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.getDeletedStrings()
 }
