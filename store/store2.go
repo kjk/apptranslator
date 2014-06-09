@@ -347,7 +347,7 @@ func (s *StoreCsv) recentEdits(max int) []Edit {
 }
 
 func (s *StoreCsv) isDeleted(strId int) bool {
-	// TODO: could speed up by building s.deletedStrings map[int]interface{}
+	// g: could speed up by building s.deletedStrings map[int]interface{}
 	// that would be reconstructed when s.activeStrings is set
 	for _, id := range s.activeStrings {
 		if id == strId {
@@ -610,10 +610,40 @@ func (s *StoreCsv) Translators() []*Translator {
 	return s.translators()
 }
 
+func (s *StoreCsv) writeActiveStringsRec(activeStrings []int) error {
+	timeSecsStr := strconv.FormatInt(time.Now().Unix(), 10)
+	n := len(activeStrings)
+	rec := make([]string, n+2, n+2)
+	rec[0] = recIdActiveSet
+	rec[1] = timeSecsStr
+	for i := 0; i < n; i++ {
+		strId := activeStrings[i]
+		rec[2+i] = strconv.Itoa(strId)
+	}
+	return s.writeCsv(rec)
+}
+
+func (s *StoreCsv) writeActiveStrings(activeStrings []string) (err error) {
+	n := len(activeStrings)
+	activeStrIds := make([]int, n, n)
+	for i, str := range activeStrings {
+		activeStrIds[i], err = s.internStringAndWriteIfNecessary(str)
+		if err != nil {
+			return err
+		}
+	}
+	if err = s.writeActiveStringsRec(activeStrIds); err != nil {
+		return err
+	}
+	s.activeStrings = activeStrIds
+	return nil
+}
+
 func (s *StoreCsv) UpdateStringsList(newStrings []string) ([]string, []string, []string, error) {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	err := s.writeActiveStrings(newStrings)
+	return nil, nil, nil, err
 }
 
 func (s *StoreCsv) GetDeletedStrings() []string {
