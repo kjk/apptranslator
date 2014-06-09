@@ -148,6 +148,21 @@ func (s *StoreCsv) internStringAndWriteIfNecessary(str string) (int, error) {
 	}
 }
 
+func buildActiveSetRec(activeStrings []int) []string {
+	timeSecsStr := strconv.FormatInt(time.Now().Unix(), 10)
+
+	r := IntRangeFromIntArray(activeStrings)
+	n := len(r)
+	rec := make([]string, n+2, n+2)
+
+	rec[0] = recIdActiveSet
+	rec[1] = timeSecsStr
+	for i := 0; i < n; i++ {
+		rec[2+i] = r[i].String()
+	}
+	return rec
+}
+
 // s,  ${strId}, ${str}
 func (s *StoreCsv) decodeNewStringRecord(rec []string) error {
 	if len(rec) != 3 {
@@ -211,16 +226,16 @@ func (s *StoreCsv) decodeActiveSetRecord(rec []string) error {
 		fmt.Printf("'as' record should have at least 3 fields, is '%#v'", rec)
 	}
 	n := len(rec) - 2
-	active := make([]int, n, n)
+	activeRange := make([]IntRange, n, n)
 	for i := 0; i < n; i++ {
-		strId, err := strconv.Atoi(rec[2+i])
+		ir, err := ParseIntRange(rec[2+i])
 		if err != nil {
-			return fmt.Errorf("rec[%d] ('%s') didn't parse as int, error: '%s'", 2+i, rec[2+i], err)
+			return fmt.Errorf("rec[%d] ('%s') didn't parse as range, error: '%s'", 2+i, rec[2+i], err)
 		}
-		active[i] = strId
+		activeRange[i] = ir
 	}
-	sort.Ints(active)
-	s.setActiveStrings(active)
+
+	s.setActiveStrings(IntRangeToArray(activeRange))
 	return nil
 }
 
@@ -626,15 +641,7 @@ func (s *StoreCsv) Translators() []*Translator {
 }
 
 func (s *StoreCsv) writeActiveStringsRec(activeStrings []int) error {
-	timeSecsStr := strconv.FormatInt(time.Now().Unix(), 10)
-	n := len(activeStrings)
-	rec := make([]string, n+2, n+2)
-	rec[0] = recIdActiveSet
-	rec[1] = timeSecsStr
-	for i := 0; i < n; i++ {
-		strId := activeStrings[i]
-		rec[2+i] = strconv.Itoa(strId)
-	}
+	rec := buildActiveSetRec(activeStrings)
 	return s.writeCsv(rec)
 }
 

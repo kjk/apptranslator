@@ -1,7 +1,6 @@
 List of things to do for app translator.
 
 Nice to have:
-- more efficient as record (store ranges)
 - more tests
 - implement /app/${appName}/edits
 - ability to see history of translations for a given string and revert to any
