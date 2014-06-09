@@ -1,6 +1,8 @@
 package store
 
 import (
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -28,6 +30,11 @@ func TestIntRange(t *testing.T) {
 		got := rangeArrToStr(r)
 		if got != test.exp {
 			t.Fatalf("for %#v got %s and expected %s", test.arr, got, test.exp)
+		}
+		sort.Ints(test.arr)
+		arr2 := IntRangeToArray(r)
+		if !reflect.DeepEqual(test.arr, arr2) {
+			t.Fatalf("%#v should be same as %#v", test.arr, arr2)
 		}
 	}
 }

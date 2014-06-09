@@ -64,3 +64,14 @@ func IntRangeFromIntArray(arr []int) []IntRange {
 	res = append(res, r)
 	return res
 }
+
+func IntRangeToArray(r []IntRange) []int {
+	res := make([]int, 0)
+	for _, el := range r {
+		for n := el.start; n <= el.end; n++ {
+			res = append(res, n)
+		}
+	}
+	sort.Ints(res)
+	return res
+}
