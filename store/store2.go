@@ -92,18 +92,19 @@ func (i *StringInterner) Count() int {
 
 type StoreCsv struct {
 	sync.Mutex
-	filePath      string
-	file          *os.File
-	strings       *StringInterner
-	users         *StringInterner
-	langs         *StringInterner
-	w             *csv.Writer
-	activeStrings []int
-	edits         []TranslationRec
+	filePath             string
+	file                 *os.File
+	strings              *StringInterner
+	users                *StringInterner
+	langs                *StringInterner
+	w                    *csv.Writer
+	activeStrings        []int
+	deletedStringsBitmap []bool
+	edits                []TranslationRec
 }
 
 func NewStoreCsv(path string) (*StoreCsv, error) {
-	fmt.Printf("NewStoreCsv: '%s'\n", path)
+	//fmt.Printf("NewStoreCsv: '%s'\n", path)
 	s := &StoreCsv{
 		filePath: path,
 		strings:  NewStringInterner(),
@@ -116,6 +117,7 @@ func NewStoreCsv(path string) (*StoreCsv, error) {
 			return nil, err
 		}
 	}
+	s.setActiveStrings(s.activeStrings)
 	if file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
 		return nil, err
 	} else {
@@ -137,8 +139,11 @@ func (s *StoreCsv) writeNewStringRec(strId int, str string) error {
 
 func (s *StoreCsv) internStringAndWriteIfNecessary(str string) (int, error) {
 	if strId, isNew := s.strings.Intern(str); isNew {
+		//fmt.Printf("internStringAndWriteIfNecessary: new string '%s', id: %d\n", str, strId)
+		s.setActiveStrings(s.activeStrings)
 		return strId, s.writeNewStringRec(strId, str)
 	} else {
+		//fmt.Printf("internStringAndWriteIfNecessary: existing string '%s', id: %d\n", str, strId)
 		return strId, nil
 	}
 }
@@ -163,6 +168,9 @@ func (s *StoreCsv) decodeNewStringRecord(rec []string) error {
 }
 
 func (s *StoreCsv) addTranslationRec(strId, langId, userId int, trans string, time time.Time) {
+	if strId >= s.allStringsCount() {
+		panic(fmt.Sprintf("strId >= s.allStringsCount() (%d >= %d)", strId, s.allStringsCount()))
+	}
 	tr := TranslationRec{
 		langId:      langId,
 		userId:      userId,
@@ -212,7 +220,7 @@ func (s *StoreCsv) decodeActiveSetRecord(rec []string) error {
 		active[i] = strId
 	}
 	sort.Ints(active)
-	s.activeStrings = active
+	s.setActiveStrings(active)
 	return nil
 }
 
@@ -260,6 +268,10 @@ func (s *StoreCsv) readExistingRecords(path string) error {
 
 func (s *StoreCsv) Close() {
 	panic("NYI")
+}
+
+func (s *StoreCsv) allStringsCount() int {
+	return s.strings.Count()
 }
 
 func (s *StoreCsv) stringsCount() int {
@@ -347,14 +359,13 @@ func (s *StoreCsv) recentEdits(max int) []Edit {
 }
 
 func (s *StoreCsv) isDeleted(strId int) bool {
-	// g: could speed up by building s.deletedStrings map[int]interface{}
-	// that would be reconstructed when s.activeStrings is set
-	for _, id := range s.activeStrings {
-		if id == strId {
-			return false
-		}
+	if strId >= s.allStringsCount() {
+		fmt.Printf("strId %d too large, all strings: %d, bitmap len: %d\n", strId, s.allStringsCount(), len(s.deletedStringsBitmap))
 	}
-	return true
+	if strId >= len(s.deletedStringsBitmap) {
+		fmt.Printf("strId %d too large, all strings: %d, bitmap len: %d\n", strId, s.allStringsCount(), len(s.deletedStringsBitmap))
+	}
+	return s.deletedStringsBitmap[strId]
 }
 
 func (s *StoreCsv) translationsForLang(langId int) ([]*Translation, int) {
@@ -472,22 +483,26 @@ func (s *StoreCsv) translators() []*Translator {
 	return res
 }
 
-func (s *StoreCsv) getDeletedStringsBitmap() []bool {
-	n := s.strings.Count()
-	res := make([]bool, n, n)
+func (s *StoreCsv) setActiveStrings(activeStrings []int) {
+	if nil == activeStrings {
+		activeStrings = make([]int, 0)
+	}
+	s.activeStrings = activeStrings
+	n := s.allStringsCount()
+	bitmap := make([]bool, n, n)
 	for i := 0; i < n; i++ {
-		res[i] = true
+		bitmap[i] = true
 	}
 	for _, id := range s.activeStrings {
-		res[id] = false
+		bitmap[id] = false
 	}
-	return res
+	s.deletedStringsBitmap = bitmap
+	//fmt.Printf("setActiveStrings: n1: %d, n2: %d\n", n, len(s.deletedStringsBitmap))
 }
 
 func (s *StoreCsv) getDeletedStrings() []string {
-	deletedBitmap := s.getDeletedStringsBitmap()
 	res := make([]string, 0)
-	for strId, isDeleted := range deletedBitmap {
+	for strId, isDeleted := range s.deletedStringsBitmap {
 		if isDeleted {
 			str := s.stringByIdMust(strId)
 			res = append(res, str)
@@ -635,7 +650,7 @@ func (s *StoreCsv) writeActiveStrings(activeStrings []string) (err error) {
 	if err = s.writeActiveStringsRec(activeStrIds); err != nil {
 		return err
 	}
-	s.activeStrings = activeStrIds
+	s.setActiveStrings(activeStrIds)
 	return nil
 }
 
