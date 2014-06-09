@@ -274,7 +274,7 @@ func (s *StoreCsv) allStringsCount() int {
 	return s.strings.Count()
 }
 
-func (s *StoreCsv) stringsCount() int {
+func (s *StoreCsv) activeStringsCount() int {
 	return len(s.activeStrings)
 }
 
@@ -305,7 +305,7 @@ func (s *StoreCsv) translatedCountForLangs() map[int]int {
 
 func (s *StoreCsv) untranslatedCount() int {
 	n := 0
-	totalStrings := s.stringsCount()
+	totalStrings := s.activeStringsCount()
 	for _, translatedCount := range s.translatedCountForLangs() {
 		n += (totalStrings - translatedCount)
 	}
@@ -316,7 +316,7 @@ func (s *StoreCsv) untranslatedForLang(lang string) int {
 	translatedPerLang := s.translatedCountForLangs()
 	langId := s.langs.IdByStrMust(lang)
 	translated := translatedPerLang[langId]
-	return s.stringsCount() - translated
+	return s.activeStringsCount() - translated
 }
 
 func (s *StoreCsv) userById(id int) string {
@@ -399,7 +399,7 @@ func (s *StoreCsv) translationsForLang(langId int) ([]*Translation, int) {
 		res[i] = t
 		i++
 	}
-	return res, s.stringsCount() - translatedCount
+	return res, s.activeStringsCount() - translatedCount
 }
 
 func (s *StoreCsv) langInfos() []*LangInfo {
@@ -580,7 +580,7 @@ func (s *StoreCsv) LangsCount() int {
 func (s *StoreCsv) StringsCount() int {
 	s.Lock()
 	defer s.Unlock()
-	return s.stringsCount()
+	return s.activeStringsCount()
 }
 
 func (s *StoreCsv) UntranslatedCount() int {

@@ -225,7 +225,7 @@ func (s *StoreBinary) translators() []*Translator {
 	return res
 }
 
-func (s *StoreBinary) stringsCount() int {
+func (s *StoreBinary) activeStringsCount() int {
 	return len(s.stringMap) - len(s.deletedStrings)
 }
 
@@ -285,7 +285,7 @@ func (s *StoreBinary) translatedCountForLangs() map[int]int {
 
 func (s *StoreBinary) untranslatedCount() int {
 	n := 0
-	totalStrings := s.stringsCount()
+	totalStrings := s.activeStringsCount()
 	for _, translatedCount := range s.translatedCountForLangs() {
 		n += (totalStrings - translatedCount)
 	}
@@ -296,7 +296,7 @@ func (s *StoreBinary) untranslatedForLang(lang string) int {
 	translatedPerLang := s.translatedCountForLangs()
 	langId := s.langCodeMap[lang]
 	translated := translatedPerLang[langId]
-	return s.stringsCount() - translated
+	return s.activeStringsCount() - translated
 }
 
 func (s *StoreBinary) validLangId(id int) bool {
@@ -679,7 +679,7 @@ func (s *StoreBinary) translationsForLang(langId int) ([]*Translation, int) {
 		res[i] = t
 		i++
 	}
-	return res, s.stringsCount() - translatedCount
+	return res, s.activeStringsCount() - translatedCount
 }
 
 func (s *StoreBinary) langInfos() []*LangInfo {
@@ -772,7 +772,7 @@ func (s *StoreBinary) LangsCount() int {
 func (s *StoreBinary) StringsCount() int {
 	s.Lock()
 	defer s.Unlock()
-	return s.stringsCount()
+	return s.activeStringsCount()
 }
 
 func (s *StoreBinary) UntranslatedCount() int {
