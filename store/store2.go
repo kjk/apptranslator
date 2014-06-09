@@ -77,6 +77,10 @@ func (i *StringInterner) GetById(id int) (string, bool) {
 	return i.strings[id], true
 }
 
+func (i *StringInterner) Count() int {
+	return len(i.strings) + 1
+}
+
 type StoreCsv struct {
 	sync.Mutex
 	filePath      string
@@ -224,6 +228,136 @@ func (s *StoreCsv) Close() {
 	panic("NYI")
 }
 
+func (s *StoreCsv) stringsCount() int {
+	return len(s.activeStrings)
+}
+
+func (s *StoreCsv) untranslatedCount() int {
+	return 0
+	//panic("NYI")
+}
+
+func (s *StoreCsv) userById(id int) string {
+	str, ok := s.users.GetById(id)
+	panicIf(!ok, "no id in s.users")
+	return str
+}
+
+func (s *StoreCsv) langById(id int) string {
+	str, ok := s.langs.GetById(id)
+	panicIf(!ok, "no id in s.langs")
+	return str
+}
+
+func (s *StoreCsv) stringById(id int) string {
+	str, ok := s.strings.GetById(id)
+	panicIf(!ok, "no id in s.strings")
+	return str
+}
+
+func (s *StoreCsv) recentEdits(max int) []Edit {
+	n := max
+	transCount := len(s.edits)
+	if n > transCount {
+		n = transCount
+	}
+	res := make([]Edit, n, n)
+	for i := 0; i < n; i++ {
+		tr := &(s.edits[transCount-i-1])
+		var e Edit
+		e.Lang = s.langById(tr.langId)
+		e.User = s.userById(tr.userId)
+		e.Text = s.stringById(tr.stringId)
+		e.Translation = tr.translation
+		e.Time = tr.time
+		res[i] = e
+	}
+	return res
+}
+
+func (s *StoreCsv) translators() []*Translator {
+	m := make(map[int]*Translator)
+	unknownUserId := 0
+	for _, tr := range s.edits {
+		userId := tr.userId
+		// filter out edits by the dummy 'unknown' user (used for translations
+		// imported from the code before we had apptranslator)
+		if userId == unknownUserId {
+			continue
+		}
+		if t, ok := m[userId]; ok {
+			t.TranslationsCount += 1
+		} else {
+			m[userId] = &Translator{Name: s.userById(userId), TranslationsCount: 1}
+		}
+	}
+	n := len(m)
+	res := make([]*Translator, n, n)
+	i := 0
+	for _, t := range m {
+		res[i] = t
+		i += 1
+	}
+	return res
+}
+
+func (s *StoreCsv) isDeleted(strId int) bool {
+	// TODO: could speed up by building s.deletedStrings map[int]interface{}
+	// that would be reconstructed when s.activeStrings is set
+	for _, id := range s.activeStrings {
+		if id == strId {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *StoreCsv) translationsForLang(langId int) ([]*Translation, int) {
+	translations := make(map[string]*Translation)
+	for _, rec := range s.edits {
+		if langId != rec.langId || s.isDeleted(rec.stringId) {
+			continue
+		}
+		str, ok := s.strings.GetById(rec.stringId)
+		panicIf(!ok, "rec.stringId should be in s.strings")
+		if tr, ok := translations[str]; ok {
+			tr.Translations = append(tr.Translations, rec.translation)
+		} else {
+			t := &Translation{str, make([]string, 1)}
+			t.Translations[0] = rec.translation
+			translations[str] = t
+		}
+	}
+	translatedCount := len(translations)
+	// add records for untranslated strings
+	for str, strId := range s.strings.strToId {
+		if !s.isDeleted(strId) {
+			if _, exists := translations[str]; !exists {
+				translations[str] = &Translation{str, make([]string, 0)}
+			}
+		}
+	}
+	res := make([]*Translation, len(translations))
+	i := 0
+	for _, t := range translations {
+		res[i] = t
+		i++
+	}
+	return res, s.stringsCount() - translatedCount
+}
+
+func (s *StoreCsv) langInfos() []*LangInfo {
+	res := make([]*LangInfo, 0)
+	for langCode, langId := range s.langs.strToId {
+		li := NewLangInfo(langCode)
+		li.Translations, li.untranslated = s.translationsForLang(langId)
+		sort.Sort(ByString{li.Translations})
+		res = append(res, li)
+	}
+	sort.Sort(ByUntranslated{res})
+	return res
+}
+
 func (s *StoreCsv) WriteNewTranslation(txt, trans, lang, user string) error {
 	s.Lock()
 	defer s.Unlock()
@@ -239,19 +373,19 @@ func (s *StoreCsv) DuplicateTranslation(origStr, newStr string) error {
 func (s *StoreCsv) LangsCount() int {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.langs.Count()
 }
 
 func (s *StoreCsv) StringsCount() int {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.stringsCount()
 }
 
 func (s *StoreCsv) UntranslatedCount() int {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.untranslatedCount()
 }
 
 func (s *StoreCsv) UntranslatedForLang(lang string) int {
@@ -263,13 +397,13 @@ func (s *StoreCsv) UntranslatedForLang(lang string) int {
 func (s *StoreCsv) LangInfos() []*LangInfo {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.langInfos()
 }
 
 func (s *StoreCsv) RecentEdits(max int) []Edit {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.recentEdits(max)
 }
 
 func (s *StoreCsv) EditsByUser(user string) []Edit {
@@ -287,7 +421,7 @@ func (s *StoreCsv) EditsForLang(user string, max int) []Edit {
 func (s *StoreCsv) Translators() []*Translator {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.translators()
 }
 
 func (s *StoreCsv) UpdateStringsList(newStrings []string) ([]string, []string, []string, error) {

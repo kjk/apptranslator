@@ -97,7 +97,7 @@ type StoreBinary struct {
 	userNameMap    map[string]int
 	stringMap      map[string]int
 	deletedStrings map[int]bool
-	translations   []TranslationRec
+	edits          []TranslationRec
 	filePath       string
 	w              io.Writer
 	file           *os.File
@@ -138,13 +138,13 @@ func (s *StoreBinary) stringById(strId int) string {
 
 func (s *StoreBinary) recentEdits(max int) []Edit {
 	n := max
-	transCount := len(s.translations)
+	transCount := len(s.edits)
 	if n > transCount {
 		n = transCount
 	}
 	res := make([]Edit, n, n)
 	for i := 0; i < n; i++ {
-		tr := &(s.translations[transCount-i-1])
+		tr := &(s.edits[transCount-i-1])
 		var e Edit
 		e.Lang = s.langById(tr.langId)
 		e.User = s.userById(tr.userId)
@@ -158,9 +158,9 @@ func (s *StoreBinary) recentEdits(max int) []Edit {
 
 func (s *StoreBinary) editsByUser(user string) []Edit {
 	res := make([]Edit, 0)
-	transCount := len(s.translations)
+	transCount := len(s.edits)
 	for i := 0; i < transCount; i++ {
-		tr := &(s.translations[transCount-i-1])
+		tr := &(s.edits[transCount-i-1])
 		editUser := s.userById(tr.userId)
 		if editUser == user {
 			var e = Edit{
@@ -178,9 +178,9 @@ func (s *StoreBinary) editsByUser(user string) []Edit {
 
 func (s *StoreBinary) editsForLang(lang string, max int) []Edit {
 	res := make([]Edit, 0)
-	transCount := len(s.translations)
+	transCount := len(s.edits)
 	for i := 0; i < transCount; i++ {
-		tr := &(s.translations[transCount-i-1])
+		tr := &(s.edits[transCount-i-1])
 		editLang := s.langById(tr.langId)
 		if editLang == lang {
 			var e = Edit{
@@ -202,7 +202,7 @@ func (s *StoreBinary) editsForLang(lang string, max int) []Edit {
 func (s *StoreBinary) translators() []*Translator {
 	m := make(map[int]*Translator)
 	unknownUserId := 1
-	for _, tr := range s.translations {
+	for _, tr := range s.edits {
 		userId := tr.userId
 		// filter out edits by the dummy 'unknown' user (used for translations
 		// imported from the code before we had apptranslator)
@@ -223,10 +223,6 @@ func (s *StoreBinary) translators() []*Translator {
 		i += 1
 	}
 	return res
-}
-
-func (s *StoreBinary) langsCount() int {
-	return len(s.langCodeMap)
 }
 
 func (s *StoreBinary) stringsCount() int {
@@ -258,7 +254,6 @@ func (s *StoreBinary) getActiveStrings() []string {
 	return res
 }
 
-
 func (s *StoreBinary) translatedCountForLangs() map[int]int {
 	m := make(map[int][]bool)
 	totalStrings := len(s.stringMap)
@@ -270,7 +265,7 @@ func (s *StoreBinary) translatedCountForLangs() map[int]int {
 		m[langId] = arr
 	}
 	res := make(map[int]int)
-	for _, trec := range s.translations {
+	for _, trec := range s.edits {
 		if !s.isDeleted(trec.stringId) {
 			arr := m[trec.langId]
 			arr[trec.stringId-1] = true
@@ -398,7 +393,7 @@ func writeUniquifyStringRecord(buf *bytes.Buffer, s string, dict map[string]int,
 
 func (s *StoreBinary) addTranslationRec(langId, userId, stringId int, translation string, time time.Time) {
 	t := &TranslationRec{langId, userId, stringId, translation, time}
-	s.translations = append(s.translations, *t)
+	s.edits = append(s.edits, *t)
 }
 
 func (s *StoreBinary) deleteString(w io.Writer, str string) error {
@@ -433,7 +428,7 @@ func (s *StoreBinary) undeleteString(w io.Writer, str string) error {
 }
 
 func (s *StoreBinary) duplicateTranslation(w io.Writer, origStr, newStr string) error {
-	for _, translation := range s.translations {
+	for _, translation := range s.edits {
 		str := s.stringById(translation.stringId)
 		if str != origStr {
 			continue
@@ -656,7 +651,7 @@ func (s *StoreBinary) translationsForLang(langId int) ([]*Translation, int) {
 	}
 
 	translations := make(map[string]*Translation)
-	for _, rec := range s.translations {
+	for _, rec := range s.edits {
 		if langId != rec.langId || s.isDeleted(rec.stringId) {
 			continue
 		}
@@ -706,7 +701,7 @@ func NewStoreBinaryWithWriter(w io.Writer) (*StoreBinary, error) {
 		langCodeMap:    make(map[string]int),
 		userNameMap:    make(map[string]int),
 		stringMap:      make(map[string]int),
-		translations:   make([]TranslationRec, 0),
+		edits:          make([]TranslationRec, 0),
 		deletedStrings: make(map[int]bool),
 		w:              w,
 	}
@@ -719,7 +714,7 @@ func NewStoreBinary(path string) (*StoreBinary, error) {
 		langCodeMap:    make(map[string]int),
 		userNameMap:    make(map[string]int),
 		stringMap:      make(map[string]int),
-		translations:   make([]TranslationRec, 0),
+		edits:          make([]TranslationRec, 0),
 		deletedStrings: make(map[int]bool),
 	}
 	if u.PathExists(path) {
@@ -771,7 +766,7 @@ func (s *StoreBinary) DuplicateTranslation(origStr, newStr string) error {
 func (s *StoreBinary) LangsCount() int {
 	s.Lock()
 	defer s.Unlock()
-	return s.langsCount()
+	return len(s.langCodeMap)
 }
 
 func (s *StoreBinary) StringsCount() int {
