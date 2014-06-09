@@ -428,14 +428,14 @@ func (s *StoreBinary) undeleteString(w io.Writer, str string) error {
 }
 
 func (s *StoreBinary) duplicateTranslation(w io.Writer, origStr, newStr string) error {
-	for _, translation := range s.edits {
-		str := s.stringById(translation.stringId)
+	for _, edit := range s.edits {
+		str := s.stringById(edit.stringId)
 		if str != origStr {
 			continue
 		}
-		lang := s.langById(translation.langId)
-		user := s.userById(translation.userId)
-		err := s.writeNewTranslation(w, newStr, translation.translation, lang, user)
+		lang := s.langById(edit.langId)
+		user := s.userById(edit.userId)
+		err := s.writeNewTranslation(w, newStr, edit.translation, lang, user)
 		if err != nil {
 			return err
 		}

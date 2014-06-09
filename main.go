@@ -375,7 +375,7 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 			if len(r.URL.RawQuery) > 0 {
 				url = fmt.Sprintf("%s?%s", url, r.URL.RawQuery)
 			}
-			logger.Noticef("'%s' took %f seconds to serve\n", url, duration.Seconds())
+			logger.Noticef("'%s' took %f seconds to serve", url, duration.Seconds())
 		}
 	}
 }

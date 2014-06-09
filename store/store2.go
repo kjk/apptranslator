@@ -135,7 +135,7 @@ func (s *StoreCsv) writeNewStringRec(strId int, str string) error {
 	return s.writeCsv(recs)
 }
 
-func (s *StoreCsv) stringInternAndWriteIfNecessary(str string) (int, error) {
+func (s *StoreCsv) internStringAndWriteIfNecessary(str string) (int, error) {
 	if strId, isNew := s.strings.Intern(str); isNew {
 		return strId, s.writeNewStringRec(strId, str)
 	} else {
@@ -319,7 +319,7 @@ func (s *StoreCsv) langById(id int) string {
 	return str
 }
 
-func (s *StoreCsv) stringById(id int) string {
+func (s *StoreCsv) stringByIdMust(id int) string {
 	//fmt.Printf("id: %d, total: %d\n", id, s.strings.Count())
 	str, ok := s.strings.GetById(id)
 	panicIf(!ok, "no id in s.strings")
@@ -338,7 +338,7 @@ func (s *StoreCsv) recentEdits(max int) []Edit {
 		var e Edit
 		e.Lang = s.langById(tr.langId)
 		e.User = s.userById(tr.userId)
-		e.Text = s.stringById(tr.stringId)
+		e.Text = s.stringByIdMust(tr.stringId)
 		e.Translation = tr.translation
 		e.Time = tr.time
 		res[i] = e
@@ -413,7 +413,7 @@ func (s *StoreCsv) editsByUser(user string) []Edit {
 			var e = Edit{
 				Lang:        s.langById(tr.langId),
 				User:        editUser,
-				Text:        s.stringById(tr.stringId),
+				Text:        s.stringByIdMust(tr.stringId),
 				Translation: tr.translation,
 				Time:        tr.time,
 			}
@@ -433,7 +433,7 @@ func (s *StoreCsv) editsForLang(lang string, max int) []Edit {
 			var e = Edit{
 				Lang:        s.langById(tr.langId),
 				User:        s.userById(tr.userId),
-				Text:        s.stringById(tr.stringId),
+				Text:        s.stringByIdMust(tr.stringId),
 				Translation: tr.translation,
 				Time:        tr.time,
 			}
@@ -489,7 +489,7 @@ func (s *StoreCsv) getDeletedStrings() []string {
 	res := make([]string, 0)
 	for strId, isDeleted := range deletedBitmap {
 		if isDeleted {
-			str := s.stringById(strId)
+			str := s.stringByIdMust(strId)
 			res = append(res, str)
 		}
 	}
@@ -499,7 +499,7 @@ func (s *StoreCsv) getDeletedStrings() []string {
 
 // t,  ${timeUnix}, ${userStr}, ${langStr}, ${strId}, ${translation}
 func (s *StoreCsv) writeNewTranslation(txt, trans, lang, user string) error {
-	strId, err := s.stringInternAndWriteIfNecessary(txt)
+	strId, err := s.internStringAndWriteIfNecessary(txt)
 	if err != nil {
 		return err
 	}
@@ -515,6 +515,35 @@ func (s *StoreCsv) writeNewTranslation(txt, trans, lang, user string) error {
 	return nil
 }
 
+func (s *StoreCsv) duplicateTranslation(origStr, newStr string) error {
+	origStrId := s.strings.IdByStrMust(origStr)
+	// find most recent translations for each language
+	nLangs := s.langs.Count()
+	langTrans := make([]string, nLangs, nLangs)
+	langUserId := make([]int, nLangs, nLangs)
+	for _, edit := range s.edits {
+		if origStrId != edit.stringId {
+			continue
+		}
+		langTrans[edit.langId] = edit.translation
+		langUserId[edit.langId] = edit.userId
+	}
+
+	for langId, translation := range langTrans {
+		if translation == "" {
+			continue
+		}
+		lang := s.langById(langId)
+		user := s.userById(langUserId[langId])
+		trans := langTrans[langId]
+		if err := s.writeNewTranslation(newStr, trans, lang, user); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *StoreCsv) WriteNewTranslation(txt, trans, lang, user string) error {
 	s.Lock()
 	defer s.Unlock()
@@ -524,7 +553,7 @@ func (s *StoreCsv) WriteNewTranslation(txt, trans, lang, user string) error {
 func (s *StoreCsv) DuplicateTranslation(origStr, newStr string) error {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.duplicateTranslation(origStr, newStr)
 }
 
 func (s *StoreCsv) LangsCount() int {
