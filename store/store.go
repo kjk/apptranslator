@@ -559,7 +559,7 @@ func (s *StoreBinary) decodeNewTranslation(rec []byte, time time.Time) error {
 		timeSecsStr := strconv.FormatInt(time.Unix(), 10)
 
 		stringStr := s.stringById(int(stringId))
-		strId, newString := internedStrings.GetId(stringStr)
+		strId, newString := internedStrings.Intern(stringStr)
 		if newString {
 			recs := []string{recIdNewString, strconv.Itoa(strId), stringStr}
 			writeCsv(recs)

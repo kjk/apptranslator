@@ -15,12 +15,6 @@ var (
 	internedStrings *StringInterner
 )
 
-const (
-	recIdTrans     = "t"
-	recIdNewString = "s"
-	recIdActiveSet = "as"
-)
-
 func writeCsv(record []string) {
 	recs := [][]string{record}
 	if err := csvWriter.WriteAll(recs); err != nil {
@@ -65,7 +59,7 @@ func RewriteStore(binaryPath, csvPath string) {
 	fmt.Printf("Active strings (%d):\n", len(activeStrings))
 	for i := 0; i < len(activeStrings); i++ {
 		str := activeStrings[i]
-		strId, isNew := internedStrings.GetId(str)
+		strId, isNew := internedStrings.Intern(str)
 		panicIf(isNew, "isNew is true")
 		rec[2+i] = strconv.Itoa(strId)
 		fmt.Printf("  '%s'\n", str)
