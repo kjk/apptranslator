@@ -29,7 +29,7 @@ func writeCsv(record []string) {
 
 func RewriteStore(binaryPath, csvPath string) {
 	fmt.Printf("RewriteStore('%s', '%s')\n", binaryPath, csvPath)
-	logging = true
+	//logging = true
 	dst, err := os.Create(csvPath)
 	if err != nil {
 		log.Fatalf("os.Create('%s') failed with '%s'", csvPath, err)
@@ -41,9 +41,9 @@ func RewriteStore(binaryPath, csvPath string) {
 	csvWriter.Comma = ','
 	defer csvWriter.Flush()
 
-	stdoutCsvWriter = csv.NewWriter(os.Stdout)
+	/*stdoutCsvWriter = csv.NewWriter(os.Stdout)
 	stdoutCsvWriter.Comma = ','
-	defer stdoutCsvWriter.Flush()
+	defer stdoutCsvWriter.Flush()*/
 
 	s, err := NewStoreBinary(binaryPath)
 	if err != nil {
@@ -56,19 +56,19 @@ func RewriteStore(binaryPath, csvPath string) {
 	rec := make([]string, n, n)
 	rec[0] = recIdActiveSet
 	rec[1] = timeSecsStr
-	fmt.Printf("Active strings (%d):\n", len(activeStrings))
+	//fmt.Printf("Active strings (%d):\n", len(activeStrings))
 	for i := 0; i < len(activeStrings); i++ {
 		str := activeStrings[i]
 		strId, isNew := internedStrings.Intern(str)
 		panicIf(isNew, "isNew is true")
 		rec[2+i] = strconv.Itoa(strId)
-		fmt.Printf("  '%s'\n", str)
+		//fmt.Printf("  '%s'\n", str)
 	}
 	writeCsv(rec)
-	deleted := s.GetDeletedStrings()
+	/*deleted := s.GetDeletedStrings()
 	fmt.Printf("Deleted strings (%d):\n", len(deleted))
 	for _, str := range deleted {
 		fmt.Printf("  '%s'\n", str)
-	}
+	}*/
 	s.Close()
 }

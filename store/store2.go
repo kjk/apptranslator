@@ -97,6 +97,7 @@ type StoreCsv struct {
 	strings       *StringInterner
 	users         *StringInterner
 	langs         *StringInterner
+	w             *csv.Writer
 	activeStrings []int
 	edits         []TranslationRec
 }
@@ -119,8 +120,27 @@ func NewStoreCsv(path string) (*StoreCsv, error) {
 		return nil, err
 	} else {
 		s.file = file
+		s.w = csv.NewWriter(s.file)
 	}
 	return s, nil
+}
+
+func (s *StoreCsv) writeCsv(rec []string) error {
+	recs := [][]string{rec}
+	return s.w.WriteAll(recs)
+}
+
+func (s *StoreCsv) writeNewStringRec(strId int, str string) error {
+	recs := []string{recIdNewString, strconv.Itoa(strId), str}
+	return s.writeCsv(recs)
+}
+
+func (s *StoreCsv) stringInternAndWriteIfNecessary(str string) (int, error) {
+	if strId, isNew := s.strings.Intern(str); isNew {
+		return strId, s.writeNewStringRec(strId, str)
+	} else {
+		return strId, nil
+	}
 }
 
 // s,  ${strId}, ${str}
@@ -142,6 +162,17 @@ func (s *StoreCsv) decodeNewStringRecord(rec []string) error {
 	return nil
 }
 
+func (s *StoreCsv) addTranslationRec(strId, langId, userId int, trans string, time time.Time) {
+	tr := TranslationRec{
+		langId:      langId,
+		userId:      userId,
+		stringId:    strId,
+		translation: trans,
+		time:        time,
+	}
+	s.edits = append(s.edits, tr)
+}
+
 // t,  ${timeUnix}, ${userStr}, ${langStr}, ${strId}, ${translation}
 func (s *StoreCsv) decodeTranslationRecord(rec []string) error {
 	if len(rec) != 6 {
@@ -161,14 +192,8 @@ func (s *StoreCsv) decodeTranslationRecord(rec []string) error {
 	if _, ok := s.strings.GetById(strId); !ok {
 		return fmt.Errorf("rec[4] ('%s', '%d') is not a valid string id", rec[4], strId)
 	}
-	tr := TranslationRec{
-		langId:      langId,
-		userId:      userId,
-		stringId:    strId,
-		translation: rec[5],
-		time:        time,
-	}
-	s.edits = append(s.edits, tr)
+	trans := rec[5]
+	s.addTranslationRec(strId, langId, userId, trans, time)
 	return nil
 }
 
@@ -472,10 +497,28 @@ func (s *StoreCsv) getDeletedStrings() []string {
 	return res
 }
 
+// t,  ${timeUnix}, ${userStr}, ${langStr}, ${strId}, ${translation}
+func (s *StoreCsv) writeNewTranslation(txt, trans, lang, user string) error {
+	strId, err := s.stringInternAndWriteIfNecessary(txt)
+	if err != nil {
+		return err
+	}
+	langId, _ := s.langs.Intern(lang)
+	userId, _ := s.users.Intern(user)
+	t := time.Now()
+	timeSecsStr := strconv.FormatInt(t.Unix(), 10)
+	recs := []string{recIdTrans, timeSecsStr, user, lang, strconv.Itoa(strId), trans}
+	if err = s.writeCsv(recs); err != nil {
+		return err
+	}
+	s.addTranslationRec(strId, langId, userId, trans, t)
+	return nil
+}
+
 func (s *StoreCsv) WriteNewTranslation(txt, trans, lang, user string) error {
 	s.Lock()
 	defer s.Unlock()
-	panic("NYI")
+	return s.writeNewTranslation(txt, trans, lang, user)
 }
 
 func (s *StoreCsv) DuplicateTranslation(origStr, newStr string) error {
