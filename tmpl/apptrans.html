@@ -51,9 +51,12 @@
 	{{range $idx, $el := .LangInfo.Translations}}
 	<div class="trans" id="idTrans{{$idx}}">
 		<span class="origstr">{{.String}}</span>
-		{{if len .Translations}}
+		{{if .Current}}
 			<span style="color:blue">=&gt;</span>
 			<span class="transstr">{{.Current}}</span> <a href="#" class="editbtn" id="idEdit{{$idx}}">Edit</a>
+			{{range .History}}
+			<br><span style="color: #888;padding-left:28px">previous: {{.}}</span>
+			{{end}}
 		{{else}}
 			<a href="#" class="addbtn" id="idEdit{{$idx}}">Add a translation...</a>
 		{{end}}

@@ -651,17 +651,15 @@ func (s *StoreBinary) translationsForLang(langId int) ([]*Translation, int) {
 	}
 
 	translations := make(map[string]*Translation)
-	for _, rec := range s.edits {
-		if langId != rec.langId || s.isDeleted(rec.stringId) {
+	for _, edit := range s.edits {
+		if langId != edit.langId || s.isDeleted(edit.stringId) {
 			continue
 		}
-		str := idToStr[rec.stringId]
+		str := idToStr[edit.stringId]
 		if tr, ok := translations[str]; ok {
-			tr.Translations = append(tr.Translations, rec.translation)
+			tr.add(edit.translation)
 		} else {
-			t := &Translation{str, make([]string, 1)}
-			t.Translations[0] = rec.translation
-			translations[str] = t
+			translations[str] = NewTranslation(str, edit.translation)
 		}
 	}
 	translatedCount := len(translations)

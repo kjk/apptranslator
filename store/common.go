@@ -22,19 +22,28 @@ type Translation struct {
 func NewTranslation(s, trans string) *Translation {
 	t := &Translation{String: s}
 	if trans != "" {
-		t.Translations = append(t.Translations, trans)
+		t.add(trans)
 	}
 	return t
 }
 
 func (t *Translation) Current() string {
-	if 0 == len(t.Translations) {
+	n := len(t.Translations)
+	if 0 == n {
 		return ""
 	}
-	return t.Translations[len(t.Translations)-1]
+	return t.Translations[n-1]
 }
 
-func (t *Translation) updateTranslation(trans string) {
+func (t *Translation) History() []string {
+	n := len(t.Translations)
+	if n < 2 {
+		return nil
+	}
+	return t.Translations[0 : n-1]
+}
+
+func (t *Translation) add(trans string) {
 	t.Translations = append(t.Translations, trans)
 }
 

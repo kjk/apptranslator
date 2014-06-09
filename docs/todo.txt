@@ -1,7 +1,7 @@
 List of things to do for app translator.
 
 Nice to have:
-- more tests
+- show obsolete strings on apptrans.html, but don't allow to edit. Change
+  terminology: Translations => Active, add Obsolete
+- more tests for store
 - implement /app/${appName}/edits
-- ability to see history of translations for a given string and revert to any
-  past translations. maybe show in the edit pane

@@ -385,18 +385,17 @@ func (s *StoreCsv) isDeleted(strId int) bool {
 
 func (s *StoreCsv) translationsForLang(langId int) ([]*Translation, int) {
 	translations := make(map[string]*Translation)
-	for _, rec := range s.edits {
-		if langId != rec.langId || s.isDeleted(rec.stringId) {
+	for _, edit := range s.edits {
+		if langId != edit.langId || s.isDeleted(edit.stringId) {
 			continue
 		}
-		str, ok := s.strings.GetById(rec.stringId)
-		panicIf(!ok, "rec.stringId should be in s.strings")
+		str := s.stringByIdMust(edit.stringId)
 		if tr, ok := translations[str]; ok {
-			tr.Translations = append(tr.Translations, rec.translation)
+			//fmt.Printf("translationsForLagn: %s\n", str)
+			tr.add(edit.translation)
 		} else {
-			t := &Translation{str, make([]string, 1)}
-			t.Translations[0] = rec.translation
-			translations[str] = t
+			//fmt.Printf("translationsForLagn: %s\n", str)
+			translations[str] = NewTranslation(str, edit.translation)
 		}
 	}
 	translatedCount := len(translations)
