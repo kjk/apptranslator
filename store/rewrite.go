@@ -16,21 +16,21 @@ var (
 func writeCsv(record []string) {
 	recs := [][]string{record}
 	if err := csvWriter.WriteAll(recs); err != nil {
-		log.Fatalf("writeCsv: csv.Writer.WriteAll() failed with '%s'", err)
+		log.Fatalf("writeCsv: csv.Writer.WriteAll() failed with %q", err)
 	}
 	if stdoutCsvWriter != nil {
 		if err := stdoutCsvWriter.WriteAll(recs); err != nil {
-			log.Fatalf("writeCsv: csv.Writer.WriteAll() failed with '%s'", err)
+			log.Fatalf("writeCsv: csv.Writer.WriteAll() failed with %q", err)
 		}
 	}
 }
 
 func RewriteStore(binaryPath, csvPath string) {
-	fmt.Printf("RewriteStore('%s', '%s')\n", binaryPath, csvPath)
+	fmt.Printf("RewriteStore(%q, %q)\n", binaryPath, csvPath)
 	//logging = true
 	dst, err := os.Create(csvPath)
 	if err != nil {
-		log.Fatalf("os.Create('%s') failed with '%s'", csvPath, err)
+		log.Fatalf("os.Create(%q) failed with %q", csvPath, err)
 	}
 	defer dst.Close()
 
@@ -45,7 +45,7 @@ func RewriteStore(binaryPath, csvPath string) {
 
 	s, err := NewStoreBinary(binaryPath)
 	if err != nil {
-		log.Fatalf("NewStoreBinary() failed with '%s'", err)
+		log.Fatalf("NewStoreBinary() failed with %q", err)
 	}
 
 	activeStrings := s.getActiveStrings()
@@ -62,7 +62,7 @@ func RewriteStore(binaryPath, csvPath string) {
 	/*deleted := s.GetDeletedStrings()
 	fmt.Printf("Deleted strings (%d):\n", len(deleted))
 	for _, str := range deleted {
-		fmt.Printf("  '%s'\n", str)
+		fmt.Printf("  %q\n", str)
 	}*/
 	s.Close()
 }

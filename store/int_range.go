@@ -26,7 +26,7 @@ func (r IntRange) String() string {
 func ParseIntRange(s string) (r IntRange, err error) {
 	parts := strings.Split(s, "-")
 	if len(parts) > 2 {
-		return r, fmt.Errorf("'%s' is not a valid int range", s)
+		return r, fmt.Errorf("%q is not a valid int range", s)
 	}
 	i1, err := strconv.Atoi(parts[0])
 	if err != nil {

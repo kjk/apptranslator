@@ -89,7 +89,7 @@ func s3Put(config *BackupConfig, local, remote string, public bool) error {
 // tests if s3 credentials are valid and aborts if aren't
 func ensureValidConfig(config *BackupConfig) {
 	if !u.PathExists(config.LocalDir) {
-		log.Fatalf("Invalid s3 backup: directory to backup '%s' doesn't exist\n", config.LocalDir)
+		log.Fatalf("Invalid s3 backup: directory to backup %q doesn't exist\n", config.LocalDir)
 	}
 
 	if !strings.HasSuffix(config.S3Dir, bucketDelim) {
@@ -108,7 +108,7 @@ func ensureValidConfig(config *BackupConfig) {
 func alreadyUploaded(config *BackupConfig, sha1 string) bool {
 	rsp, err := listBackupFiles(config, 1024)
 	if err != nil {
-		logger.Errorf("alreadyUploaded(): listBackupFiles() failed with '%s'", err)
+		logger.Errorf("alreadyUploaded(): listBackupFiles() failed with %q", err)
 		return false
 	}
 	for _, key := range rsp.Contents {
@@ -192,14 +192,14 @@ func doBackup(config *BackupConfig) {
 	zipS3Path := path.Join(config.S3Dir, timeStr+sha1+".zip")
 
 	if err = s3Put(config, zipLocalPath, zipS3Path, true); err != nil {
-		logger.Errorf("s3Put of '%s' to '%s' failed with %s", zipLocalPath, zipS3Path, err)
+		logger.Errorf("s3Put of %q to %q failed with %s", zipLocalPath, zipS3Path, err)
 		return
 	}
 
 	deleteOldBackups(config, MaxBackupsToKeep)
 
 	dur := time.Now().Sub(startTime)
-	logger.Noticef("s3 backup of '%s' to '%s' took %.2f secs", zipLocalPath, zipS3Path, dur.Seconds())
+	logger.Noticef("s3 backup of %q to %q took %.2f secs", zipLocalPath, zipS3Path, dur.Seconds())
 }
 
 func BackupLoop(config *BackupConfig) {

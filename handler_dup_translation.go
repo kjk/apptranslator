@@ -12,7 +12,7 @@ func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)
 	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
+		serveErrorMsg(w, fmt.Sprintf("Application %q doesn't exist", appName))
 		return
 	}
 	user := decodeUserFromCookie(r)
@@ -26,10 +26,10 @@ func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
 	}
 	str := strings.TrimSpace(r.FormValue("string"))
 	duplicate := strings.TrimSpace(r.FormValue("duplicate"))
-	fmt.Printf("Duplicating translation: '%s'=>'%s'\n", str, duplicate)
+	fmt.Printf("Duplicating translation: %q=>%q\n", str, duplicate)
 
 	if err := app.store.DuplicateTranslation(str, duplicate); err != nil {
-		serveErrorMsg(w, fmt.Sprintf("Failed to duplicate translation '%s'", err))
+		serveErrorMsg(w, fmt.Sprintf("Failed to duplicate translation %q", err))
 		return
 	}
 	// TODO: use a redirect with message passed in as an argument

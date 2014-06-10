@@ -83,7 +83,7 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 	sha1In := strings.TrimSpace(r.FormValue("sha1"))
 	app := findApp(appName)
 	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application '%s' doesn't exist", appName))
+		serveErrorMsg(w, fmt.Sprintf("Application %q doesn't exist", appName))
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

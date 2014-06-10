@@ -104,7 +104,7 @@ type StoreCsv struct {
 }
 
 func NewStoreCsv(path string) (*StoreCsv, error) {
-	//fmt.Printf("NewStoreCsv: '%s'\n", path)
+	//fmt.Printf("NewStoreCsv: %q\n", path)
 	s := &StoreCsv{
 		filePath: path,
 		strings:  NewStringInterner(),
@@ -139,11 +139,11 @@ func (s *StoreCsv) writeNewStringRec(strId int, str string) error {
 
 func (s *StoreCsv) internStringAndWriteIfNecessary(str string) (int, error) {
 	if strId, isNew := s.strings.Intern(str); isNew {
-		//fmt.Printf("internStringAndWriteIfNecessary: new string '%s', id: %d\n", str, strId)
+		//fmt.Printf("internStringAndWriteIfNecessary: new string %q, id: %d\n", str, strId)
 		s.setActiveStrings(s.activeStrings)
 		return strId, s.writeNewStringRec(strId, str)
 	} else {
-		//fmt.Printf("internStringAndWriteIfNecessary: existing string '%s', id: %d\n", str, strId)
+		//fmt.Printf("internStringAndWriteIfNecessary: existing string %q, id: %d\n", str, strId)
 		return strId, nil
 	}
 }
@@ -170,7 +170,7 @@ func (s *StoreCsv) decodeNewStringRecord(rec []string) error {
 	}
 	id, err := strconv.Atoi(rec[1])
 	if err != nil {
-		return fmt.Errorf("rec[1] failed to parse as int with '%s' (rec: '%#v')", err, rec[1], rec)
+		return fmt.Errorf("rec[1] failed to parse as int with %q (rec: '%#v')", err, rec[1], rec)
 	}
 	newId, isNew := s.strings.Intern(rec[2])
 	if newId != id {
@@ -203,17 +203,17 @@ func (s *StoreCsv) decodeTranslationRecord(rec []string) error {
 	}
 	timeSecs, err := strconv.ParseInt(rec[1], 10, 64)
 	if err != nil {
-		return fmt.Errorf("rec[1] ('%s') failed to parse as int64, error: '%s'", rec[1], err)
+		return fmt.Errorf("rec[1] (%q) failed to parse as int64, error: %q", rec[1], err)
 	}
 	time := time.Unix(timeSecs, 0)
 	userId, _ := s.users.Intern(rec[2])
 	langId, _ := s.langs.Intern(rec[3])
 	strId, err := strconv.Atoi(rec[4])
 	if err != nil {
-		return fmt.Errorf("rec[4] ('%s') failed to parse as int, error: '%s'", rec[4], err)
+		return fmt.Errorf("rec[4] (%q) failed to parse as int, error: %q", rec[4], err)
 	}
 	if _, ok := s.strings.GetById(strId); !ok {
-		return fmt.Errorf("rec[4] ('%s', '%d') is not a valid string id", rec[4], strId)
+		return fmt.Errorf("rec[4] (%q, '%d') is not a valid string id", rec[4], strId)
 	}
 	trans := rec[5]
 	s.addTranslationRec(strId, langId, userId, trans, time)
@@ -230,7 +230,7 @@ func (s *StoreCsv) decodeActiveSetRecord(rec []string) error {
 	for i := 0; i < n; i++ {
 		ir, err := ParseIntRange(rec[2+i])
 		if err != nil {
-			return fmt.Errorf("rec[%d] ('%s') didn't parse as range, error: '%s'", 2+i, rec[2+i], err)
+			return fmt.Errorf("rec[%d] (%q) didn't parse as range, error: %q", 2+i, rec[2+i], err)
 		}
 		activeRange[i] = ir
 	}
@@ -252,7 +252,7 @@ func (s *StoreCsv) decodeRecord(rec []string) error {
 	case recIdTrans:
 		err = s.decodeTranslationRecord(rec)
 	default:
-		err = fmt.Errorf("unkown record type '%s'", rec[0])
+		err = fmt.Errorf("unkown record type %q", rec[0])
 	}
 	return err
 }

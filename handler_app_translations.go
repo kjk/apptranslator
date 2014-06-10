@@ -60,7 +60,7 @@ func handleAppTranslations(w http.ResponseWriter, r *http.Request) {
 
 	lang := vars["lang"]
 	if !store.IsValidLangCode(lang) {
-		serveErrorMsg(w, fmt.Sprintf("Invalid language: '%s'", lang))
+		serveErrorMsg(w, fmt.Sprintf("Invalid language: %q", lang))
 		return
 	}
 

@@ -17,7 +17,7 @@ func handleAppEdits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serveErrorMsg(w, fmt.Sprintf("edits NYI, app: '%s'", appName))
+	serveErrorMsg(w, fmt.Sprintf("edits NYI, app: %q", appName))
 	/*
 		//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, lang)
 		model := buildModelAppTranslations(app, lang, decodeUserFromCookie(r))

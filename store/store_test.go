@@ -82,19 +82,19 @@ func (ts *TestState) ensureTranslationsCount(exp int) {
 
 func (ts *TestState) ensureLangCode(name string, exp int) {
 	if s := ts.s; s.langCodeMap[name] != exp {
-		ts.t.Fatalf("s.langCodeMap['%s']=%d, exp: %d", name, s.langCodeMap[name], exp)
+		ts.t.Fatalf("s.langCodeMap[%q]=%d, exp: %d", name, s.langCodeMap[name], exp)
 	}
 }
 
 func (ts *TestState) ensureUserCode(name string, exp int) {
 	if s := ts.s; s.userNameMap[name] != exp {
-		ts.t.Fatalf("s.userNameMap['%s']=%d, exp: %d", name, s.userNameMap[name], exp)
+		ts.t.Fatalf("s.userNameMap[%q]=%d, exp: %d", name, s.userNameMap[name], exp)
 	}
 }
 
 func (ts *TestState) ensureStringCode(name string, exp int) {
 	if s := ts.s; s.stringMap[name] != exp {
-		ts.t.Fatalf("s.stringMap['%s']=%d, exp: %d", name, s.stringMap[name], exp)
+		ts.t.Fatalf("s.stringMap[%q]=%d, exp: %d", name, s.stringMap[name], exp)
 	}
 }
 
@@ -149,7 +149,7 @@ func (ts *TestState) ensureStringsAre(strs []string) {
 	s := ts.s
 	for _, str := range strs {
 		if _, exist := s.stringMap[str]; !exist {
-			ts.t.Fatalf("'%s' doesn't exist in s.stringMap", str)
+			ts.t.Fatalf("%q doesn't exist in s.stringMap", str)
 		}
 	}
 }

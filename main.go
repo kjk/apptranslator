@@ -267,7 +267,7 @@ func appInvalidField(app *App) string {
 
 func addApp(app *App) error {
 	if invalidField := appInvalidField(app); invalidField != "" {
-		return errors.New(fmt.Sprintf("App has invalid field '%s'", invalidField))
+		return errors.New(fmt.Sprintf("App has invalid field %q", invalidField))
 	}
 	if appAlreadyExists(app.Name) {
 		return errors.New("App already exists")
@@ -294,7 +294,7 @@ func GetTemplates() *template.Template {
 func ExecTemplate(w http.ResponseWriter, templateName string, model interface{}) bool {
 	var buf bytes.Buffer
 	if err := GetTemplates().ExecuteTemplate(&buf, templateName, model); err != nil {
-		logger.Errorf("Failed to execute template '%s', error: %s", templateName, err)
+		logger.Errorf("Failed to execute template %q, error: %s", templateName, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return false
 	} else {
@@ -375,7 +375,7 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 			if len(r.URL.RawQuery) > 0 {
 				url = fmt.Sprintf("%s?%s", url, r.URL.RawQuery)
 			}
-			logger.Noticef("'%s' took %f seconds to serve", url, duration.Seconds())
+			logger.Noticef("%q took %f seconds to serve", url, duration.Seconds())
 		}
 	}
 }
@@ -384,12 +384,12 @@ func rewriteStoreIfNecessary(app *AppConfig) {
 	dir := filepath.Join(getDataDir(), app.DataDir)
 	storeCsvPath := filepath.Join(dir, "translations.csv")
 	if u.PathExists(storeCsvPath) {
-		fmt.Printf("rewriteStoreIfNecessary: '%s' already exists\n", storeCsvPath)
+		fmt.Printf("rewriteStoreIfNecessary: %q already exists\n", storeCsvPath)
 		return
 	}
 	storeBinaryPath := filepath.Join(dir, "translations.dat")
 	if !u.PathExists(storeBinaryPath) {
-		fmt.Printf("rewriteStoreIfNecessary: '%s' doesn't exist\n", storeBinaryPath)
+		fmt.Printf("rewriteStoreIfNecessary: %q doesn't exist\n", storeBinaryPath)
 		return
 	}
 	store.RewriteStore(storeBinaryPath, storeCsvPath)
@@ -425,7 +425,7 @@ func main() {
 		} else {
 			loggerFile, err := os.OpenFile(*logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 			if err != nil {
-				log.Fatalf("Failed to open log file '%s', %s\n", *logPath, err)
+				log.Fatalf("Failed to open log file %q, %s\n", *logPath, err)
 			}
 			defer loggerFile.Close()
 			logger = log.New(loggerFile, "", 0)
@@ -484,7 +484,7 @@ func main() {
 
 	logger.Noticef(fmt.Sprintf("Started running on %s", *httpAddr))
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
-		fmt.Printf("http.ListendAndServer() failed with '%s'\n", err)
+		fmt.Printf("http.ListendAndServer() failed with %q\n", err)
 	}
 	fmt.Printf("Exited\n")
 }

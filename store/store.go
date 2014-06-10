@@ -398,10 +398,10 @@ func (s *StoreBinary) addTranslationRec(langId, userId, stringId int, translatio
 
 func (s *StoreBinary) deleteString(w io.Writer, str string) error {
 	if strId, ok := s.stringMap[str]; !ok {
-		log.Fatalf("deleteString() '%s' doesn't exist in stringMap\n", str)
+		log.Fatalf("deleteString() %q doesn't exist in stringMap\n", str)
 	} else {
 		if _, exists := s.deletedStrings[strId]; exists {
-			fmt.Printf("deleteString: skipping deleting %d ('%s') because already deleted", strId, str)
+			fmt.Printf("deleteString: skipping deleting %d (%q) because already deleted", strId, str)
 			return nil
 		}
 		if err := writeDeleteStringRecord(w, strId); err != nil {
@@ -414,7 +414,7 @@ func (s *StoreBinary) deleteString(w io.Writer, str string) error {
 
 func (s *StoreBinary) undeleteString(w io.Writer, str string) error {
 	if strId, ok := s.stringMap[str]; !ok {
-		log.Fatalf("undeleteString() '%s' doesn't exist in stringMap\n", str)
+		log.Fatalf("undeleteString() %q doesn't exist in stringMap\n", str)
 	} else {
 		if !s.isDeleted(strId) {
 			log.Fatalf("undeleteString(): strId=%d doesn't exist in deletedStrings\n", strId)
@@ -485,7 +485,7 @@ func decodeStrRecord(rec []byte, dict map[string]int, tp string) error {
 		fmt.Printf("decodeStrRecord(): %s -> %v in %s\n", str, id, tp)
 	}
 	if _, exists := dict[str]; exists {
-		log.Fatalf("decodeStrRecord(): '%s' already exists in dict %s\n", str, tp)
+		log.Fatalf("decodeStrRecord(): %q already exists in dict %s\n", str, tp)
 	}
 	dict[str] = id
 	return nil
@@ -499,7 +499,7 @@ func (s *StoreBinary) decodeStringDeleteRecord(rec []byte) error {
 	if s.isDeleted(int(id)) {
 		//log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
 		txt := s.stringById(int(id))
-		fmt.Printf("decodeStringDeleteRecord(): %d ('%s') already exists in deletedString\n", id, txt)
+		fmt.Printf("decodeStringDeleteRecord(): %d (%q) already exists in deletedString\n", id, txt)
 	}
 	if logging {
 		fmt.Printf("decodeStringDeleteRecord(): %d\n", id)
@@ -723,7 +723,7 @@ func NewStoreBinary(path string) (*StoreBinary, error) {
 		err = s.readExistingRecords(&ReaderByteReader{file})
 		file.Close()
 		if err != nil {
-			log.Fatalf("Failed to read log '%s', err: %s\n", path, err)
+			log.Fatalf("Failed to read log %q, err: %s\n", path, err)
 		}
 	} else {
 		file, err := os.Create(path)
@@ -734,7 +734,7 @@ func NewStoreBinary(path string) (*StoreBinary, error) {
 	}
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
-		fmt.Printf("NewStoreBinary(): failed to open file '%s', %s\n", path, err)
+		fmt.Printf("NewStoreBinary(): failed to open file %q, %s\n", path, err)
 		return nil, err
 	}
 	s.file = file

@@ -50,7 +50,7 @@ func templateToString(t *template.Template, data interface{}) string {
 	var buf bytes.Buffer
 	err := t.Execute(&buf, data)
 	if err != nil {
-		logger.Errorf("Failed to execute template '%s', error: %s", t.Name(), err)
+		logger.Errorf("Failed to execute template %q, error: %s", t.Name(), err)
 		return ""
 	}
 	return string(buf.Bytes())
