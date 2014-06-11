@@ -774,6 +774,10 @@ func (s *StoreBinary) StringsCount() int {
 	return s.activeStringsCount()
 }
 
+func (s *StoreBinary) EditsCount() int {
+	return 0
+}
+
 func (s *StoreBinary) UntranslatedCount() int {
 	s.Lock()
 	defer s.Unlock()

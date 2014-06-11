@@ -177,6 +177,10 @@ func (a *App) UntranslatedCount() int {
 	return a.store.UntranslatedCount()
 }
 
+func (a *App) EditsCount() int {
+	return a.store.EditsCount()
+}
+
 func (a *App) storeBinaryFilePath() string {
 	// the data directory and file 'translations.dat' must already
 	// exists. We don't expect adding new projects often, it requires a

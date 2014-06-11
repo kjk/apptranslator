@@ -5,5 +5,4 @@ Nice to have:
 - implement /app/${appName}/edits
 - serveErrorMsg() => serveErrorMsgf() (httpErrorf() ?)
 - use redirect after editing/duplicating (to avoid "reconfirm submission")
-- show total number of edits on main page for the app
 - use godep for building

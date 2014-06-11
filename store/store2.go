@@ -21,6 +21,7 @@ type Store interface {
 	LangsCount() int
 	StringsCount() int
 	UntranslatedCount() int
+	EditsCount() int
 	UntranslatedForLang(lang string) int
 	LangInfos() []*LangInfo
 	RecentEdits(max int) []Edit
@@ -590,6 +591,12 @@ func (s *StoreCsv) StringsCount() int {
 	s.Lock()
 	defer s.Unlock()
 	return s.activeStringsCount()
+}
+
+func (s *StoreCsv) EditsCount() int {
+	s.Lock()
+	defer s.Unlock()
+	return len(s.edits)
 }
 
 func (s *StoreCsv) UntranslatedCount() int {
