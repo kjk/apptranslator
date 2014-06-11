@@ -34,7 +34,7 @@ func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTransla
 			continue
 		}
 		model.LangInfo = langInfo
-		model.StringsCount = len(langInfo.Translations)
+		model.StringsCount = len(langInfo.ActiveStrings)
 		if 0 == model.StringsCount {
 			model.TransProgressPercent = 100
 		} else {
@@ -58,14 +58,14 @@ func handleAppTranslations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	lang := vars["lang"]
-	if !store.IsValidLangCode(lang) {
-		serveErrorMsg(w, fmt.Sprintf("Invalid language: %q", lang))
+	langCode := vars["lang"]
+	if !store.IsValidLangCode(langCode) {
+		serveErrorMsg(w, fmt.Sprintf("Invalid language: %q", langCode))
 		return
 	}
 
-	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, lang)
-	model := buildModelAppTranslations(app, lang, decodeUserFromCookie(r))
+	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, langCode)
+	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
 	model.RedirectUrl = r.URL.String()
 	ExecTemplate(w, tmplAppTrans, model)
 }

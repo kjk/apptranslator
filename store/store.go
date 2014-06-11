@@ -652,14 +652,15 @@ func (s *StoreBinary) translationsForLang(langId int) ([]*Translation, int) {
 
 	translations := make(map[string]*Translation)
 	for _, edit := range s.edits {
-		if langId != edit.langId || s.isDeleted(edit.stringId) {
+		strId := edit.stringId
+		if langId != edit.langId || s.isDeleted(strId) {
 			continue
 		}
-		str := idToStr[edit.stringId]
+		str := idToStr[strId]
 		if tr, ok := translations[str]; ok {
 			tr.add(edit.translation)
 		} else {
-			translations[str] = NewTranslation(str, edit.translation)
+			translations[str] = NewTranslation(strId, str, edit.translation)
 		}
 	}
 	translatedCount := len(translations)
@@ -667,7 +668,7 @@ func (s *StoreBinary) translationsForLang(langId int) ([]*Translation, int) {
 	for str, strId := range s.stringMap {
 		if !s.isDeleted(strId) {
 			if _, exists := translations[str]; !exists {
-				translations[str] = &Translation{str, make([]string, 0)}
+				translations[str] = &Translation{strId, str, make([]string, 0)}
 			}
 		}
 	}
@@ -686,8 +687,8 @@ func (s *StoreBinary) langInfos() []*LangInfo {
 		langCode := lang.Code
 		li := NewLangInfo(langCode)
 		langId := s.langCodeMap[langCode]
-		li.Translations, li.untranslated = s.translationsForLang(langId)
-		sort.Sort(ByString{li.Translations})
+		li.ActiveStrings, _ = s.translationsForLang(langId)
+		sort.Sort(ByString{li.ActiveStrings})
 		res = append(res, li)
 	}
 	sort.Sort(ByUntranslated{res})

@@ -22,7 +22,7 @@ func translationsForApp(app *App) []byte {
 	langInfos := app.store.LangInfos()
 	for _, li := range langInfos {
 		code := li.Code
-		for _, t := range li.Translations {
+		for _, t := range li.ActiveStrings {
 			if "" == t.Current() {
 				continue
 			}

@@ -383,45 +383,40 @@ func (s *StoreCsv) isDeleted(strId int) bool {
 	return s.deletedStringsBitmap[strId]
 }
 
-func (s *StoreCsv) translationsForLang(langId int) ([]*Translation, int) {
-	translations := make(map[string]*Translation)
+func (s *StoreCsv) translationsForLang(langId int) ([]*Translation, []*Translation) {
+	n := len(s.strings.strings)
+	all := make([]*Translation, n)
+	for strId, str := range s.strings.strings {
+		all[strId] = NewTranslation(strId, str, "")
+	}
+
 	for _, edit := range s.edits {
-		if langId != edit.langId || s.isDeleted(edit.stringId) {
+		if langId != edit.langId {
 			continue
 		}
-		str := s.stringByIdMust(edit.stringId)
-		if tr, ok := translations[str]; ok {
-			//fmt.Printf("translationsForLagn: %s\n", str)
-			tr.add(edit.translation)
+		tr := all[edit.stringId]
+		tr.add(edit.translation)
+	}
+
+	active := make([]*Translation, 0)
+	unused := make([]*Translation, 0)
+	for _, tr := range all {
+		if s.isDeleted(tr.Id) {
+			unused = append(unused, tr)
 		} else {
-			//fmt.Printf("translationsForLagn: %s\n", str)
-			translations[str] = NewTranslation(str, edit.translation)
+			active = append(active, tr)
 		}
 	}
-	translatedCount := len(translations)
-	// add records for untranslated strings
-	for str, strId := range s.strings.strToId {
-		if !s.isDeleted(strId) {
-			if _, exists := translations[str]; !exists {
-				translations[str] = &Translation{str, make([]string, 0)}
-			}
-		}
-	}
-	res := make([]*Translation, len(translations))
-	i := 0
-	for _, t := range translations {
-		res[i] = t
-		i++
-	}
-	return res, s.activeStringsCount() - translatedCount
+	return active, unused
 }
 
 func (s *StoreCsv) langInfos() []*LangInfo {
 	res := make([]*LangInfo, 0)
 	for langCode, langId := range s.langs.strToId {
 		li := NewLangInfo(langCode)
-		li.Translations, li.untranslated = s.translationsForLang(langId)
-		sort.Sort(ByString{li.Translations})
+		li.ActiveStrings, li.UnusedStrings = s.translationsForLang(langId)
+		sort.Sort(ByString{li.ActiveStrings})
+		sort.Sort(ByString{li.UnusedStrings})
 		res = append(res, li)
 	}
 	sort.Sort(ByUntranslated{res})

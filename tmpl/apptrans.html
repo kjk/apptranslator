@@ -49,31 +49,55 @@
 </div>
 {{end}}
 
-{{if len .LangInfo.Translations}}
-	{{range $idx, $el := .LangInfo.Translations}}
-	<div class="trans" id="idTrans{{$idx}}">
+{{range .LangInfo.ActiveStrings}}
+<div class="trans" id="idTrans{{.Id}}">
+	<span class="origstr">{{.String}}</span>
+	{{if .Current}}
+		<span style="color:blue">=&gt;</span>
+		<span class="transstr">{{.Current}}</span> <a href="#" class="editbtn" id="idEdit{{.Id}}">Edit</a>
+
+		{{if $canDuplicate}}
+		&bull;&nbsp;<a href="#" class="dupbtn" id="idDup{{.Id}}">Duplicate translation...</a>
+		{{end}}
+
+		{{range .History}}
+		<br><span style="color: #888;padding-left:28px">previous: {{.}}</span>
+		{{end}}
+	{{else}}
+		<a href="#" class="addbtn" id="idEdit{{.Id}}">Add a translation...</a>
+
+		{{if $canDuplicate}}
+		&bull;&nbsp;<a href="#" class="dupbtn" id="idDup{{.Id}}">Duplicate translation...</a>
+		{{end}}
+	{{end}}
+</div>
+{{end}}
+
+{{if len .LangInfo.UnusedStrings}}
+<p></p>
+<b>{{len .LangInfo.UnusedStrings}} unused strings:</b><br>
+	{{range .LangInfo.UnusedStrings}}
+	<div class="trans" id="idTrans{{.Id}}">
 		<span class="origstr">{{.String}}</span>
 		{{if .Current}}
 			<span style="color:blue">=&gt;</span>
-			<span class="transstr">{{.Current}}</span> <a href="#" class="editbtn" id="idEdit{{$idx}}">Edit</a>
+			<span class="transstr">{{.Current}}</span>
 
 			{{if $canDuplicate}}
-			&bull;&nbsp;<a href="#" class="dupbtn" id="idDup{{$idx}}">Duplicate translation...</a>
+			&bull;&nbsp;<a href="#" class="dupbtn" id="idDup{{.Id}}">Duplicate translation...</a>
 			{{end}}
 
 			{{range .History}}
 			<br><span style="color: #888;padding-left:28px">previous: {{.}}</span>
 			{{end}}
 		{{else}}
-			<a href="#" class="addbtn" id="idEdit{{$idx}}">Add a translation...</a>
-
 			{{if $canDuplicate}}
-			&bull;&nbsp;<a href="#" class="dupbtn" id="idDup{{$idx}}">Duplicate translation...</a>
+			&bull;&nbsp;<a href="#" class="dupbtn" id="idDup{{.Id}}">Duplicate translation...</a>
 			{{end}}
-
 		{{end}}
 	</div>
 	{{end}}
+</p>
 {{end}}
 
 <div class="modal hide" id="idEditTrans">
@@ -131,7 +155,7 @@
         <h3><span id="idDupTransHdr"></span></h3>
     </div>
     <div>
-        <form class="well" action="/duptranslation" method="POST">
+        <form class="well" action="/duptranslation?lang={{.LangInfo.Code}}" method="POST">
             <div class="modal-body">
                 <label>Duplicate translation of string:</label>
                 <textarea rows=3 readonly="readonly" name="string" id="idDupFormString" style="width:90%"></textarea>

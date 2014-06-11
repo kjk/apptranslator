@@ -5,7 +5,7 @@
 		<h2><a href="/">Home</a> : Translations for {{.App.Name}}
 			<span style="font-size:50%;float:right;">{{if .LoggedUser}}Logged in as {{.LoggedUser}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
 		</h2>
-		<p class="lead"><a href="/app/{{.App.Name}}/strings">{{.App.StringsCount}} strings</a>, {{.App.LangsCount}}
+		<p class="lead">{{.App.StringsCount}} strings, {{.App.LangsCount}}
 		languages, {{.App.UntranslatedCount}} untranslated (in all languages)
 		</p>
 	</header>

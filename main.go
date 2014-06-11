@@ -68,14 +68,13 @@ var (
 
 	appState = AppState{}
 
-	tmplMain       = "main.html"
-	tmplApp        = "app.html"
-	tmplAppTrans   = "apptrans.html"
-	tmplAppStrings = "appstrings.html"
-	tmplUser       = "user.html"
-	tmplLogs       = "logs.html"
-	templateNames  = [...]string{
-		tmplMain, tmplApp, tmplAppTrans, tmplAppStrings, tmplUser, tmplLogs, "header.html",
+	tmplMain      = "main.html"
+	tmplApp       = "app.html"
+	tmplAppTrans  = "apptrans.html"
+	tmplUser      = "user.html"
+	tmplLogs      = "logs.html"
+	templateNames = [...]string{
+		tmplMain, tmplApp, tmplAppTrans, tmplUser, tmplLogs, "header.html",
 		"footer.html"}
 	templatePaths   []string
 	templates       *template.Template
@@ -435,7 +434,6 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/app/{appname}", makeTimingHandler(handleApp))
 	r.HandleFunc("/app/{appname}/edits", makeTimingHandler(handleAppEdits))
-	r.HandleFunc("/app/{appname}/strings", makeTimingHandler(handleAppStrings))
 	r.HandleFunc("/app/{appname}/{lang}", makeTimingHandler(handleAppTranslations))
 	r.HandleFunc("/user/{user}", makeTimingHandler(handleUser))
 	r.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))

@@ -13,14 +13,15 @@ func panicIf(shouldPanic bool, s string) {
 }
 
 type Translation struct {
+	Id     int
 	String string
 	// last string is current translation, previous strings
 	// are a history of how translation changed
 	Translations []string
 }
 
-func NewTranslation(s, trans string) *Translation {
-	t := &Translation{String: s}
+func NewTranslation(id int, s, trans string) *Translation {
+	t := &Translation{Id: id, String: s}
 	if trans != "" {
 		t.add(trans)
 	}
@@ -33,6 +34,10 @@ func (t *Translation) Current() string {
 		return ""
 	}
 	return t.Translations[n-1]
+}
+
+func (t *Translation) IsTranslated() bool {
+	return len(t.Translations) > 0
 }
 
 func (t *Translation) History() []string {
@@ -81,10 +86,11 @@ func (s ByString) Less(i, j int) bool {
 }
 
 type LangInfo struct {
-	Code         string
-	Name         string
-	Translations []*Translation
-	untranslated int
+	Code          string
+	Name          string
+	ActiveStrings []*Translation
+	UnusedStrings []*Translation
+	untranslated  int
 }
 
 // for sorting by name
@@ -115,10 +121,17 @@ func SortLangsByName(langs []*LangInfo) {
 }
 
 func NewLangInfo(langCode string) *LangInfo {
-	li := &LangInfo{Code: langCode, Name: LangNameByCode(langCode)}
+	li := &LangInfo{Code: langCode, Name: LangNameByCode(langCode), untranslated: -1}
 	return li
 }
 
 func (li *LangInfo) UntranslatedCount() int {
+	if li.untranslated == -1 {
+		for _, tr := range li.ActiveStrings {
+			if !tr.IsTranslated() {
+				li.untranslated += 1
+			}
+		}
+	}
 	return li.untranslated
 }

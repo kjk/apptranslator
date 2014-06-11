@@ -1,7 +1,9 @@
 List of things to do for app translator.
 
 Nice to have:
-- show obsolete strings on apptrans.html, but don't allow to edit. Change
-  terminology: Translations => Active, add Obsolete
 - more tests for store
 - implement /app/${appName}/edits
+- serveErrorMsg() => serveErrorMsgf() (httpErrorf() ?)
+- use redirect after editing/duplicating (to avoid "reconfirm submission")
+- show total number of edits on main page for the app
+- use godep for building
