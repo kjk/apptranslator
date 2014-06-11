@@ -251,7 +251,7 @@ func appInvalidField(app *App) string {
 
 func addApp(app *App) error {
 	if invalidField := appInvalidField(app); invalidField != "" {
-		return errors.New(fmt.Sprintf("App has invalid field %q", invalidField))
+		return fmt.Errorf("App has invalid field %q", invalidField)
 	}
 	if appAlreadyExists(app.Name) {
 		return errors.New("App already exists")
