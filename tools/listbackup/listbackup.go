@@ -48,7 +48,8 @@ type AppConfig struct {
 	DataDir string
 	// we authenticate only with Twitter, this is the twitter user name
 	// of the admin user
-	AdminTwitterUser string
+	AdminTwitterUser  string
+	AdminTwitterUser2 string
 	// an arbitrary string, used to protect the API for uploading new strings
 	// for the app
 	UploadSecret string

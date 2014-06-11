@@ -137,7 +137,8 @@ type AppConfig struct {
 	DataDir string
 	// we authenticate only with Twitter, this is the twitter user name
 	// of the admin user
-	AdminTwitterUser string
+	AdminTwitterUser  string
+	AdminTwitterUser2 string
 	// an arbitrary string, used to protect the API for uploading new strings
 	// for the app
 	UploadSecret string
@@ -204,36 +205,15 @@ func (a *App) storeCsvFilePath() string {
 
 func readAppData(app *App) error {
 	var path string
-	if !*inProduction {
-		path = app.storeCsvFilePath()
-		if u.PathExists(path) {
-			if l, err := store.NewStoreCsv(path); err == nil {
-				app.store = l
-				return nil
-			}
+	path = app.storeCsvFilePath()
+	if u.PathExists(path) {
+		if l, err := store.NewStoreCsv(path); err == nil {
+			app.store = l
+			return nil
 		}
 	}
-	path = app.storeBinaryFilePath()
-	l, err := store.NewStoreBinary(path)
-	if err != nil {
-		return err
-	}
-	app.store = l
-	return nil
+	return fmt.Errorf("readAppData: %q data file doesn't exist", path)
 }
-
-/*
-type StringsSeq []string
-
-func (s StringsSeq) Len() int      { return len(s) }
-func (s StringsSeq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-type SmartString struct{ StringsSeq }
-
-func (s SmartString) Less(i, j int) bool {
-	return transStringLess(s.StringsSeq[i], s.StringsSeq[j])
-}
-*/
 
 func findApp(name string) *App {
 	for _, app := range appState.Apps {
@@ -317,7 +297,10 @@ func serveErrorMsg(w http.ResponseWriter, msg string) {
 }
 
 func userIsAdmin(app *App, user string) bool {
-	return user == app.AdminTwitterUser
+	if user == "" {
+		return false
+	}
+	return user == app.AdminTwitterUser || user == app.AdminTwitterUser2
 }
 
 // reads the configuration file from the path specified by

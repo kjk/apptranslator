@@ -40,6 +40,8 @@
 
 <p style="margin-bottom:24px"></p>
 
+{{$canDuplicate := .UserIsAdmin}}
+
 {{if .ShowTranslationEditedMsg}}
 <div class="alert alert-success">
   <button class="close" data-dismiss="alert">×</button>
@@ -54,22 +56,33 @@
 		{{if .Current}}
 			<span style="color:blue">=&gt;</span>
 			<span class="transstr">{{.Current}}</span> <a href="#" class="editbtn" id="idEdit{{$idx}}">Edit</a>
+
+			{{if $canDuplicate}}
+			&bull;&nbsp;<a href="#" class="dupbtn" id="idDup{{$idx}}">Duplicate translation...</a>
+			{{end}}
+
 			{{range .History}}
 			<br><span style="color: #888;padding-left:28px">previous: {{.}}</span>
 			{{end}}
 		{{else}}
 			<a href="#" class="addbtn" id="idEdit{{$idx}}">Add a translation...</a>
+
+			{{if $canDuplicate}}
+			&bull;&nbsp;<a href="#" class="dupbtn" id="idDup{{$idx}}">Duplicate translation...</a>
+			{{end}}
+
 		{{end}}
 	</div>
 	{{end}}
 {{end}}
 
-{{if .User}}
 <div class="modal hide" id="idEditTrans">
 	<div class="modal-header">
 		<a class="close" data-dismiss="modal">×</a>
 		<h3><span id="idEditTransHdr"></span></h3>
 	</div>
+
+	{{if .User}}
 	<div>
 		<form class="well" action="/edittranslation" method="POST">
 			<div class="modal-body">
@@ -93,13 +106,7 @@
 			</div>
 		</form>
 	</div>
-</div>
-{{else}}
-<div class="modal hide" id="idEditTrans">
-	<div class="modal-header">
-		<a class="close" data-dismiss="modal">×</a>
-		<h3><span id="idEditTransHdr"></span></h3>
-	</div>
+	{{else}}
 	<div>
 		<form class="well" action="/nowhere" method="POST">
 			<div class="modal-body">
@@ -114,6 +121,37 @@
 			</div>
 		</form>
 	</div>
+	{{end}}
+</div>
+
+{{if $canDuplicate}}
+<div class="modal hide" id="idDupTrans">
+    <div class="modal-header">
+        <a class="close" data-dismiss="modal">×</a>
+        <h3><span id="idDupTransHdr"></span></h3>
+    </div>
+    <div>
+        <form class="well" action="/duptranslation" method="POST">
+            <div class="modal-body">
+                <label>Duplicate translation of string:</label>
+                <textarea rows=3 readonly="readonly" name="string" id="idDupFormString" style="width:90%"></textarea>
+                <label>As:</label>
+                <textarea rows=3 name="duplicate" id="idDupFormTrans" style="width:90%"></textarea>
+                <input type="hidden" name="app" value="{{.App.Name}}">
+                <p id="mismatchedDupStringFormattingError" style="color:red;visibility:hidden"><bold>
+                    Error: translation cannot be empty and string formatting directives (%s, %d etc.)
+                    must be in the same order.
+                </bold></p>
+                <p></p>
+                <p>Note: by adding/editing a translation you agree to place your translations
+                into <a href="http://en.wikipedia.org/wiki/Public_domain">Public Domain</a>.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Submit</button>
+                <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+            </div>
+        </form>
+    </div>
 </div>
 {{end}}
 
@@ -140,6 +178,27 @@ function updateEditTransState() {
 	}
 }
 
+// 1. can't be the same
+// 2. their string formatting instructions (%d, %s etc.) match
+function canSubmitDuplication(text, translation) {
+    var t = $.trim(translation);
+    if (t.length == 0) { return false; }
+    return stringFormattingModifiersAreSame(text, translation);
+}
+
+var prevDupValue = "";
+function updateDupTransState() {
+    var txt = $("#idDupFormString").text();
+    prevDupValue = $("#idDupFormTrans").val();
+    if (canSubmitDuplication(txt, prevDupValue)) {
+        $("button[type=submit]").removeAttr("disabled");
+        $("#mismatchedDupStringFormattingError").css({"visibility":"hidden"});
+    } else {
+        $("button[type=submit]").attr("disabled", "disabled");
+        $("#mismatchedDupStringFormattingError").css({"visibility":"visible"});
+    }
+}
+
 $(document).ready(function() {
 
 	$(".addbtn").click(function() {
@@ -162,11 +221,27 @@ $(document).ready(function() {
 		$("#idEditFormTrans").focus();
 		updateEditTransState();
 	});
+
 	$("#idEditFormTrans").bind("keyup paste", function(e) {
 		if ($(this).val() == prevTranslationValue) { return; }
 		updateEditTransState();
-});
+	});
 
+
+    $(".dupbtn").click(function() {
+        $("#idDupTransHdr").text("Duplicate translation");
+        var el = $(this).parent().find(".origstr");
+        $("#idDupFormString").text(el.text());
+        $("#idDupFormTrans").text(el.text());
+        $("#idDupTrans").modal('show');
+        $("#idDupFormTrans").focus();
+        updateDupTransState();
+    });
+
+    $("#idDupFormTrans").bind("keyup paste", function(e) {
+        if ($(this).val() == prevDupValue) { return; }
+        updateDupTransState();
+    });
 });
 
 </script>
