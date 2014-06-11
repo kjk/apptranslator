@@ -115,11 +115,13 @@ func getDataDir() string {
 	if dataDir != "" {
 		return dataDir
 	}
-	dataDir = u.ExpandTildeInPath("~/data/apptranslator")
+	// on the server, must be done first because ExpandTildeInPath()
+	// doesn't work when cross-compiled on mac for linux
+	dataDir = filepath.Join("..", "..", "data")
 	if u.PathExists(dataDir) {
 		return dataDir
 	}
-	dataDir = filepath.Join("..", "..", "data")
+	dataDir = u.ExpandTildeInPath("~/data/apptranslator")
 	if u.PathExists(dataDir) {
 		return dataDir
 	}
