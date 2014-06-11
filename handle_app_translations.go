@@ -10,20 +10,19 @@ import (
 )
 
 type ModelAppTranslations struct {
-	App                      *App
-	LangInfo                 *store.LangInfo
-	User                     string
-	UserIsAdmin              bool
-	StringsCount             int
-	TransProgressPercent     int
-	ShowTranslationEditedMsg bool
-	RedirectUrl              string
+	App                  *App
+	LangInfo             *store.LangInfo
+	User                 string
+	UserIsAdmin          bool
+	StringsCount         int
+	TransProgressPercent int
+	RedirectUrl          string
+	Message              string
 }
 
 func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTranslations {
 	model := &ModelAppTranslations{
-		App: app,
-		ShowTranslationEditedMsg: false,
+		App:         app,
 		User:        user,
 		UserIsAdmin: userIsAdmin(app, user)}
 
@@ -47,7 +46,7 @@ func buildModelAppTranslations(app *App, langCode, user string) *ModelAppTransla
 	panic("buildModelAppTranslations() failed")
 }
 
-// url: /app/{appname}/{lang}
+// url: /app/{appname}/{lang}?msg=${msg}
 func handleAppTranslations(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appName := vars["appname"]
@@ -62,9 +61,10 @@ func handleAppTranslations(w http.ResponseWriter, r *http.Request) {
 		httpErrorf(w, "Invalid language: %q", langCode)
 		return
 	}
-
+	msg := r.FormValue("msg")
 	//fmt.Printf("handleAppTranslations() appName=%s, lang=%s\n", app.Name, langCode)
 	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
+	model.Message = msg
 	model.RedirectUrl = r.URL.String()
 	ExecTemplate(w, tmplAppTrans, model)
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -30,37 +31,6 @@ const lenStatic = len("/s/")
 func handleStatic(w http.ResponseWriter, r *http.Request) {
 	file := r.URL.Path[lenStatic:]
 	serveFileStatic(w, r, file)
-}
-
-// TODO: more compact date printing, e.g.:
-// "2012-10-03 13:15:31"
-// or even group by day, and say:
-// 2012-10-03:
-//   13:15:31
-type ModelLogs struct {
-	PageTitle   string
-	User        string
-	UserIsAdmin bool
-	RedirectUrl string
-	Errors      []*TimestampedMsg
-	Notices     []*TimestampedMsg
-}
-
-// url: /logs
-func handleLogs(w http.ResponseWriter, r *http.Request) {
-	user := decodeUserFromCookie(r)
-	model := &ModelLogs{
-		User:        user,
-		UserIsAdmin: user == "kjk", // only I can see the logs
-		RedirectUrl: r.URL.String(),
-		PageTitle:   "AppTranslator logs",
-	}
-	if model.UserIsAdmin {
-		model.Errors = logger.GetErrors()
-		model.Notices = logger.GetNotices()
-	}
-
-	ExecTemplate(w, tmplLogs, model)
 }
 
 type ModelMain struct {
@@ -109,16 +79,14 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	}
 	str := strings.TrimSpace(r.FormValue("string"))
 	translation := r.FormValue("translation")
-	//fmt.Printf("Adding translation: %q=>%q, lang=%q\n", str, translation, langCode)
 
 	if err := app.store.WriteNewTranslation(str, translation, langCode, user); err != nil {
 		httpErrorf(w, "Failed to add a translation %q", err)
 		return
 	}
-	// TODO: use a redirect with message passed in as an argument
-	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
-	model.ShowTranslationEditedMsg = true
-	ExecTemplate(w, tmplAppTrans, model)
+	msg := fmt.Sprintf("Edited translation of %q to be %q", str, translation)
+	url := fmt.Sprintf("/app/%s/%s?msg=%s", appName, langCode, url.QueryEscape(msg))
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 // url: /duptranslation?string=${string}&duplicate=${duplicate}lang=${langCode}
@@ -148,16 +116,17 @@ func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
 	duplicate := strings.TrimSpace(r.FormValue("duplicate"))
 	if str == duplicate {
 		httpErrorf(w, "handleDuplicateTranslation: trying to duplicate the same string %q", str)
+		return
 	}
 
 	if err := app.store.DuplicateTranslation(str, duplicate); err != nil {
 		httpErrorf(w, "Failed to duplicate translation %q", err)
 		return
 	}
-	// TODO: use a redirect with message passed in as an argument
-	model := buildModelAppTranslations(app, langCode, decodeUserFromCookie(r))
-	model.RedirectUrl = r.URL.String()
-	ExecTemplate(w, tmplAppTrans, model)
+
+	msg := fmt.Sprintf("Duplicated %q as %q", str, duplicate)
+	url := fmt.Sprintf("/app/%s/%s?msg=%s", appName, langCode, url.QueryEscape(msg))
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func InitHttpHandlers() {

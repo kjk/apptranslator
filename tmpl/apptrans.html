@@ -30,6 +30,14 @@
 		 <span style="font-size:50%;float:right;">{{if .User}}Logged in as {{.User}} (<a href="/logout?redirect={{.RedirectUrl}}">logout</a>){{else}}Not logged in. <a href="/login?redirect={{.RedirectUrl}}">Log in with Twitter</a>{{end}}</span>
 	</h2>
 	<div class="lead">{{.LangInfo.UntranslatedCount}} untranslated out of {{ .StringsCount}} total strings </div>
+
+    {{if .Message}}
+        <div class="alert alert-success fade in">
+            <button class="close" data-dismiss="alert">×</button>
+            {{.Message}}
+        </div>
+    {{end}}
+
 	<div>Progress:
 		<div style="width:256px" class="progress inline-progress">
 			<div class="bar inline-progress" style="width: {{.TransProgressPercent}}%;">
@@ -38,16 +46,9 @@
 	</div>
 </header>
 
-<p style="margin-bottom:24px"></p>
+<p style="margin-bottom:16px"></p>
 
 {{$canDuplicate := .UserIsAdmin}}
-
-{{if .ShowTranslationEditedMsg}}
-<div class="alert alert-success">
-  <button class="close" data-dismiss="alert">×</button>
-  Translation successfully edited!
-</div>
-{{end}}
 
 {{range .LangInfo.ActiveStrings}}
 <div class="trans" id="idTrans{{.Id}}">
@@ -163,8 +164,7 @@
                 <textarea rows=3 name="duplicate" id="idDupFormTrans" style="width:90%"></textarea>
                 <input type="hidden" name="app" value="{{.App.Name}}">
                 <p id="mismatchedDupStringFormattingError" style="color:red;visibility:hidden"><bold>
-                    Error: translation cannot be empty and string formatting directives (%s, %d etc.)
-                    must be in the same order.
+                    Error: new string cannot be empty, the same and string formatting directives (%s, %d etc.) must be in the same order.
                 </bold></p>
                 <p></p>
                 <p>Note: by adding/editing a translation you agree to place your translations
@@ -204,17 +204,18 @@ function updateEditTransState() {
 
 // 1. can't be the same
 // 2. their string formatting instructions (%d, %s etc.) match
-function canSubmitDuplication(text, translation) {
-    var t = $.trim(translation);
+function canSubmitDuplication(orig, curr) {
+    var t = $.trim(curr);
     if (t.length == 0) { return false; }
-    return stringFormattingModifiersAreSame(text, translation);
+    if (orig == t) { return false; }
+    return canSubmitTranslation(orig, curr);
 }
 
 var prevDupValue = "";
 function updateDupTransState() {
-    var txt = $("#idDupFormString").text();
+    var orig = $("#idDupFormString").text();
     prevDupValue = $("#idDupFormTrans").val();
-    if (canSubmitDuplication(txt, prevDupValue)) {
+    if (canSubmitDuplication(orig, prevDupValue)) {
         $("button[type=submit]").removeAttr("disabled");
         $("#mismatchedDupStringFormattingError").css({"visibility":"hidden"});
     } else {
@@ -251,12 +252,12 @@ $(document).ready(function() {
 		updateEditTransState();
 	});
 
-
     $(".dupbtn").click(function() {
         $("#idDupTransHdr").text("Duplicate translation");
         var el = $(this).parent().find(".origstr");
-        $("#idDupFormString").text(el.text());
-        $("#idDupFormTrans").text(el.text());
+        var s = el.text()
+        $("#idDupFormString").text(s);
+        $("#idDupFormTrans").text(s);
         $("#idDupTrans").modal('show');
         $("#idDupFormTrans").focus();
         updateDupTransState();

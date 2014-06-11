@@ -12,6 +12,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/kjk/u"
@@ -113,4 +114,35 @@ func (l *ServerLogger) GetErrors() []*TimestampedMsg {
 
 func (l *ServerLogger) GetNotices() []*TimestampedMsg {
 	return l.Notices.GetOrdered()
+}
+
+// TODO: more compact date printing, e.g.:
+// "2012-10-03 13:15:31"
+// or even group by day, and say:
+// 2012-10-03:
+//   13:15:31
+type ModelLogs struct {
+	PageTitle   string
+	User        string
+	UserIsAdmin bool
+	RedirectUrl string
+	Errors      []*TimestampedMsg
+	Notices     []*TimestampedMsg
+}
+
+// url: /logs
+func handleLogs(w http.ResponseWriter, r *http.Request) {
+	user := decodeUserFromCookie(r)
+	model := &ModelLogs{
+		User:        user,
+		UserIsAdmin: user == "kjk", // only I can see the logs
+		RedirectUrl: r.URL.String(),
+		PageTitle:   "AppTranslator logs",
+	}
+	if model.UserIsAdmin {
+		model.Errors = logger.GetErrors()
+		model.Notices = logger.GetNotices()
+	}
+
+	ExecTemplate(w, tmplLogs, model)
 }
