@@ -25,6 +25,11 @@ func writeCsv(record []string) {
 	}
 }
 
+func isBlacklisted(s string) bool {
+	return s == "Semua file" ||
+		s == "Salin & Pemilihan \\ tCtrl + C"
+}
+
 func RewriteStore(binaryPath, csvPath string) {
 	fmt.Printf("RewriteStore(%q, %q)\n", binaryPath, csvPath)
 	//logging = true
