@@ -638,8 +638,6 @@ func (s *StoreBinary) readExistingRecords(r *ReaderByteReader) error {
 			return err
 		}
 	}
-	panic("not reached")
-	return nil
 }
 
 func (s *StoreBinary) translationsForLang(langId int) ([]*Translation, int) {

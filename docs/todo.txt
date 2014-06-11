@@ -5,4 +5,3 @@ Nice to have:
 - implement /app/${appName}/edits
 - serveErrorMsg() => serveErrorMsgf() (httpErrorf() ?)
 - use redirect after editing/duplicating (to avoid "reconfirm submission")
-- use godep for building

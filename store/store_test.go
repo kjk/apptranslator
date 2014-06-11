@@ -69,7 +69,6 @@ func (ts *TestState) ensureUndeletedStringsCount(exp int) {
 	if n := s.activeStringsCount(); n != exp {
 		msg := fmt.Sprintf("len(s.activeStringsCount())=%d, exp: %d", s.activeStringsCount(), exp)
 		panic(msg)
-		ts.t.Fatal(msg)
 	}
 }
 

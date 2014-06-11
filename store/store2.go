@@ -171,7 +171,7 @@ func (s *StoreCsv) decodeNewStringRecord(rec []string) error {
 	}
 	id, err := strconv.Atoi(rec[1])
 	if err != nil {
-		return fmt.Errorf("rec[1] failed to parse as int with %q (rec: '%#v')", err, rec[1], rec)
+		return fmt.Errorf("rec[1] (%q) failed to parse as int with %q (rec: '%#v')", rec[1], err, rec)
 	}
 	newId, isNew := s.strings.Intern(rec[2])
 	if newId != id {
