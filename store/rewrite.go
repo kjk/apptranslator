@@ -59,7 +59,7 @@ func RewriteStore(binaryPath, csvPath string) {
 	}
 	rec := buildActiveSetRec(activeStringsInt)
 	writeCsv(rec)
-	/*deleted := s.GetDeletedStrings()
+	/*deleted := s.GetUnusedStrings()
 	fmt.Printf("Deleted strings (%d):\n", len(deleted))
 	for _, str := range deleted {
 		fmt.Printf("  %q\n", str)

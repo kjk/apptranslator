@@ -37,7 +37,7 @@ func buildModelAppStrings(app *App, user string) *ModelAppStrings {
 		User:           user,
 		CanDuplicate:   canUserDuplicate(user),
 		Strings:        strings,
-		DeletedStrings: app.store.GetDeletedStrings(),
+		DeletedStrings: app.store.GetUnusedStrings(),
 		StringsCount:   len(strings),
 	}
 	return model

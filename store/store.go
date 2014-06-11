@@ -866,7 +866,7 @@ func (s *StoreBinary) UpdateStringsList(newStrings []string) ([]string, []string
 	return toAdd, toDelete, toUndelete, nil
 }
 
-func (s *StoreBinary) GetDeletedStrings() []string {
+func (s *StoreBinary) GetUnusedStrings() []string {
 	s.Lock()
 	defer s.Unlock()
 	return s.getDeletedStrings()

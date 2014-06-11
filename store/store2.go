@@ -28,7 +28,7 @@ type Store interface {
 	EditsForLang(user string, max int) []Edit
 	Translators() []*Translator
 	UpdateStringsList(newStrings []string) ([]string, []string, []string, error)
-	GetDeletedStrings() []string
+	GetUnusedStrings() []string
 }
 
 /* csv records:
@@ -667,7 +667,7 @@ func (s *StoreCsv) UpdateStringsList(newStrings []string) ([]string, []string, [
 	return nil, nil, nil, err
 }
 
-func (s *StoreCsv) GetDeletedStrings() []string {
+func (s *StoreCsv) GetUnusedStrings() []string {
 	s.Lock()
 	defer s.Unlock()
 	return s.getDeletedStrings()
