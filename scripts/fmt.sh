@@ -4,6 +4,6 @@ set -o nounset
 set -o errexit
 set -o pipefail
 
-go fmt
-cd tools/listbackup
-go fmt
+go fmt *.go
+go fmt tools/listbackup/*.go
+
