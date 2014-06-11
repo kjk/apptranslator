@@ -127,6 +127,7 @@ func NewLangInfo(langCode string) *LangInfo {
 
 func (li *LangInfo) UntranslatedCount() int {
 	if li.untranslated == -1 {
+		li.untranslated = 0
 		for _, tr := range li.ActiveStrings {
 			if !tr.IsTranslated() {
 				li.untranslated += 1
