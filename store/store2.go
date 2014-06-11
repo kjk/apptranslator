@@ -417,7 +417,7 @@ func (s *StoreCsv) langInfos() []*LangInfo {
 		li := NewLangInfo(langCode)
 		li.ActiveStrings, li.UnusedStrings = s.translationsForLang(langId)
 		sort.Sort(ByString{li.ActiveStrings})
-		sort.Sort(ByString{li.UnusedStrings})
+		sort.Sort(ByString2{li.UnusedStrings})
 		res = append(res, li)
 	}
 	sort.Sort(ByUntranslated{res})

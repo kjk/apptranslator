@@ -90,6 +90,14 @@ func (s ByString) Less(i, j int) bool {
 	return transStringLess(s1, s2)
 }
 
+type ByString2 struct{ TranslationSeq }
+
+func (s ByString2) Less(i, j int) bool {
+	s1 := s.TranslationSeq[i].String
+	s2 := s.TranslationSeq[j].String
+	return transStringLess(s1, s2)
+}
+
 type LangInfo struct {
 	Code          string
 	Name          string
