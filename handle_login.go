@@ -118,7 +118,7 @@ func handleOauthTwitterCallback(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("handleOauthTwitterCallback()\n")
 	redirect := strings.TrimSpace(r.FormValue("redirect"))
 	if redirect == "" {
-		serveErrorMsg(w, "Missing redirect value for /login")
+		httpErrorf(w, "Missing redirect value for /login")
 		return
 	}
 	tempCred := oauth.Credentials{
@@ -160,7 +160,7 @@ func handleOauthTwitterCallback(w http.ResponseWriter, r *http.Request) {
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	redirect := strings.TrimSpace(r.FormValue("redirect"))
 	if redirect == "" {
-		serveErrorMsg(w, fmt.Sprintf("Missing redirect value for /login"))
+		httpErrorf(w, "Missing redirect value for /login")
 		return
 	}
 	q := url.Values{
@@ -183,7 +183,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 func handleLogout(w http.ResponseWriter, r *http.Request) {
 	redirect := strings.TrimSpace(r.FormValue("redirect"))
 	if redirect == "" {
-		serveErrorMsg(w, fmt.Sprintf("Missing redirect value for /logout"))
+		httpErrorf(w, "Missing redirect value for /logout")
 		return
 	}
 	deleteSecureCookie(w)

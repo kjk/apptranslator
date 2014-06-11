@@ -84,7 +84,7 @@ func handleApp(w http.ResponseWriter, r *http.Request) {
 	appName := vars["appname"]
 	app := findApp(appName)
 	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application \"%s\" doesn't exist", appName))
+		httpErrorf(w, "Application %q doesn't exist", appName)
 		return
 	}
 

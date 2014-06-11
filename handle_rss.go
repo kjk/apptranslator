@@ -128,7 +128,7 @@ func handleRss(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)
 	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application \"%s\" doesn't exist", appName))
+		httpErrorf(w, "Application %q doesn't exist", appName)
 		return
 	}
 	lang := strings.TrimSpace(r.FormValue("lang"))
@@ -139,7 +139,7 @@ func handleRss(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !store.IsValidLangCode(lang) {
-		serveErrorMsg(w, fmt.Sprintf("Language \"%s\" is not valid", lang))
+		httpErrorf(w, "Language %q is not valid", lang)
 		return
 	}
 

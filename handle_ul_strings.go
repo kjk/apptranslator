@@ -53,19 +53,19 @@ func handleUploadStrings(w http.ResponseWriter, r *http.Request) {
 	app := findApp(appName)
 	if app == nil {
 		logger.Noticef("Someone tried to upload strings for non-existing app %s", appName)
-		serveErrorMsg(w, fmt.Sprintf("Application %q doesn't exist", appName))
+		httpErrorf(w, "Application %q doesn't exist", appName)
 		return
 	}
 	secret := strings.TrimSpace(r.FormValue("secret"))
 	if secret != app.UploadSecret {
 		logger.Noticef("Someone tried to upload strings for %s with invalid secret %s", appName, secret)
-		serveErrorMsg(w, fmt.Sprintf("Invalid secret for app %q", appName))
+		httpErrorf(w, "Invalid secret for app %q", appName)
 		return
 	}
 	s := r.FormValue("strings")
 	if newStrings, err := parseUploadedStrings(s); err != nil {
 		logger.Noticef("parseUploadedStrings() failed with %s", err)
-		serveErrorMsg(w, "Error parsing uploaded strings")
+		httpErrorf(w, "Error parsing uploaded strings")
 		return
 	} else {
 		logger.Noticef("handleUploadString(): uploading %d strings for %s", len(newStrings), appName)

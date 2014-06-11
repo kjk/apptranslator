@@ -3,5 +3,5 @@ List of things to do for app translator.
 Nice to have:
 - more tests for store
 - implement /app/${appName}/edits
-- serveErrorMsg() => serveErrorMsgf() (httpErrorf() ?)
 - use redirect after editing/duplicating (to avoid "reconfirm submission")
+- less duplication when validating http arguments

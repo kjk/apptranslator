@@ -2,7 +2,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/kjk/apptranslator/store"
@@ -54,13 +53,13 @@ func handleAppTranslations(w http.ResponseWriter, r *http.Request) {
 	appName := vars["appname"]
 	app := findApp(appName)
 	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application \"%s\" doesn't exist", appName))
+		httpErrorf(w, "Application %q doesn't exist", appName)
 		return
 	}
 
 	langCode := vars["lang"]
 	if !store.IsValidLangCode(langCode) {
-		serveErrorMsg(w, fmt.Sprintf("Invalid language: %q", langCode))
+		httpErrorf(w, "Invalid language: %q", langCode)
 		return
 	}
 

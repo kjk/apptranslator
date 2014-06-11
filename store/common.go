@@ -2,12 +2,17 @@
 package store
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
 
-func panicIf(shouldPanic bool, s string) {
+func panicif(shouldPanic bool, format string, args ...interface{}) {
 	if shouldPanic {
+		s := format
+		if len(args) > 0 {
+			s = fmt.Sprintf(format, args...)
+		}
 		panic(s)
 	}
 }

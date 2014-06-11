@@ -340,7 +340,7 @@ func readUVarintAsInt(r *ReaderByteReader) (int, error) {
 
 func encodeRecordData(rec []byte, t time.Time) *bytes.Buffer {
 	var b bytes.Buffer
-	panicIf(0 == len(rec), "0 == recLen")
+	panicif(0 == len(rec), "0 == recLen")
 	writeUvarintToBuf(&b, len(rec)+4) // 4 for 64-bit tn
 	var tn int64 = t.Unix()
 	binary.Write(&b, binary.LittleEndian, tn)
@@ -494,7 +494,7 @@ func decodeStrRecord(rec []byte, dict map[string]int, tp string) error {
 // rec is: varint(stringId)
 func (s *StoreBinary) decodeStringDeleteRecord(rec []byte) error {
 	id, n := binary.Uvarint(rec)
-	panicIf(n != len(rec), "decodeStringDeleteRecord")
+	panicif(n != len(rec), "decodeStringDeleteRecord")
 	//fmt.Printf("Deleting %d\n", int(id))
 	if s.isDeleted(int(id)) {
 		//log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
@@ -511,7 +511,7 @@ func (s *StoreBinary) decodeStringDeleteRecord(rec []byte) error {
 // rec is: varint(stringId)
 func (s *StoreBinary) decodeStringUndeleteRecord(rec []byte) error {
 	id, n := binary.Uvarint(rec)
-	panicIf(n != len(rec), "decodeStringUndeleteRecord")
+	panicif(n != len(rec), "decodeStringUndeleteRecord")
 	if !s.isDeleted(int(id)) {
 		//log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
 		fmt.Printf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
@@ -530,18 +530,18 @@ func (s *StoreBinary) decodeNewTranslation(rec []byte, time time.Time) error {
 	var n int
 
 	langId, n = binary.Uvarint(rec)
-	panicIf(n <= 0 || n == len(rec), "decodeNewTranslation() langId")
-	panicIf(!s.validLangId(int(langId)), "decodeNewTranslation(): !s.validLangId()")
+	panicif(n <= 0 || n == len(rec), "decodeNewTranslation() langId")
+	panicif(!s.validLangId(int(langId)), "decodeNewTranslation(): !s.validLangId()")
 	rec = rec[n:]
 
 	userId, n = binary.Uvarint(rec)
-	panicIf(n == len(rec), "decodeNewTranslation() userId")
-	panicIf(!s.validUserId(int(userId)), "decodeNewTranslation(): !s.validUserId()")
+	panicif(n == len(rec), "decodeNewTranslation() userId")
+	panicif(!s.validUserId(int(userId)), "decodeNewTranslation(): !s.validUserId()")
 	rec = rec[n:]
 
 	stringId, n = binary.Uvarint(rec)
-	panicIf(n == 0 || n == len(rec), "decodeNewTranslation() stringId")
-	panicIf(!s.validStringId(int(stringId)), fmt.Sprintf("decodeNewTranslation(): !s.validStringId(%v)", stringId))
+	panicif(n == 0 || n == len(rec), "decodeNewTranslation() stringId")
+	panicif(!s.validStringId(int(stringId)), fmt.Sprintf("decodeNewTranslation(): !s.validStringId(%v)", stringId))
 	rec = rec[n:]
 
 	translation := string(rec)
@@ -572,7 +572,7 @@ func (s *StoreBinary) decodeNewTranslation(rec []byte, time time.Time) error {
 }
 
 func (s *StoreBinary) decodeRecord(rec []byte, time time.Time) error {
-	panicIf(len(rec) < 2, "decodeRecord(), len(rec) < 2")
+	panicif(len(rec) < 2, "decodeRecord(), len(rec) < 2")
 	if 0 == rec[0] {
 		t := rec[1]
 		switch t {
@@ -606,7 +606,7 @@ func readRecord(r *ReaderByteReader) ([]byte, time.Time, error) {
 		}
 		log.Fatalf("readRecord(), err: %s", err)
 	}
-	panicIf(n <= 4, "record too small")
+	panicif(n <= 4, "record too small")
 	var timeUnix int64
 	err = binary.Read(r, binary.LittleEndian, &timeUnix)
 	if err != nil {

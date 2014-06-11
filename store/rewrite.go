@@ -59,7 +59,7 @@ func RewriteStore(binaryPath, csvPath string) {
 	for i := 0; i < n; i++ {
 		str := activeStrings[i]
 		strId, isNew := internedStrings.Intern(str)
-		panicIf(isNew, "isNew is true")
+		panicif(isNew, "isNew is true")
 		activeStringsInt[i] = strId
 	}
 	rec := buildActiveSetRec(activeStringsInt)

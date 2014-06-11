@@ -337,20 +337,20 @@ func (s *StoreCsv) untranslatedForLang(lang string) int {
 
 func (s *StoreCsv) userById(id int) string {
 	str, ok := s.users.GetById(id)
-	panicIf(!ok, "no id in s.users")
+	panicif(!ok, "no id in s.users")
 	return str
 }
 
 func (s *StoreCsv) langById(id int) string {
 	str, ok := s.langs.GetById(id)
-	panicIf(!ok, "no id in s.langs")
+	panicif(!ok, "no id in s.langs")
 	return str
 }
 
 func (s *StoreCsv) stringByIdMust(id int) string {
 	//fmt.Printf("id: %d, total: %d\n", id, s.strings.Count())
 	str, ok := s.strings.GetById(id)
-	panicIf(!ok, "no id in s.strings")
+	panicif(!ok, "no id in s.strings")
 	return str
 }
 

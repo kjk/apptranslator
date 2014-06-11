@@ -83,7 +83,7 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 	sha1In := strings.TrimSpace(r.FormValue("sha1"))
 	app := findApp(appName)
 	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application %q doesn't exist", appName))
+		httpErrorf(w, "Application %q doesn't exist", appName)
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -99,7 +99,7 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("sha1 != sha2 (%s != %s)", sha1, sha2)
 	}
 	if err != nil {
-		serveErrorMsg(w, fmt.Sprintf("Error from DataSha1 %s", err))
+		httpErrorf(w, "Error from DataSha1 %s", err)
 		return
 	}
 	if sha1 == sha1In {

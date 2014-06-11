@@ -94,17 +94,17 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	app := findApp(appName)
 	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application %q doesn't exist", appName))
+		httpErrorf(w, "Application %q doesn't exist", appName)
 		return
 	}
 	langCode := strings.TrimSpace(r.FormValue("lang"))
 	if !store.IsValidLangCode(langCode) {
-		serveErrorMsg(w, fmt.Sprintf("Invalid lang code %q", langCode))
+		httpErrorf(w, "Invalid lang code %q", langCode)
 		return
 	}
 	user := decodeUserFromCookie(r)
 	if user == "" {
-		serveErrorMsg(w, "User doesn't exist")
+		httpErrorf(w, "User doesn't exist")
 		return
 	}
 	str := strings.TrimSpace(r.FormValue("string"))
@@ -112,7 +112,7 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("Adding translation: %q=>%q, lang=%q\n", str, translation, langCode)
 
 	if err := app.store.WriteNewTranslation(str, translation, langCode, user); err != nil {
-		serveErrorMsg(w, fmt.Sprintf("Failed to add a translation %q", err))
+		httpErrorf(w, "Failed to add a translation %q", err)
 		return
 	}
 	// TODO: use a redirect with message passed in as an argument
@@ -126,36 +126,32 @@ func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
 	appName := strings.TrimSpace(r.FormValue("app"))
 	langCode := strings.TrimSpace(r.FormValue("lang"))
 	if !store.IsValidLangCode(langCode) {
-		serveErrorMsg(w, fmt.Sprintf("Invalid language: %q", langCode))
+		httpErrorf(w, "Invalid language: %q", langCode)
 		return
 	}
 
-	if !store.IsValidLangCode(langCode) {
-		serveErrorMsg(w, fmt.Sprintf("Application %q doesn't exist", appName))
-		return
-	}
 	app := findApp(appName)
 	if app == nil {
-		serveErrorMsg(w, fmt.Sprintf("Application %q doesn't exist", appName))
+		httpErrorf(w, "Application %q doesn't exist", appName)
 		return
 	}
 	user := decodeUserFromCookie(r)
 	if user == "" {
-		serveErrorMsg(w, "User doesn't exist")
+		httpErrorf(w, "User doesn't exist")
 		return
 	}
 	if !userIsAdmin(app, user) {
-		serveErrorMsg(w, "User can't duplicate translations")
+		httpErrorf(w, "User can't duplicate translations")
 		return
 	}
 	str := strings.TrimSpace(r.FormValue("string"))
 	duplicate := strings.TrimSpace(r.FormValue("duplicate"))
 	if str == duplicate {
-		serveErrorMsg(w, fmt.Sprintf("handleDuplicateTrnslation: trying to duplicate the same string %q", str))
+		httpErrorf(w, "handleDuplicateTranslation: trying to duplicate the same string %q", str)
 	}
 
 	if err := app.store.DuplicateTranslation(str, duplicate); err != nil {
-		serveErrorMsg(w, fmt.Sprintf("Failed to duplicate translation %q", err))
+		httpErrorf(w, "Failed to duplicate translation %q", err)
 		return
 	}
 	// TODO: use a redirect with message passed in as an argument
