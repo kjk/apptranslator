@@ -61,7 +61,7 @@ def add_dir_files(zip_file, dir):
 def zip_files(zip_path):
 	zf = zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_DEFLATED)
 	zf.write("config.json")
-	zf.write(zf, "apptranslator_app_linux", "apptranslator_app")
+	zf.write("apptranslator_app_linux", "apptranslator_app")
 	add_dir_files(zf, "scripts")
 	add_dir_files(zf, "tmpl")
 	add_dir_files(zf, "static")
