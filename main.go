@@ -2,13 +2,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -67,18 +65,7 @@ var (
 
 	appState = AppState{}
 
-	tmplMain      = "main.html"
-	tmplApp       = "app.html"
-	tmplAppTrans  = "apptrans.html"
-	tmplUser      = "user.html"
-	tmplLogs      = "logs.html"
-	templateNames = [...]string{
-		tmplMain, tmplApp, tmplAppTrans, tmplUser, tmplLogs, "header.html",
-		"footer.html"}
-	templatePaths   []string
-	templates       *template.Template
-	reloadTemplates = true
-	alwaysLogTime   = true
+	alwaysLogTime = true
 )
 
 func StringEmpty(s *string) bool {
@@ -263,45 +250,8 @@ func addApp(app *App) error {
 	return nil
 }
 
-func GetTemplates() *template.Template {
-	if reloadTemplates || (nil == templates) {
-		if 0 == len(templatePaths) {
-			for _, name := range templateNames {
-				templatePaths = append(templatePaths, filepath.Join("tmpl", name))
-			}
-		}
-		templates = template.Must(template.ParseFiles(templatePaths...))
-	}
-	return templates
-}
-
-func ExecTemplate(w http.ResponseWriter, templateName string, model interface{}) bool {
-	var buf bytes.Buffer
-	if err := GetTemplates().ExecuteTemplate(&buf, templateName, model); err != nil {
-		logger.Errorf("Failed to execute template %q, error: %s", templateName, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return false
-	} else {
-		// at this point we ignore error
-		w.Write(buf.Bytes())
-	}
-	return true
-}
-
 func isTopLevelUrl(url string) bool {
 	return 0 == len(url) || "/" == url
-}
-
-func serve404(w http.ResponseWriter, r *http.Request) {
-	http.NotFound(w, r)
-}
-
-func httpErrorf(w http.ResponseWriter, format string, args ...interface{}) {
-	msg := format
-	if len(args) > 0 {
-		msg = fmt.Sprintf(format, args...)
-	}
-	http.Error(w, msg, http.StatusBadRequest)
 }
 
 func userIsAdmin(app *App, user string) bool {
