@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/gorilla/mux"
 	"code.google.com/p/gorilla/securecookie"
 	"github.com/garyburd/go-oauth/oauth"
 	"github.com/kjk/apptranslator/store"
@@ -431,26 +430,6 @@ func main() {
 		log.Fatalf("No apps defined in config.json")
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/app/{appname}", makeTimingHandler(handleApp))
-	r.HandleFunc("/app/{appname}/edits", makeTimingHandler(handleAppEdits))
-	r.HandleFunc("/app/{appname}/{lang}", makeTimingHandler(handleAppTranslations))
-	r.HandleFunc("/user/{user}", makeTimingHandler(handleUser))
-	r.HandleFunc("/edittranslation", makeTimingHandler(handleEditTranslation))
-	r.HandleFunc("/duptranslation", makeTimingHandler(handleDuplicateTranslation))
-	r.HandleFunc("/dltrans", makeTimingHandler(handleDownloadTranslations))
-	r.HandleFunc("/uploadstrings", makeTimingHandler(handleUploadStrings))
-	r.HandleFunc("/rss", makeTimingHandler(handleRss))
-
-	r.HandleFunc("/login", handleLogin)
-	r.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
-	r.HandleFunc("/logout", handleLogout)
-	r.HandleFunc("/logs", makeTimingHandler(handleLogs))
-	r.HandleFunc("/", makeTimingHandler(handleMain))
-
-	http.HandleFunc("/s/", makeTimingHandler(handleStatic))
-	http.Handle("/", r)
-
 	backupConfig := &BackupConfig{
 		AwsAccess: *config.AwsAccess,
 		AwsSecret: *config.AwsSecret,
@@ -463,6 +442,7 @@ func main() {
 		go BackupLoop(backupConfig)
 	}
 
+	InitHttpHandlers()
 	logger.Noticef(fmt.Sprintf("Started running on %s", *httpAddr))
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %q\n", err)
