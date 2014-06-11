@@ -1,5 +1,6 @@
 .DS_Store
 apptranslator_app_linux
+apptranslator_app
 config.json
 transtest.dat
 *.pyc
