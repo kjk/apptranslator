@@ -60,12 +60,9 @@ def add_dir_files(zip_file, dir):
 
 def zip_files(zip_path):
 	zf = zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_DEFLATED)
-	blacklist = ["importsumtrans.go"]
-	files = [f for f in os.listdir(".") if f.endswith(".go") and not f in blacklist]
-	for f in files: zf.write(f)
 	zf.write("config.json")
+	zf.write(zf, "apptranslator_app_linux", "apptranslator_app")
 	add_dir_files(zf, "scripts")
-	add_dir_files(zf, "apptranslator_app_linux", "apptranslator_app")
 	add_dir_files(zf, "tmpl")
 	add_dir_files(zf, "static")
 	zf.close()
