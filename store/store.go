@@ -229,7 +229,7 @@ func (s *StoreBinary) activeStringsCount() int {
 	return len(s.stringMap) - len(s.deletedStrings)
 }
 
-func (s *StoreBinary) isDeleted(strId int) bool {
+func (s *StoreBinary) isUnused(strId int) bool {
 	_, exists := s.deletedStrings[strId]
 	return exists
 }
@@ -247,7 +247,7 @@ func (s *StoreBinary) getDeletedStrings() []string {
 func (s *StoreBinary) getActiveStrings() []string {
 	res := make([]string, 0)
 	for str, strId := range s.stringMap {
-		if !s.isDeleted(strId) {
+		if !s.isUnused(strId) {
 			res = append(res, str)
 		}
 	}
@@ -266,7 +266,7 @@ func (s *StoreBinary) translatedCountForLangs() map[int]int {
 	}
 	res := make(map[int]int)
 	for _, trec := range s.edits {
-		if !s.isDeleted(trec.stringId) {
+		if !s.isUnused(trec.stringId) {
 			arr := m[trec.langId]
 			arr[trec.stringId-1] = true
 		}
@@ -416,7 +416,7 @@ func (s *StoreBinary) undeleteString(w io.Writer, str string) error {
 	if strId, ok := s.stringMap[str]; !ok {
 		log.Fatalf("undeleteString() %q doesn't exist in stringMap\n", str)
 	} else {
-		if !s.isDeleted(strId) {
+		if !s.isUnused(strId) {
 			log.Fatalf("undeleteString(): strId=%d doesn't exist in deletedStrings\n", strId)
 		}
 		if err := writeUndeleteStringRecord(w, strId); err != nil {
@@ -496,7 +496,7 @@ func (s *StoreBinary) decodeStringDeleteRecord(rec []byte) error {
 	id, n := binary.Uvarint(rec)
 	panicif(n != len(rec), "decodeStringDeleteRecord")
 	//fmt.Printf("Deleting %d\n", int(id))
-	if s.isDeleted(int(id)) {
+	if s.isUnused(int(id)) {
 		//log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
 		txt := s.stringById(int(id))
 		fmt.Printf("decodeStringDeleteRecord(): %d (%q) already exists in deletedString\n", id, txt)
@@ -512,7 +512,7 @@ func (s *StoreBinary) decodeStringDeleteRecord(rec []byte) error {
 func (s *StoreBinary) decodeStringUndeleteRecord(rec []byte) error {
 	id, n := binary.Uvarint(rec)
 	panicif(n != len(rec), "decodeStringUndeleteRecord")
-	if !s.isDeleted(int(id)) {
+	if !s.isUnused(int(id)) {
 		//log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
 		fmt.Printf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
 	}
@@ -654,7 +654,7 @@ func (s *StoreBinary) translationsForLang(langId int) ([]*Translation, int) {
 	translations := make(map[string]*Translation)
 	for _, edit := range s.edits {
 		strId := edit.stringId
-		if langId != edit.langId || s.isDeleted(strId) {
+		if langId != edit.langId || s.isUnused(strId) {
 			continue
 		}
 		str := idToStr[strId]
@@ -667,7 +667,7 @@ func (s *StoreBinary) translationsForLang(langId int) ([]*Translation, int) {
 	translatedCount := len(translations)
 	// add records for untranslated strings
 	for str, strId := range s.stringMap {
-		if !s.isDeleted(strId) {
+		if !s.isUnused(strId) {
 			if _, exists := translations[str]; !exists {
 				translations[str] = &Translation{strId, str, make([]string, 0)}
 			}
@@ -834,7 +834,7 @@ func (s *StoreBinary) UpdateStringsList(newStrings []string) ([]string, []string
 	var toUndelete []string
 	for _, str := range newStrings {
 		if strId, ok := s.stringMap[str]; ok {
-			if s.isDeleted(strId) {
+			if s.isUnused(strId) {
 				toUndelete = append(toUndelete, str)
 			}
 		}

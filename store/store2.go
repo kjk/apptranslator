@@ -302,7 +302,7 @@ func (s *StoreCsv) translatedCountForLangs() map[int]int {
 	}
 	res := make(map[int]int)
 	for _, trec := range s.edits {
-		if !s.isDeleted(trec.stringId) {
+		if !s.isUnused(trec.stringId) {
 			arr := m[trec.langId]
 			arr[trec.stringId] = true
 		}
@@ -374,7 +374,7 @@ func (s *StoreCsv) recentEdits(max int) []Edit {
 	return res
 }
 
-func (s *StoreCsv) isDeleted(strId int) bool {
+func (s *StoreCsv) isUnused(strId int) bool {
 	if strId >= s.allStringsCount() {
 		fmt.Printf("strId %d too large, all strings: %d, bitmap len: %d\n", strId, s.allStringsCount(), len(s.deletedStringsBitmap))
 	}
@@ -402,7 +402,7 @@ func (s *StoreCsv) translationsForLang(langId int) ([]*Translation, []*Translati
 	active := make([]*Translation, 0)
 	unused := make([]*Translation, 0)
 	for _, tr := range all {
-		if s.isDeleted(tr.Id) {
+		if s.isUnused(tr.Id) {
 			unused = append(unused, tr)
 		} else {
 			active = append(active, tr)
