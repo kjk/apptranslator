@@ -42,6 +42,29 @@ type ModelMain struct {
 	RedirectUrl string
 }
 
+func getAppArg(w http.ResponseWriter, r *http.Request) *App {
+	appName := strings.TrimSpace(r.FormValue("app"))
+	app := findApp(appName)
+	if app == nil {
+		httpErrorf(w, "Application %q doesn't exist", appName)
+		return nil
+	}
+	return app
+}
+
+func getAppLangArg(w http.ResponseWriter, r *http.Request) (*App, string) {
+	app := getAppArg(w, r)
+	if app == nil {
+		return nil, ""
+	}
+	langCode := strings.TrimSpace(r.FormValue("lang"))
+	if !store.IsValidLangCode(langCode) {
+		httpErrorf(w, "Invalid lang code %q", langCode)
+		return nil, ""
+	}
+	return app, langCode
+}
+
 // url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
 	if !isTopLevelUrl(r.URL.Path) {
@@ -61,15 +84,8 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 
 // url: /edittranslation?string=${string}&translation=${translation}
 func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
-	appName := strings.TrimSpace(r.FormValue("app"))
-	app := findApp(appName)
+	app, langCode := getAppLangArg(w, r)
 	if app == nil {
-		httpErrorf(w, "Application %q doesn't exist", appName)
-		return
-	}
-	langCode := strings.TrimSpace(r.FormValue("lang"))
-	if !store.IsValidLangCode(langCode) {
-		httpErrorf(w, "Invalid lang code %q", langCode)
 		return
 	}
 	user := decodeUserFromCookie(r)
@@ -85,22 +101,14 @@ func handleEditTranslation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	msg := fmt.Sprintf("Edited translation of %q to be %q", str, translation)
-	url := fmt.Sprintf("/app/%s/%s?msg=%s", appName, langCode, url.QueryEscape(msg))
+	url := fmt.Sprintf("/app/%s/%s?msg=%s", app.Name, langCode, url.QueryEscape(msg))
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
 // url: /duptranslation?string=${string}&duplicate=${duplicate}lang=${langCode}
 func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
-	appName := strings.TrimSpace(r.FormValue("app"))
-	langCode := strings.TrimSpace(r.FormValue("lang"))
-	if !store.IsValidLangCode(langCode) {
-		httpErrorf(w, "Invalid language: %q", langCode)
-		return
-	}
-
-	app := findApp(appName)
+	app, langCode := getAppLangArg(w, r)
 	if app == nil {
-		httpErrorf(w, "Application %q doesn't exist", appName)
 		return
 	}
 	user := decodeUserFromCookie(r)
@@ -125,7 +133,7 @@ func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := fmt.Sprintf("Duplicated %q as %q", str, duplicate)
-	url := fmt.Sprintf("/app/%s/%s?msg=%s", appName, langCode, url.QueryEscape(msg))
+	url := fmt.Sprintf("/app/%s/%s?msg=%s", app.Name, langCode, url.QueryEscape(msg))
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
