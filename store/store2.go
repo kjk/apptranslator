@@ -104,8 +104,18 @@ type StoreCsv struct {
 	edits                []TranslationRec
 }
 
+func openCsv(path string) (*os.File, *csv.Writer, error) {
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, nil, err
+	} else {
+		return file, csv.NewWriter(file), nil
+	}
+}
+
 func NewStoreCsv(path string) (*StoreCsv, error) {
 	//fmt.Printf("NewStoreCsv: %q\n", path)
+	var err error
 	s := &StoreCsv{
 		filePath: path,
 		strings:  NewStringInterner(),
@@ -114,17 +124,15 @@ func NewStoreCsv(path string) (*StoreCsv, error) {
 		edits:    make([]TranslationRec, 0),
 	}
 	if u.PathExists(path) {
-		if err := s.readExistingRecords(path); err != nil {
+		if err = s.readExistingRecords(path); err != nil {
 			return nil, err
 		}
 	}
 	s.setActiveStrings(s.activeStrings)
-	if file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
+	if s.file, s.w, err = openCsv(path); err != nil {
 		return nil, err
-	} else {
-		s.file = file
-		s.w = csv.NewWriter(s.file)
 	}
+
 	return s, nil
 }
 
