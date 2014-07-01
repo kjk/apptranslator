@@ -69,7 +69,8 @@ func buildModelApp(app *App, loggedUser string, sortedByName bool) *ModelApp {
 		PageTitle:    fmt.Sprintf("Translations for %s", app.Name),
 		Langs:        app.store.LangInfos(),
 		RecentEdits:  editsDisplay,
-		Translators:  app.store.Translators()}
+		Translators:  app.store.Translators(),
+	}
 	sortTranslatorsByCount(model.Translators)
 	// by default they are sorted by untranslated count
 	if sortedByName {

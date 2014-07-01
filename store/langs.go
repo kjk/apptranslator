@@ -83,6 +83,26 @@ var (
 	}
 )
 
+func LangToId(code string) int {
+	for i, lang := range Languages {
+		if lang.Code == code {
+			return i
+		}
+	}
+	return -1
+}
+
+func LangsCount() int {
+	return len(Languages)
+}
+
+func LangCodeById(id int) string {
+	if id >= 0 || id < len(Languages) {
+		return Languages[id].Code
+	}
+	return ""
+}
+
 func LangNameByCode(code string) string {
 	for _, lang := range Languages {
 		if code == lang.Code {
