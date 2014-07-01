@@ -45,6 +45,7 @@ var (
 		Lang{"id", "Indonesian", "Bahasa Indonesia"},
 		Lang{"it", "Italian", "Italiano"},
 		Lang{"ja", "Japanese", "日本語"},
+		Lang{"jv", "Javanese", "ꦧꦱꦗꦮ"},
 		Lang{"ka", "Georgian", "ქართული"},
 		Lang{"ku", "Kurdish", "كوردی"},
 		Lang{"kr", "Korean", "한국어"},
