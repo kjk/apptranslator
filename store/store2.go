@@ -97,7 +97,6 @@ type StoreCsv struct {
 	file                 *os.File
 	strings              *StringInterner
 	users                *StringInterner
-	langs                *StringInterner
 	w                    *csv.Writer
 	activeStrings        []int
 	deletedStringsBitmap []bool
@@ -120,7 +119,6 @@ func NewStoreCsv(path string) (*StoreCsv, error) {
 		filePath: path,
 		strings:  NewStringInterner(),
 		users:    NewStringInterner(),
-		langs:    NewStringInterner(),
 		edits:    make([]TranslationRec, 0),
 	}
 	if u.PathExists(path) {
@@ -216,7 +214,7 @@ func (s *StoreCsv) decodeTranslationRecord(rec []string) error {
 	}
 	time := time.Unix(timeSecs, 0)
 	userId, _ := s.users.Intern(rec[2])
-	langId, _ := s.langs.Intern(rec[3])
+	langId := LangToId(rec[3])
 	strId, err := strconv.Atoi(rec[4])
 	if err != nil {
 		return fmt.Errorf("rec[4] (%q) failed to parse as int, error: %q", rec[4], err)
@@ -305,7 +303,7 @@ func (s *StoreCsv) activeStringsCount() int {
 func (s *StoreCsv) translatedCountForLangs() map[int]int {
 	m := make(map[int][]bool)
 	totalStrings := s.strings.Count()
-	for _, langId := range s.langs.strToId {
+	for langId := 0; langId < LangsCount(); langId++ {
 		m[langId] = make([]bool, totalStrings, totalStrings)
 	}
 	res := make(map[int]int)
@@ -338,7 +336,8 @@ func (s *StoreCsv) untranslatedCount() int {
 
 func (s *StoreCsv) untranslatedForLang(lang string) int {
 	translatedPerLang := s.translatedCountForLangs()
-	langId := s.langs.IdByStrMust(lang)
+	langId := LangToId(lang)
+	panicif(langId == -1, "LangToId(lang) returned -1")
 	translated := translatedPerLang[langId]
 	return s.activeStringsCount() - translated
 }
@@ -350,9 +349,9 @@ func (s *StoreCsv) userById(id int) string {
 }
 
 func (s *StoreCsv) langById(id int) string {
-	str, ok := s.langs.GetById(id)
-	panicif(!ok, "no id in s.langs")
-	return str
+	langCode := LangCodeById(id)
+	panicif(langCode == "", "LangCodeById(id) didn't find a lang")
+	return langCode
 }
 
 func (s *StoreCsv) stringByIdMust(id int) string {
@@ -421,7 +420,8 @@ func (s *StoreCsv) translationsForLang(langId int) ([]*Translation, []*Translati
 
 func (s *StoreCsv) langInfos() []*LangInfo {
 	res := make([]*LangInfo, 0)
-	for langCode, langId := range s.langs.strToId {
+	for langId, lang := range Languages {
+		langCode := lang.Code
 		li := NewLangInfo(langCode)
 		li.ActiveStrings, li.UnusedStrings = s.translationsForLang(langId)
 		sort.Sort(ByString{li.ActiveStrings})
@@ -536,7 +536,7 @@ func (s *StoreCsv) writeNewTranslation(txt, trans, lang, user string) error {
 	if err != nil {
 		return err
 	}
-	langId, _ := s.langs.Intern(lang)
+	langId := LangToId(lang)
 	userId, _ := s.users.Intern(user)
 	t := time.Now()
 	timeSecsStr := strconv.FormatInt(t.Unix(), 10)
@@ -551,7 +551,7 @@ func (s *StoreCsv) writeNewTranslation(txt, trans, lang, user string) error {
 func (s *StoreCsv) duplicateTranslation(origStr, newStr string) error {
 	origStrId := s.strings.IdByStrMust(origStr)
 	// find most recent translations for each language
-	nLangs := s.langs.Count()
+	nLangs := LangsCount()
 	langTrans := make([]string, nLangs, nLangs)
 	langUserId := make([]int, nLangs, nLangs)
 	for _, edit := range s.edits {
@@ -590,9 +590,7 @@ func (s *StoreCsv) DuplicateTranslation(origStr, newStr string) error {
 }
 
 func (s *StoreCsv) LangsCount() int {
-	s.Lock()
-	defer s.Unlock()
-	return s.langs.Count()
+	return LangsCount()
 }
 
 func (s *StoreCsv) StringsCount() int {
