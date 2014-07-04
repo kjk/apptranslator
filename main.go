@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/gorilla/securecookie"
 	"github.com/garyburd/go-oauth/oauth"
+	"github.com/gorilla/securecookie"
 	"github.com/kjk/apptranslator/store"
 	"github.com/kjk/u"
 )

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"code.google.com/p/gorilla/mux"
+	"github.com/gorilla/mux"
 )
 
 type EditByUser struct {

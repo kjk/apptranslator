@@ -142,8 +142,8 @@ func (s *StoreCsv) writeCsv(rec []string) error {
 }
 
 func (s *StoreCsv) writeNewStringRec(strId int, str string) error {
-	recs := []string{recIdNewString, strconv.Itoa(strId), str}
-	return s.writeCsv(recs)
+	rec := []string{recIdNewString, strconv.Itoa(strId), str}
+	return s.writeCsv(rec)
 }
 
 func (s *StoreCsv) internStringAndWriteIfNecessary(str string) (int, error) {
@@ -158,14 +158,14 @@ func (s *StoreCsv) internStringAndWriteIfNecessary(str string) (int, error) {
 }
 
 func buildActiveSetRec(activeStrings []int) []string {
-	timeSecsStr := strconv.FormatInt(time.Now().Unix(), 10)
+	timeStr := strconv.FormatInt(time.Now().Unix(), 10)
 
 	r := IntRangeFromIntArray(activeStrings)
 	n := len(r)
 	rec := make([]string, n+2, n+2)
 
 	rec[0] = recIdActiveSet
-	rec[1] = timeSecsStr
+	rec[1] = timeStr
 	for i := 0; i < n; i++ {
 		rec[2+i] = r[i].String()
 	}

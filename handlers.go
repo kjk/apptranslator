@@ -7,10 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/kjk/apptranslator/store"
 	"github.com/kjk/u"
-
-	"code.google.com/p/gorilla/mux"
 )
 
 func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName string) {

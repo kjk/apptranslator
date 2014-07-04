@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"code.google.com/p/gorilla/mux"
+	"github.com/gorilla/mux"
 	"github.com/kjk/apptranslator/store"
 )
 

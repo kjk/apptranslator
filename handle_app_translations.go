@@ -6,7 +6,7 @@ import (
 
 	"github.com/kjk/apptranslator/store"
 
-	"code.google.com/p/gorilla/mux"
+	"github.com/gorilla/mux"
 )
 
 type ModelAppTranslations struct {

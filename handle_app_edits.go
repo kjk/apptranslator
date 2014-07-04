@@ -3,7 +3,7 @@ package main
 import (
 	"net/http"
 
-	"code.google.com/p/gorilla/mux"
+	"github.com/gorilla/mux"
 )
 
 // url: /app/{appname}/edits
