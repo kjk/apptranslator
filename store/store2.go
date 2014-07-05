@@ -45,6 +45,27 @@ const (
 	recIdActiveSet = "as"
 )
 
+type TranslationRec struct {
+	langId      int
+	userId      int
+	stringId    int
+	translation string
+	time        time.Time
+}
+
+type Edit struct {
+	Lang        string
+	User        string
+	Text        string
+	Translation string
+	Time        time.Time
+}
+
+type Translator struct {
+	Name              string
+	TranslationsCount int
+}
+
 type StringInterner struct {
 	strings []string
 	strToId map[string]int
