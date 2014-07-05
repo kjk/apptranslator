@@ -8,17 +8,17 @@ import (
 
 func (s *StoreCsv) writeNewTranslationMust(s1, s2, s3, s4 string) {
 	err := s.WriteNewTranslation(s1, s2, s3, s4)
-	panicif(err != nil)
+	panicif(err != nil, "err != nil")
 }
 
 func (s *StoreCsv) duplicateTranslationMust(origStr, newStr string) {
 	err := s.DuplicateTranslation(origStr, newStr)
-	panicif(err != nil)
+	panicif(err != nil, "err != nil")
 }
 
 func (s *StoreCsv) updateStringsListMust(sl []string) ([]string, []string, []string) {
 	added, deleted, undeleted, err := s.UpdateStringsList(sl)
-	panicif(err != nil)
+	panicif(err != nil, "err != nil")
 	return added, deleted, undeleted
 }
 
