@@ -3,7 +3,6 @@ package store
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"testing"
 )
@@ -15,92 +14,75 @@ type TestState struct {
 }
 
 func (ts *TestState) writeNewTranslation(s1, s2, s3, s4 string) {
-	if err := ts.s.WriteNewTranslation(s1, s2, s3, s4); err != nil {
-		ts.t.Fatal(err)
-	}
+	err := ts.s.WriteNewTranslation(s1, s2, s3, s4)
+	panicif(err != nil)
 }
 
 func (ts *TestState) DuplicateTranslation(origStr, newStr string) {
-	if err := ts.s.DuplicateTranslation(origStr, newStr); err != nil {
-		ts.t.Fatal(err)
-	}
+	err := ts.s.DuplicateTranslation(origStr, newStr)
+	panicif(err != nil)
 }
 
 func (ts *TestState) deleteString(str string) {
-	if err := ts.s.deleteString(ts.s.w, str); err != nil {
-		ts.t.Fatal(err)
-	}
+	err := ts.s.deleteString(ts.s.w, str)
+	panicif(err != nil)
 }
 
 func (ts *TestState) undeleteString(str string) {
-	if err := ts.s.undeleteString(ts.s.w, str); err != nil {
-		ts.t.Fatal(err)
-	}
+	err := ts.s.undeleteString(ts.s.w, str)
+	panicif(err != nil)
 }
 
 func (ts *TestState) UpdateStringsList(s []string) ([]string, []string, []string) {
 	added, deleted, undeleted, err := ts.s.UpdateStringsList(s)
-	if err != nil {
-		ts.t.Fatal(err)
-	}
+	panicif(err != nil)
 	return added, deleted, undeleted
 }
 
 func (ts *TestState) ensureLangCount(exp int) {
-	if s := ts.s; len(s.langCodeMap) != exp {
-		ts.t.Fatalf("len(s.langCodeMap)=%d, exp: %d", len(s.langCodeMap), exp)
-	}
+	s := ts.s
+	panicif(len(s.langCodeMap) != exp, "len(s.langCodeMap)=%d, exp: %d", len(s.langCodeMap), exp)
 }
 
 func (ts *TestState) ensureUserCount(exp int) {
-	if s := ts.s; len(s.userNameMap) != exp {
-		ts.t.Fatalf("len(s.userNameMap)=%d, exp: %d", len(s.userNameMap), exp)
-	}
+	s := ts.s
+	panicif(len(s.userNameMap) != exp, "len(s.userNameMap)=%d, exp: %d", len(s.userNameMap), exp)
 }
 
 func (ts *TestState) ensureStringsCount(exp int) {
-	if s := ts.s; len(s.stringMap) != exp {
-		ts.t.Fatalf("len(s.stringMap)=%d, exp: %d", len(s.stringMap), exp)
-	}
+	s := ts.s
+	panicif(len(s.stringMap) != exp, "len(s.stringMap)=%d, exp: %d", len(s.stringMap), exp)
 }
 
 func (ts *TestState) ensureUndeletedStringsCount(exp int) {
 	s := ts.s
-	if n := s.activeStringsCount(); n != exp {
-		msg := fmt.Sprintf("len(s.activeStringsCount())=%d, exp: %d", s.activeStringsCount(), exp)
-		panic(msg)
-	}
+	n := s.activeStringsCount()
+	panicif(n != exp, "len(s.activeStringsCount())=%d, exp: %d", s.activeStringsCount(), exp)
 }
 
 func (ts *TestState) ensureTranslationsCount(exp int) {
 	s := ts.s
-	if len(s.edits) != exp {
-		ts.t.Fatalf("len(s.translations)=%d, exp: %d", len(s.edits), exp)
-	}
+	panicif(len(s.edits) != exp, "len(s.translations)=%d, exp: %d", len(s.edits), exp)
 }
 
 func (ts *TestState) ensureLangCode(name string, exp int) {
-	if s := ts.s; s.langCodeMap[name] != exp {
-		ts.t.Fatalf("s.langCodeMap[%q]=%d, exp: %d", name, s.langCodeMap[name], exp)
-	}
+	s := ts.s
+	panicif(s.langCodeMap[name] != exp, "s.langCodeMap[%q]=%d, exp: %d", name, s.langCodeMap[name], exp)
 }
 
 func (ts *TestState) ensureUserCode(name string, exp int) {
-	if s := ts.s; s.userNameMap[name] != exp {
-		ts.t.Fatalf("s.userNameMap[%q]=%d, exp: %d", name, s.userNameMap[name], exp)
-	}
+	s := ts.s
+	panicif(s.userNameMap[name] != exp, "s.userNameMap[%q]=%d, exp: %d", name, s.userNameMap[name], exp)
 }
 
 func (ts *TestState) ensureStringCode(name string, exp int) {
-	if s := ts.s; s.stringMap[name] != exp {
-		ts.t.Fatalf("s.stringMap[%q]=%d, exp: %d", name, s.stringMap[name], exp)
-	}
+	s := ts.s
+	panicif(s.stringMap[name] != exp, "s.stringMap[%q]=%d, exp: %d", name, s.stringMap[name], exp)
 }
 
 func (ts *TestState) ensureDeletedCount(exp int) {
-	if s := ts.s; len(s.deletedStrings) != exp {
-		ts.t.Fatalf("len(s.deletedStrings)=%d, exp: %d", len(s.deletedStrings), exp)
-	}
+	s := ts.s
+	panicif(len(s.deletedStrings) != exp, "len(s.deletedStrings)=%d, exp: %d", len(s.deletedStrings), exp)
 }
 
 func (ts *TestState) ensureStateEmpty() {
@@ -147,19 +129,15 @@ func (ts *TestState) ensureStringsAre(strs []string) {
 	ts.ensureUndeletedStringsCount(len(strs))
 	s := ts.s
 	for _, str := range strs {
-		if _, exist := s.stringMap[str]; !exist {
-			ts.t.Fatalf("%q doesn't exist in s.stringMap", str)
-		}
+		_, exist := s.stringMap[str]
+		panicif(!exist, "%q doesn't exist in s.stringMap", str)
 	}
 }
 
 func NewStoreTestState(t *testing.T, path string) *TestState {
-	if s, err := NewStoreBinary(path); err != nil {
-		t.Fatal("Failed to create new trans_test.dat")
-	} else {
-		return &TestState{t, s}
-	}
-	return nil
+	s, err := NewStoreBinary(path)
+	panicif(err != nil, "Failed to create new transtest.dat")
+	return &TestState{t, s}
 }
 
 func TestTransLog(t *testing.T) {
