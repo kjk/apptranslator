@@ -215,6 +215,7 @@ func (s *StoreCsv) decodeTranslationRecord(rec []string) error {
 	time := time.Unix(timeSecs, 0)
 	userId, _ := s.users.Intern(rec[2])
 	langId := LangToId(rec[3])
+	panicif(langId < 0, "invalid rec: %#v", rec)
 	strId, err := strconv.Atoi(rec[4])
 	if err != nil {
 		return fmt.Errorf("rec[4] (%q) failed to parse as int, error: %q", rec[4], err)
@@ -289,7 +290,9 @@ func (s *StoreCsv) readExistingRecords(path string) error {
 }
 
 func (s *StoreCsv) Close() {
-	panic("NYI")
+	s.w.Flush()
+	s.file.Close()
+	s.file = nil
 }
 
 func (s *StoreCsv) allStringsCount() int {
@@ -537,6 +540,7 @@ func (s *StoreCsv) writeNewTranslation(txt, trans, lang, user string) error {
 		return err
 	}
 	langId := LangToId(lang)
+	panicif(langId < 0, "invalid lang: %s", lang)
 	userId, _ := s.users.Intern(user)
 	t := time.Now()
 	timeSecsStr := strconv.FormatInt(t.Unix(), 10)
