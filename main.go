@@ -137,7 +137,7 @@ type User struct {
 
 type App struct {
 	AppConfig
-	store store.Store
+	store *store.StoreCsv
 }
 
 type AppState struct {

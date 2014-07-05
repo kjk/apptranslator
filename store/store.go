@@ -14,24 +14,6 @@ import (
 	"github.com/kjk/u"
 )
 
-type Store interface {
-	Close()
-	WriteNewTranslation(txt, trans, lang, user string) error
-	DuplicateTranslation(origStr, newStr string) error
-	LangsCount() int
-	StringsCount() int
-	UntranslatedCount() int
-	EditsCount() int
-	UntranslatedForLang(lang string) int
-	LangInfos() []*LangInfo
-	RecentEdits(max int) []Edit
-	EditsByUser(user string) []Edit
-	EditsForLang(user string, max int) []Edit
-	Translators() []*Translator
-	UpdateStringsList(newStrings []string) ([]string, []string, []string, error)
-	GetUnusedStrings() []string
-}
-
 /* csv records:
 
 s,  ${strId}, ${str}
