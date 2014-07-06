@@ -137,7 +137,7 @@ type User struct {
 
 type App struct {
 	AppConfig
-	store store.Store
+	store *store.StoreCsv
 }
 
 type AppState struct {
@@ -321,28 +321,6 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 	}
 }
 
-func rewriteStoreIfNecessary(app *AppConfig) {
-	dir := filepath.Join(getDataDir(), app.DataDir)
-	storeCsvPath := filepath.Join(dir, "translations.csv")
-	if u.PathExists(storeCsvPath) {
-		fmt.Printf("rewriteStoreIfNecessary: %q already exists\n", storeCsvPath)
-		return
-	}
-	storeBinaryPath := filepath.Join(dir, "translations.dat")
-	if !u.PathExists(storeBinaryPath) {
-		fmt.Printf("rewriteStoreIfNecessary: %q doesn't exist\n", storeBinaryPath)
-		return
-	}
-	store.RewriteStore(storeBinaryPath, storeCsvPath)
-}
-
-func rewriteStoresIfNecessary() {
-	for _, appData := range config.Apps {
-		rewriteStoreIfNecessary(&appData)
-	}
-	//os.Exit(1)
-}
-
 func main() {
 	// set number of goroutines to number of cpus, but capped at 4 since
 	// I don't expect this to be heavily trafficed website
@@ -375,8 +353,6 @@ func main() {
 	if err := readConfig(*configPath); err != nil {
 		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err)
 	}
-
-	rewriteStoresIfNecessary()
 
 	for _, appData := range config.Apps {
 		app := NewApp(&appData)

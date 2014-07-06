@@ -2,12 +2,9 @@
 package store
 
 import (
-	"bytes"
-	"encoding/binary"
-	"errors"
+	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"sort"
 	"strconv"
@@ -17,57 +14,17 @@ import (
 	"github.com/kjk/u"
 )
 
-// Translation log is append-only file. It consists of records. Each record
-// starts with varint-encoded (unsgined) length followed by data of that length.
-// This allows us to detect and fix a corruption caused by not fully writing the
-// last record (e.g. because of power failure in the middle of the write).
-//
-// In order to minimize the size of the file, we intern some strings by assigning
-// them unique, monotonically increasing integers, e.g. we identify languages
-// by their code names like "en", "pl" etc. Instead of repeating
-//
-// We have several types of records:
-// - record interning a new language string, format:
-//
-//   byte(0) byte(1) string
-//
-// - record interning a new user name string, format:
-//
-//   byte(0) byte(2) string
-//
-// - record interning a new string for translation, format:
-//
-//   byte(0) byte(3) string
-//
-// - record denoting a given string has been "deleted" i.e. the app no longer
-//   needs the translation of that string. We don't delete past translations
-//   of strings, format:
-//
-//   byte(0) byte(4) varint(stringId)
-//
-// - record denoting a given string has been "undeleted", which is a faster
-//   way to restore translations that to re-add them, format:
-//
-//   byte(0) byte(5) varint(stringId)
-//
-// - record defining a single translation, format:
-//
-//   varint(langId) varint(userId) varint(stringId) string
-//
-//   Note: varint(stringId) is guaranteed to not have 0 as first byte
-//   which is why all other (much less frequent records) start with byte 0
+/* csv records:
 
+s,  ${strId}, ${str}
+t,  ${timeUnix}, ${userStr}, ${langStr}, ${strId}, ${translation}
+as, ${timeUnix}, ${strId}, ...
+
+*/
 const (
-	newLangIdRec     = 1
-	newUserNameIdRec = 2
-	newStringIdRec   = 3
-	strDelRec        = 4
-	strUndelRec      = 5
-)
-
-var (
-	logging              = false
-	errorRecordMalformed = errors.New("Record malformed")
+	recIdNewString = "s"
+	recIdTrans     = "t"
+	recIdActiveSet = "as"
 )
 
 type TranslationRec struct {
@@ -91,52 +48,280 @@ type Translator struct {
 	TranslationsCount int
 }
 
-type StoreBinary struct {
+type StoreCsv struct {
 	sync.Mutex
-	langCodeMap    map[string]int
-	userNameMap    map[string]int
-	stringMap      map[string]int
-	deletedStrings map[int]bool
-	edits          []TranslationRec
-	filePath       string
-	w              io.Writer
-	file           *os.File
+	filePath             string
+	file                 *os.File
+	strings              *StringInterner
+	users                *StringInterner
+	w                    *csv.Writer
+	activeStrings        []int
+	deletedStringsBitmap []bool
+	edits                []TranslationRec
 }
 
-// TODO: speed up by keeping all langs in array
-func (s *StoreBinary) langById(langId int) string {
-	for str, id := range s.langCodeMap {
-		if id == langId {
-			return str
+func openCsv(path string) (*os.File, *csv.Writer, error) {
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, nil, err
+	} else {
+		return file, csv.NewWriter(file), nil
+	}
+}
+
+func NewStoreCsv(path string) (*StoreCsv, error) {
+	//fmt.Printf("NewStoreCsv: %q\n", path)
+	var err error
+	s := &StoreCsv{
+		filePath: path,
+		strings:  NewStringInterner(),
+		users:    NewStringInterner(),
+		edits:    make([]TranslationRec, 0),
+	}
+	if u.PathExists(path) {
+		if err = s.readExistingRecords(path); err != nil {
+			return nil, err
 		}
 	}
-	panic("didn't find the lang")
+	s.setActiveStrings(s.activeStrings)
+	if s.file, s.w, err = openCsv(path); err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
-// TODO: speed up by keeping all users in array
-func (s *StoreBinary) userById(userId int) string {
-	for str, id := range s.userNameMap {
-		if id == userId {
-			return str
+func (s *StoreCsv) writeCsv(rec []string) error {
+	recs := [][]string{rec}
+	return s.w.WriteAll(recs)
+}
+
+func (s *StoreCsv) writeNewStringRec(strId int, str string) error {
+	rec := []string{recIdNewString, strconv.Itoa(strId), str}
+	return s.writeCsv(rec)
+}
+
+func (s *StoreCsv) internStringAndWriteIfNecessary(str string) (int, error) {
+	if strId, isNew := s.strings.Intern(str); isNew {
+		//fmt.Printf("internStringAndWriteIfNecessary: new string %q, id: %d\n", str, strId)
+		s.setActiveStrings(s.activeStrings)
+		return strId, s.writeNewStringRec(strId, str)
+	} else {
+		//fmt.Printf("internStringAndWriteIfNecessary: existing string %q, id: %d\n", str, strId)
+		return strId, nil
+	}
+}
+
+func buildActiveSetRec(activeStrings []int) []string {
+	timeStr := strconv.FormatInt(time.Now().Unix(), 10)
+
+	r := IntRangeFromIntArray(activeStrings)
+	n := len(r)
+	rec := make([]string, n+2, n+2)
+
+	rec[0] = recIdActiveSet
+	rec[1] = timeStr
+	for i := 0; i < n; i++ {
+		rec[2+i] = r[i].String()
+	}
+	return rec
+}
+
+// s,  ${strId}, ${str}
+func (s *StoreCsv) decodeNewStringRecord(rec []string) error {
+	if len(rec) != 3 {
+		return fmt.Errorf("s record should have 3 fields, is '#%v'", rec)
+	}
+	id, err := strconv.Atoi(rec[1])
+	if err != nil {
+		return fmt.Errorf("rec[1] (%q) failed to parse as int with %q (rec: '%#v')", rec[1], err, rec)
+	}
+	newId, isNew := s.strings.Intern(rec[2])
+	if newId != id {
+		return fmt.Errorf("rec[2] is '%d' and we expect it to be '%d' (rec: '%#v')", id, newId, rec)
+	}
+	if !isNew {
+		return fmt.Errorf("expected a new string in rec: '%#v')", rec)
+	}
+	return nil
+}
+
+func (s *StoreCsv) addTranslationRec(strId, langId, userId int, trans string, time time.Time) {
+	if strId >= s.allStringsCount() {
+		panic(fmt.Sprintf("strId >= s.allStringsCount() (%d >= %d)", strId, s.allStringsCount()))
+	}
+	tr := TranslationRec{
+		langId:      langId,
+		userId:      userId,
+		stringId:    strId,
+		translation: trans,
+		time:        time,
+	}
+	s.edits = append(s.edits, tr)
+}
+
+// t,  ${timeUnix}, ${userStr}, ${langStr}, ${strId}, ${translation}
+func (s *StoreCsv) decodeTranslationRecord(rec []string) error {
+	if len(rec) != 6 {
+		return fmt.Errorf("'t' record should have 6 fields, is '%#v'", rec)
+	}
+	timeSecs, err := strconv.ParseInt(rec[1], 10, 64)
+	if err != nil {
+		return fmt.Errorf("rec[1] (%q) failed to parse as int64, error: %q", rec[1], err)
+	}
+	time := time.Unix(timeSecs, 0)
+	userId, _ := s.users.Intern(rec[2])
+	langId := LangToId(rec[3])
+	panicif(langId < 0, "invalid rec: %#v", rec)
+	strId, err := strconv.Atoi(rec[4])
+	if err != nil {
+		return fmt.Errorf("rec[4] (%q) failed to parse as int, error: %q", rec[4], err)
+	}
+	if _, ok := s.strings.GetById(strId); !ok {
+		return fmt.Errorf("rec[4] (%q, '%d') is not a valid string id", rec[4], strId)
+	}
+	trans := rec[5]
+	s.addTranslationRec(strId, langId, userId, trans, time)
+	return nil
+}
+
+// as, ${timeUnix}, ${strId}, ...
+func (s *StoreCsv) decodeActiveSetRecord(rec []string) error {
+	if len(rec) < 3 {
+		fmt.Printf("'as' record should have at least 3 fields, is '%#v'", rec)
+	}
+	n := len(rec) - 2
+	activeRange := make([]IntRange, n, n)
+	for i := 0; i < n; i++ {
+		ir, err := ParseIntRange(rec[2+i])
+		if err != nil {
+			return fmt.Errorf("rec[%d] (%q) didn't parse as range, error: %q", 2+i, rec[2+i], err)
+		}
+		activeRange[i] = ir
+	}
+
+	s.setActiveStrings(IntRangeToArray(activeRange))
+	return nil
+}
+
+func (s *StoreCsv) decodeRecord(rec []string) error {
+	if len(rec) < 2 {
+		return fmt.Errorf("not enough fields (%d) in %#v", len(rec), rec)
+	}
+	var err error
+	switch rec[0] {
+	case recIdNewString:
+		err = s.decodeNewStringRecord(rec)
+	case recIdActiveSet:
+		err = s.decodeActiveSetRecord(rec)
+	case recIdTrans:
+		err = s.decodeTranslationRecord(rec)
+	default:
+		err = fmt.Errorf("unkown record type %q", rec[0])
+	}
+	return err
+}
+
+func (s *StoreCsv) readExistingRecords(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	r := csv.NewReader(f)
+	r.FieldsPerRecord = -1
+	r.Comma = ','
+	for {
+		rec, err := r.Read()
+		if err != nil {
+			break
+		}
+		if err = s.decodeRecord(rec); err != nil {
+			break
 		}
 	}
-	panic("didn't find the user")
+	if err == io.EOF {
+		err = nil
+	}
+	return err
 }
 
-func stringById(stringMap map[string]int, strId int) string {
-	for str, id := range stringMap {
-		if id == strId {
-			return str
+func (s *StoreCsv) Close() {
+	s.w.Flush()
+	s.file.Close()
+	s.file = nil
+}
+
+func (s *StoreCsv) allStringsCount() int {
+	return s.strings.Count()
+}
+
+func (s *StoreCsv) activeStringsCount() int {
+	return len(s.activeStrings)
+}
+
+func (s *StoreCsv) translatedCountForLangs() map[int]int {
+	m := make(map[int][]bool)
+	totalStrings := s.strings.Count()
+	for langId := 0; langId < LangsCount(); langId++ {
+		m[langId] = make([]bool, totalStrings, totalStrings)
+	}
+	res := make(map[int]int)
+	for _, trec := range s.edits {
+		if !s.isUnused(trec.stringId) {
+			arr := m[trec.langId]
+			arr[trec.stringId] = true
 		}
 	}
-	panic("didn't find the string")
+	for langId, arr := range m {
+		count := 0
+		for _, isTranslated := range arr {
+			if isTranslated {
+				count += 1
+			}
+		}
+		res[langId] = count
+	}
+	return res
 }
 
-func (s *StoreBinary) stringById(strId int) string {
-	return stringById(s.stringMap, strId)
+func (s *StoreCsv) untranslatedCount() int {
+	n := 0
+	totalStrings := s.activeStringsCount()
+	for _, translatedCount := range s.translatedCountForLangs() {
+		n += (totalStrings - translatedCount)
+	}
+	return n
 }
 
-func (s *StoreBinary) recentEdits(max int) []Edit {
+func (s *StoreCsv) untranslatedForLang(lang string) int {
+	translatedPerLang := s.translatedCountForLangs()
+	langId := LangToId(lang)
+	panicif(langId == -1, "LangToId(lang) returned -1")
+	translated := translatedPerLang[langId]
+	return s.activeStringsCount() - translated
+}
+
+func (s *StoreCsv) userById(id int) string {
+	str, ok := s.users.GetById(id)
+	panicif(!ok, "no id in s.users")
+	return str
+}
+
+func (s *StoreCsv) langById(id int) string {
+	langCode := LangCodeById(id)
+	panicif(langCode == "", "LangCodeById(id) didn't find a lang")
+	return langCode
+}
+
+func (s *StoreCsv) stringByIdMust(id int) string {
+	//fmt.Printf("id: %d, total: %d\n", id, s.strings.Count())
+	str, ok := s.strings.GetById(id)
+	panicif(!ok, "no id in s.strings")
+	return str
+}
+
+func (s *StoreCsv) recentEdits(max int) []Edit {
 	n := max
 	transCount := len(s.edits)
 	if n > transCount {
@@ -148,7 +333,7 @@ func (s *StoreBinary) recentEdits(max int) []Edit {
 		var e Edit
 		e.Lang = s.langById(tr.langId)
 		e.User = s.userById(tr.userId)
-		e.Text = s.stringById(tr.stringId)
+		e.Text = s.stringByIdMust(tr.stringId)
 		e.Translation = tr.translation
 		e.Time = tr.time
 		res[i] = e
@@ -156,7 +341,58 @@ func (s *StoreBinary) recentEdits(max int) []Edit {
 	return res
 }
 
-func (s *StoreBinary) editsByUser(user string) []Edit {
+func (s *StoreCsv) isUnused(strId int) bool {
+	if strId >= s.allStringsCount() {
+		fmt.Printf("strId %d too large, all strings: %d, bitmap len: %d\n", strId, s.allStringsCount(), len(s.deletedStringsBitmap))
+	}
+	if strId >= len(s.deletedStringsBitmap) {
+		fmt.Printf("strId %d too large, all strings: %d, bitmap len: %d\n", strId, s.allStringsCount(), len(s.deletedStringsBitmap))
+	}
+	return s.deletedStringsBitmap[strId]
+}
+
+func (s *StoreCsv) translationsForLang(langId int) ([]*Translation, []*Translation) {
+	n := len(s.strings.strings)
+	all := make([]*Translation, n)
+	for strId, str := range s.strings.strings {
+		all[strId] = NewTranslation(strId, str, "")
+	}
+
+	for _, edit := range s.edits {
+		if langId != edit.langId {
+			continue
+		}
+		tr := all[edit.stringId]
+		tr.add(edit.translation)
+	}
+
+	active := make([]*Translation, 0)
+	unused := make([]*Translation, 0)
+	for _, tr := range all {
+		if s.isUnused(tr.Id) {
+			unused = append(unused, tr)
+		} else {
+			active = append(active, tr)
+		}
+	}
+	return active, unused
+}
+
+func (s *StoreCsv) langInfos() []*LangInfo {
+	res := make([]*LangInfo, 0)
+	for langId, lang := range Languages {
+		langCode := lang.Code
+		li := NewLangInfo(langCode)
+		li.ActiveStrings, li.UnusedStrings = s.translationsForLang(langId)
+		sort.Sort(ByString{li.ActiveStrings})
+		sort.Sort(ByString2{li.UnusedStrings})
+		res = append(res, li)
+	}
+	sort.Sort(ByUntranslated{res})
+	return res
+}
+
+func (s *StoreCsv) editsByUser(user string) []Edit {
 	res := make([]Edit, 0)
 	transCount := len(s.edits)
 	for i := 0; i < transCount; i++ {
@@ -166,7 +402,7 @@ func (s *StoreBinary) editsByUser(user string) []Edit {
 			var e = Edit{
 				Lang:        s.langById(tr.langId),
 				User:        editUser,
-				Text:        s.stringById(tr.stringId),
+				Text:        s.stringByIdMust(tr.stringId),
 				Translation: tr.translation,
 				Time:        tr.time,
 			}
@@ -176,7 +412,7 @@ func (s *StoreBinary) editsByUser(user string) []Edit {
 	return res
 }
 
-func (s *StoreBinary) editsForLang(lang string, max int) []Edit {
+func (s *StoreCsv) editsForLang(lang string, max int) []Edit {
 	res := make([]Edit, 0)
 	transCount := len(s.edits)
 	for i := 0; i < transCount; i++ {
@@ -186,7 +422,7 @@ func (s *StoreBinary) editsForLang(lang string, max int) []Edit {
 			var e = Edit{
 				Lang:        s.langById(tr.langId),
 				User:        s.userById(tr.userId),
-				Text:        s.stringById(tr.stringId),
+				Text:        s.stringByIdMust(tr.stringId),
 				Translation: tr.translation,
 				Time:        tr.time,
 			}
@@ -199,9 +435,9 @@ func (s *StoreBinary) editsForLang(lang string, max int) []Edit {
 	return res
 }
 
-func (s *StoreBinary) translators() []*Translator {
+func (s *StoreCsv) translators() []*Translator {
 	m := make(map[int]*Translator)
-	unknownUserId := 1
+	unknownUserId := 0
 	for _, tr := range s.edits {
 		userId := tr.userId
 		// filter out edits by the dummy 'unknown' user (used for translations
@@ -225,654 +461,182 @@ func (s *StoreBinary) translators() []*Translator {
 	return res
 }
 
-func (s *StoreBinary) activeStringsCount() int {
-	return len(s.stringMap) - len(s.deletedStrings)
+func (s *StoreCsv) setActiveStrings(activeStrings []int) {
+	if nil == activeStrings {
+		activeStrings = make([]int, 0)
+	}
+	s.activeStrings = activeStrings
+	n := s.allStringsCount()
+	bitmap := make([]bool, n, n)
+	for i := 0; i < n; i++ {
+		bitmap[i] = true
+	}
+	for _, id := range s.activeStrings {
+		bitmap[id] = false
+	}
+	s.deletedStringsBitmap = bitmap
+	//fmt.Printf("setActiveStrings: n1: %d, n2: %d\n", n, len(s.deletedStringsBitmap))
 }
 
-func (s *StoreBinary) isUnused(strId int) bool {
-	_, exists := s.deletedStrings[strId]
-	return exists
-}
-
-func (s *StoreBinary) getDeletedStrings() []string {
+func (s *StoreCsv) getDeletedStrings() []string {
 	res := make([]string, 0)
-	for strId, _ := range s.deletedStrings {
-		str := s.stringById(strId)
-		res = append(res, str)
+	for strId, isDeleted := range s.deletedStringsBitmap {
+		if isDeleted {
+			str := s.stringByIdMust(strId)
+			res = append(res, str)
+		}
 	}
 	sort.Strings(res)
 	return res
 }
 
-func (s *StoreBinary) getActiveStrings() []string {
-	res := make([]string, 0)
-	for str, strId := range s.stringMap {
-		if !s.isUnused(strId) {
-			res = append(res, str)
-		}
-	}
-	return res
-}
-
-func (s *StoreBinary) translatedCountForLangs() map[int]int {
-	m := make(map[int][]bool)
-	totalStrings := len(s.stringMap)
-	for _, langId := range s.langCodeMap {
-		arr := make([]bool, totalStrings)
-		for i := 0; i < totalStrings; i++ {
-			arr[i] = false
-		}
-		m[langId] = arr
-	}
-	res := make(map[int]int)
-	for _, trec := range s.edits {
-		if !s.isUnused(trec.stringId) {
-			arr := m[trec.langId]
-			arr[trec.stringId-1] = true
-		}
-	}
-	for langId, arr := range m {
-		count := 0
-		for _, isTranslated := range arr {
-			if isTranslated {
-				count += 1
-			}
-		}
-		res[langId] = count
-	}
-	return res
-}
-
-func (s *StoreBinary) untranslatedCount() int {
-	n := 0
-	totalStrings := s.activeStringsCount()
-	for _, translatedCount := range s.translatedCountForLangs() {
-		n += (totalStrings - translatedCount)
-	}
-	return n
-}
-
-func (s *StoreBinary) untranslatedForLang(lang string) int {
-	translatedPerLang := s.translatedCountForLangs()
-	langId := s.langCodeMap[lang]
-	translated := translatedPerLang[langId]
-	return s.activeStringsCount() - translated
-}
-
-func (s *StoreBinary) validLangId(id int) bool {
-	return (id >= 0) && (id <= len(s.langCodeMap))
-}
-
-func (s *StoreBinary) validUserId(id int) bool {
-	return (id >= 0) && (id <= len(s.userNameMap))
-}
-
-func (s *StoreBinary) validStringId(id int) bool {
-	return (id >= 0) && (id <= len(s.stringMap))
-}
-
-type ReaderByteReader struct {
-	io.Reader
-}
-
-func (r *ReaderByteReader) ReadByte() (byte, error) {
-	var buf [1]byte
-	_, err := r.Read(buf[0:1])
+// t,  ${timeUnix}, ${userStr}, ${langStr}, ${strId}, ${translation}
+func (s *StoreCsv) writeNewTranslation(txt, trans, lang, user string) error {
+	strId, err := s.internStringAndWriteIfNecessary(txt)
 	if err != nil {
-		return 0, err
-	}
-	return buf[0], nil
-}
-
-func writeUvarintToBuf(b *bytes.Buffer, i int) {
-	var buf [32]byte
-	n := binary.PutUvarint(buf[:], uint64(i))
-	b.Write(buf[:n]) // ignore error, it's always nil
-}
-
-func readUVarintAsInt(r *ReaderByteReader) (int, error) {
-	n, err := binary.ReadUvarint(r)
-	if err != nil {
-		return 0, err
-	}
-	return int(n), nil
-}
-
-func encodeRecordData(rec []byte, t time.Time) *bytes.Buffer {
-	var b bytes.Buffer
-	panicif(0 == len(rec), "0 == recLen")
-	writeUvarintToBuf(&b, len(rec)+4) // 4 for 64-bit tn
-	var tn int64 = t.Unix()
-	binary.Write(&b, binary.LittleEndian, tn)
-	b.Write(rec) // // ignore error, it's always nil
-	return &b
-}
-
-func writeRecord(w io.Writer, rec []byte, time time.Time) error {
-	b := encodeRecordData(rec, time)
-	_, err := w.Write(b.Bytes())
-	return err
-}
-
-func writeStringInternRecord(buf *bytes.Buffer, recId int, s string) {
-	var b bytes.Buffer
-	b.WriteByte(0)
-	b.WriteByte(byte(recId))
-	b.WriteString(s)
-	// ignoring error because writing to bytes.Buffer never fails
-	writeRecord(buf, b.Bytes(), time.Now())
-}
-
-func writeDeleteStringRecord(w io.Writer, strId int) error {
-	var b bytes.Buffer
-	b.WriteByte(0)
-	b.WriteByte(strDelRec)
-	writeUvarintToBuf(&b, strId)
-	return writeRecord(w, b.Bytes(), time.Now())
-}
-
-func writeUndeleteStringRecord(w io.Writer, strId int) error {
-	var b bytes.Buffer
-	b.WriteByte(0)
-	b.WriteByte(strUndelRec)
-	writeUvarintToBuf(&b, strId)
-	return writeRecord(w, b.Bytes(), time.Now())
-}
-
-// returns a unique integer 1..n for a given string
-// if the id hasn't been seen yet
-func writeUniquifyStringRecord(buf *bytes.Buffer, s string, dict map[string]int, recId int) int {
-	if n, ok := dict[s]; ok {
-		return n
-	}
-	n := len(dict) + 1
-	dict[s] = n
-	writeStringInternRecord(buf, recId, s)
-	return n
-}
-
-func (s *StoreBinary) addTranslationRec(langId, userId, stringId int, translation string, time time.Time) {
-	t := &TranslationRec{langId, userId, stringId, translation, time}
-	s.edits = append(s.edits, *t)
-}
-
-func (s *StoreBinary) deleteString(w io.Writer, str string) error {
-	if strId, ok := s.stringMap[str]; !ok {
-		log.Fatalf("deleteString() %q doesn't exist in stringMap\n", str)
-	} else {
-		if _, exists := s.deletedStrings[strId]; exists {
-			fmt.Printf("deleteString: skipping deleting %d (%q) because already deleted", strId, str)
-			return nil
-		}
-		if err := writeDeleteStringRecord(w, strId); err != nil {
-			return err
-		}
-		s.deletedStrings[strId] = true
-	}
-	return nil
-}
-
-func (s *StoreBinary) undeleteString(w io.Writer, str string) error {
-	if strId, ok := s.stringMap[str]; !ok {
-		log.Fatalf("undeleteString() %q doesn't exist in stringMap\n", str)
-	} else {
-		if !s.isUnused(strId) {
-			log.Fatalf("undeleteString(): strId=%d doesn't exist in deletedStrings\n", strId)
-		}
-		if err := writeUndeleteStringRecord(w, strId); err != nil {
-			return err
-		}
-		delete(s.deletedStrings, strId)
-	}
-	return nil
-}
-
-func (s *StoreBinary) duplicateTranslation(w io.Writer, origStr, newStr string) error {
-	for _, edit := range s.edits {
-		str := s.stringById(edit.stringId)
-		if str != origStr {
-			continue
-		}
-		lang := s.langById(edit.langId)
-		user := s.userById(edit.userId)
-		err := s.writeNewTranslation(w, newStr, edit.translation, lang, user)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *StoreBinary) writeNewTranslation(w io.Writer, txt, trans, lang, user string) error {
-	var recs bytes.Buffer
-	langId := writeUniquifyStringRecord(&recs, lang, s.langCodeMap, newLangIdRec)
-	userId := writeUniquifyStringRecord(&recs, user, s.userNameMap, newUserNameIdRec)
-	stringId := writeUniquifyStringRecord(&recs, txt, s.stringMap, newStringIdRec)
-
-	var b bytes.Buffer
-	writeUvarintToBuf(&b, langId)
-	writeUvarintToBuf(&b, userId)
-	writeUvarintToBuf(&b, stringId)
-	b.Write([]byte(trans))
-
-	t := time.Now()
-	writeRecord(&recs, b.Bytes(), t) // cannot fail
-
-	if _, err := w.Write(recs.Bytes()); err != nil {
 		return err
 	}
-	s.addTranslationRec(langId, userId, stringId, trans, t)
+	langId := LangToId(lang)
+	panicif(langId < 0, "invalid lang: %s", lang)
+	userId, _ := s.users.Intern(user)
+	t := time.Now()
+	timeSecsStr := strconv.FormatInt(t.Unix(), 10)
+	recs := []string{recIdTrans, timeSecsStr, user, lang, strconv.Itoa(strId), trans}
+	if err = s.writeCsv(recs); err != nil {
+		return err
+	}
+	s.addTranslationRec(strId, langId, userId, trans, t)
 	return nil
 }
 
-func (s *StoreBinary) writeNewStringRecord(w io.Writer, str string) error {
-	var recs bytes.Buffer
-	writeUniquifyStringRecord(&recs, str, s.stringMap, newStringIdRec)
-	//fmt.Printf("%v\n", recs.Bytes())
-	_, err := w.Write(recs.Bytes())
-	if err != nil && logging {
-		fmt.Printf("writeNewStringRecord() failed with %s\n", err)
-	}
-	return err
-}
-
-// rec is: string
-func decodeStrRecord(rec []byte, dict map[string]int, tp string) error {
-	str := string(rec)
-	// id is inferred from the order, starts at 1
-	id := len(dict) + 1
-	if logging {
-		fmt.Printf("decodeStrRecord(): %s -> %v in %s\n", str, id, tp)
-	}
-	if _, exists := dict[str]; exists {
-		log.Fatalf("decodeStrRecord(): %q already exists in dict %s\n", str, tp)
-	}
-	dict[str] = id
-	return nil
-}
-
-// rec is: varint(stringId)
-func (s *StoreBinary) decodeStringDeleteRecord(rec []byte) error {
-	id, n := binary.Uvarint(rec)
-	panicif(n != len(rec), "decodeStringDeleteRecord")
-	//fmt.Printf("Deleting %d\n", int(id))
-	if s.isUnused(int(id)) {
-		//log.Fatalf("decodeStringDeleteRecord(): '%d' already exists in deletedString\n", id)
-		txt := s.stringById(int(id))
-		fmt.Printf("decodeStringDeleteRecord(): %d (%q) already exists in deletedString\n", id, txt)
-	}
-	if logging {
-		fmt.Printf("decodeStringDeleteRecord(): %d\n", id)
-	}
-	s.deletedStrings[int(id)] = true
-	return nil
-}
-
-// rec is: varint(stringId)
-func (s *StoreBinary) decodeStringUndeleteRecord(rec []byte) error {
-	id, n := binary.Uvarint(rec)
-	panicif(n != len(rec), "decodeStringUndeleteRecord")
-	if !s.isUnused(int(id)) {
-		//log.Fatalf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
-		fmt.Printf("decodeStringUndeleteRecord(): '%d' doesn't exists in deletedStrings\n", id)
-	}
-	if logging {
-		fmt.Printf("decodeStringUndeleteRecord(): %d\n", id)
-	}
-	fmt.Printf("Undeleting %d\n", int(id))
-	delete(s.deletedStrings, int(id))
-	return nil
-}
-
-// rec is: varint(stringId) varint(userId) varint(langId) string
-func (s *StoreBinary) decodeNewTranslation(rec []byte, time time.Time) error {
-	var stringId, userId, langId uint64
-	var n int
-
-	langId, n = binary.Uvarint(rec)
-	panicif(n <= 0 || n == len(rec), "decodeNewTranslation() langId")
-	panicif(!s.validLangId(int(langId)), "decodeNewTranslation(): !s.validLangId()")
-	rec = rec[n:]
-
-	userId, n = binary.Uvarint(rec)
-	panicif(n == len(rec), "decodeNewTranslation() userId")
-	panicif(!s.validUserId(int(userId)), "decodeNewTranslation(): !s.validUserId()")
-	rec = rec[n:]
-
-	stringId, n = binary.Uvarint(rec)
-	panicif(n == 0 || n == len(rec), "decodeNewTranslation() stringId")
-	panicif(!s.validStringId(int(stringId)), fmt.Sprintf("decodeNewTranslation(): !s.validStringId(%v)", stringId))
-	rec = rec[n:]
-
-	translation := string(rec)
-	s.addTranslationRec(int(langId), int(userId), int(stringId), translation, time)
-	if logging {
-		fmt.Printf("decodeNewTranslation(): %v, %v, %v, %s\n", langId, userId, stringId, translation)
-	}
-
-	if csvWriter != nil {
-		timeSecsStr := strconv.FormatInt(time.Unix(), 10)
-
-		stringStr := s.stringById(int(stringId))
-		if isBlacklisted(stringStr) {
-			return nil
+func (s *StoreCsv) duplicateTranslation(origStr, newStr string) error {
+	origStrId := s.strings.IdByStrMust(origStr)
+	// find most recent translations for each language
+	nLangs := LangsCount()
+	langTrans := make([]string, nLangs, nLangs)
+	langUserId := make([]int, nLangs, nLangs)
+	for _, edit := range s.edits {
+		if origStrId != edit.stringId {
+			continue
 		}
-		strId, newString := internedStrings.Intern(stringStr)
-		if newString {
-			recs := []string{recIdNewString, strconv.Itoa(strId), stringStr}
-			writeCsv(recs)
-		}
+		langTrans[edit.langId] = edit.translation
+		langUserId[edit.langId] = edit.userId
+	}
 
-		langStr := s.langById(int(langId))
-		userStr := s.userById(int(userId))
-		recs := []string{recIdTrans, timeSecsStr, userStr, langStr, strconv.Itoa(strId), translation}
-		writeCsv(recs)
-	}
-	return nil
-}
-
-func (s *StoreBinary) decodeRecord(rec []byte, time time.Time) error {
-	panicif(len(rec) < 2, "decodeRecord(), len(rec) < 2")
-	if 0 == rec[0] {
-		t := rec[1]
-		switch t {
-		case newLangIdRec:
-			return decodeStrRecord(rec[2:], s.langCodeMap, "langCodeMap")
-		case newUserNameIdRec:
-			return decodeStrRecord(rec[2:], s.userNameMap, "userNameMap")
-		case newStringIdRec:
-			return decodeStrRecord(rec[2:], s.stringMap, "stringMap")
-		case strDelRec:
-			return s.decodeStringDeleteRecord(rec[2:])
-		case strUndelRec:
-			return s.decodeStringUndeleteRecord(rec[2:])
-		default:
-			log.Fatalf("Unexpected t=%d", t)
+	for langId, translation := range langTrans {
+		if translation == "" {
+			continue
 		}
-	} else {
-		return s.decodeNewTranslation(rec, time)
-	}
-	return nil
-}
-
-// TODO: optimize by passing in a buffer to fill instead of allocating a new
-// one every time?
-func readRecord(r *ReaderByteReader) ([]byte, time.Time, error) {
-	var t time.Time
-	n, err := readUVarintAsInt(r)
-	if err != nil {
-		if err == io.EOF {
-			return nil, t, nil
-		}
-		log.Fatalf("readRecord(), err: %s", err)
-	}
-	panicif(n <= 4, "record too small")
-	var timeUnix int64
-	err = binary.Read(r, binary.LittleEndian, &timeUnix)
-	if err != nil {
-		return nil, t, err
-	}
-	t = time.Unix(timeUnix, 0)
-	buf := make([]byte, n-4)
-	n, err = r.Read(buf)
-	if err != nil {
-		return nil, t, err
-	}
-	return buf, t, err
-}
-
-func (s *StoreBinary) readExistingRecords(r *ReaderByteReader) error {
-	for {
-		// TODO: not sure what to do about an error here
-		//lastValidOffset, _ := s.file.Seek(1, 0)
-		// TODO: could explicitly see if this is EOF by comparing lastValidOffset
-		// with file size. that would simplify error handling
-		buf, time, err := readRecord(r)
-		if err != nil {
-			// TODO: do something on error
-			fmt.Printf("readExistingRecords(): error=%s\n", err)
-			panic("readExistingRecords")
-		}
-		if buf == nil {
-			return nil
-		}
-		err = s.decodeRecord(buf, time)
-		if err != nil {
+		lang := s.langById(langId)
+		user := s.userById(langUserId[langId])
+		trans := langTrans[langId]
+		if err := s.writeNewTranslation(newStr, trans, lang, user); err != nil {
 			return err
 		}
 	}
+
+	return nil
 }
 
-func (s *StoreBinary) translationsForLang(langId int) ([]*Translation, int) {
-	// for speed, create an id -> string map once to avoid traversing stringMap
-	// many times
-	idToStr := make(map[int]string)
-	for str, id := range s.stringMap {
-		idToStr[id] = str
-	}
-
-	translations := make(map[string]*Translation)
-	for _, edit := range s.edits {
-		strId := edit.stringId
-		if langId != edit.langId || s.isUnused(strId) {
-			continue
-		}
-		str := idToStr[strId]
-		if tr, ok := translations[str]; ok {
-			tr.add(edit.translation)
-		} else {
-			translations[str] = NewTranslation(strId, str, edit.translation)
-		}
-	}
-	translatedCount := len(translations)
-	// add records for untranslated strings
-	for str, strId := range s.stringMap {
-		if !s.isUnused(strId) {
-			if _, exists := translations[str]; !exists {
-				translations[str] = &Translation{strId, str, make([]string, 0)}
-			}
-		}
-	}
-	res := make([]*Translation, len(translations))
-	i := 0
-	for _, t := range translations {
-		res[i] = t
-		i++
-	}
-	return res, s.activeStringsCount() - translatedCount
-}
-
-func (s *StoreBinary) langInfos() []*LangInfo {
-	res := make([]*LangInfo, 0)
-	for _, lang := range Languages {
-		langCode := lang.Code
-		li := NewLangInfo(langCode)
-		langId := s.langCodeMap[langCode]
-		li.ActiveStrings, _ = s.translationsForLang(langId)
-		sort.Sort(ByString{li.ActiveStrings})
-		res = append(res, li)
-	}
-	sort.Sort(ByUntranslated{res})
-	return res
-}
-
-func NewStoreBinaryWithWriter(w io.Writer) (*StoreBinary, error) {
-	s := &StoreBinary{
-		langCodeMap:    make(map[string]int),
-		userNameMap:    make(map[string]int),
-		stringMap:      make(map[string]int),
-		edits:          make([]TranslationRec, 0),
-		deletedStrings: make(map[int]bool),
-		w:              w,
-	}
-	return s, nil
-}
-
-func NewStoreBinary(path string) (*StoreBinary, error) {
-	s := &StoreBinary{
-		filePath:       path,
-		langCodeMap:    make(map[string]int),
-		userNameMap:    make(map[string]int),
-		stringMap:      make(map[string]int),
-		edits:          make([]TranslationRec, 0),
-		deletedStrings: make(map[int]bool),
-	}
-	if u.PathExists(path) {
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-		err = s.readExistingRecords(&ReaderByteReader{file})
-		file.Close()
-		if err != nil {
-			log.Fatalf("Failed to read log %q, err: %s\n", path, err)
-		}
-	} else {
-		file, err := os.Create(path)
-		if err != nil {
-			return nil, err
-		}
-		file.Close()
-	}
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_RDWR, 0666)
-	if err != nil {
-		fmt.Printf("NewStoreBinary(): failed to open file %q, %s\n", path, err)
-		return nil, err
-	}
-	s.file = file
-	s.w = file
-	return s, nil
-}
-
-func (s *StoreBinary) Close() {
-	if s.file != nil {
-		s.file.Close()
-		s.file = nil
-	}
-}
-
-func (s *StoreBinary) WriteNewTranslation(txt, trans, lang, user string) error {
+func (s *StoreCsv) WriteNewTranslation(txt, trans, lang, user string) error {
 	s.Lock()
 	defer s.Unlock()
-	return s.writeNewTranslation(s.w, txt, trans, lang, user)
+	return s.writeNewTranslation(txt, trans, lang, user)
 }
 
-func (s *StoreBinary) DuplicateTranslation(origStr, newStr string) error {
+func (s *StoreCsv) DuplicateTranslation(origStr, newStr string) error {
 	s.Lock()
 	defer s.Unlock()
-	return s.duplicateTranslation(s.w, origStr, newStr)
+	return s.duplicateTranslation(origStr, newStr)
 }
 
-func (s *StoreBinary) LangsCount() int {
-	s.Lock()
-	defer s.Unlock()
-	return len(s.langCodeMap)
+func (s *StoreCsv) LangsCount() int {
+	return LangsCount()
 }
 
-func (s *StoreBinary) StringsCount() int {
+func (s *StoreCsv) StringsCount() int {
 	s.Lock()
 	defer s.Unlock()
 	return s.activeStringsCount()
 }
 
-func (s *StoreBinary) EditsCount() int {
-	return 0
+func (s *StoreCsv) EditsCount() int {
+	s.Lock()
+	defer s.Unlock()
+	return len(s.edits)
 }
 
-func (s *StoreBinary) UntranslatedCount() int {
+func (s *StoreCsv) UntranslatedCount() int {
 	s.Lock()
 	defer s.Unlock()
 	return s.untranslatedCount()
 }
 
-func (s *StoreBinary) UntranslatedForLang(lang string) int {
+func (s *StoreCsv) UntranslatedForLang(lang string) int {
 	s.Lock()
 	defer s.Unlock()
 	return s.untranslatedForLang(lang)
 }
 
-func (s *StoreBinary) LangInfos() []*LangInfo {
+func (s *StoreCsv) LangInfos() []*LangInfo {
 	s.Lock()
 	defer s.Unlock()
 	return s.langInfos()
 }
 
-func (s *StoreBinary) RecentEdits(max int) []Edit {
+func (s *StoreCsv) RecentEdits(max int) []Edit {
 	s.Lock()
 	defer s.Unlock()
 	return s.recentEdits(max)
 }
 
-func (s *StoreBinary) EditsByUser(user string) []Edit {
+func (s *StoreCsv) EditsByUser(user string) []Edit {
 	s.Lock()
 	defer s.Unlock()
 	return s.editsByUser(user)
 }
 
-func (s *StoreBinary) EditsForLang(user string, max int) []Edit {
+func (s *StoreCsv) EditsForLang(user string, max int) []Edit {
 	s.Lock()
 	defer s.Unlock()
 	return s.editsForLang(user, max)
 }
 
-func (s *StoreBinary) Translators() []*Translator {
+func (s *StoreCsv) Translators() []*Translator {
 	s.Lock()
 	defer s.Unlock()
 	return s.translators()
 }
 
-func (s *StoreBinary) UpdateStringsList(newStrings []string) ([]string, []string, []string, error) {
-	s.Lock()
-	defer s.Unlock()
-
-	// for faster detection if string exists in newStrings, build a hash
-	stringsHash := make(map[string]bool)
-	for _, s := range newStrings {
-		stringsHash[s] = true
-	}
-
-	var toUndelete []string
-	for _, str := range newStrings {
-		if strId, ok := s.stringMap[str]; ok {
-			if s.isUnused(strId) {
-				toUndelete = append(toUndelete, str)
-			}
-		}
-	}
-
-	var toDelete []string
-	for str, _ := range s.stringMap {
-		if _, ok := stringsHash[str]; !ok {
-			toDelete = append(toDelete, str)
-		}
-	}
-
-	var toAdd []string
-	for str, _ := range stringsHash {
-		if _, ok := s.stringMap[str]; !ok {
-			toAdd = append(toAdd, str)
-		}
-	}
-
-	for _, str := range toUndelete {
-		if err := s.undeleteString(s.w, str); err != nil {
-			return nil, nil, nil, err
-		}
-	}
-	for _, str := range toDelete {
-		if err := s.deleteString(s.w, str); err != nil {
-			return nil, nil, nil, err
-		}
-	}
-	for _, str := range toAdd {
-		if err := s.writeNewStringRecord(s.w, str); err != nil {
-			return nil, nil, nil, err
-		}
-	}
-	return toAdd, toDelete, toUndelete, nil
+func (s *StoreCsv) writeActiveStringsRec(activeStrings []int) error {
+	rec := buildActiveSetRec(activeStrings)
+	return s.writeCsv(rec)
 }
 
-func (s *StoreBinary) GetUnusedStrings() []string {
+func (s *StoreCsv) writeActiveStrings(activeStrings []string) (err error) {
+	n := len(activeStrings)
+	activeStrIds := make([]int, n, n)
+	for i, str := range activeStrings {
+		activeStrIds[i], err = s.internStringAndWriteIfNecessary(str)
+		if err != nil {
+			return err
+		}
+	}
+	if err = s.writeActiveStringsRec(activeStrIds); err != nil {
+		return err
+	}
+	s.setActiveStrings(activeStrIds)
+	return nil
+}
+
+func (s *StoreCsv) UpdateStringsList(newStrings []string) ([]string, []string, []string, error) {
+	s.Lock()
+	defer s.Unlock()
+	err := s.writeActiveStrings(newStrings)
+	return nil, nil, nil, err
+}
+
+func (s *StoreCsv) GetUnusedStrings() []string {
 	s.Lock()
 	defer s.Unlock()
 	return s.getDeletedStrings()
