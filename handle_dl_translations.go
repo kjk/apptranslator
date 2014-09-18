@@ -17,6 +17,13 @@ type LangTrans struct {
 	trans string
 }
 
+// escape newlines with C-style escape codes. if we don't do that,
+func escapeTrans(s string) string {
+	s = strings.Replace(s, "\n", "\\n", -1)
+	s = strings.Replace(s, "\r", "\\r", -1)
+	return s
+}
+
 func translationsForApp(app *App) []byte {
 	m := make(map[string][]LangTrans)
 	langInfos := app.store.LangInfos()
@@ -57,7 +64,7 @@ func translationsForApp(app *App) []byte {
 		translations := make([]string, n, n)
 		for _, lt := range ltarr {
 			n -= 1
-			translations[n] = fmt.Sprintf("%s:%s\n", lt.lang, lt.trans)
+			translations[n] = fmt.Sprintf("%s:%s\n", lt.lang, escapeTrans(lt.trans))
 		}
 		sort.Strings(translations)
 		for _, trans := range translations {
