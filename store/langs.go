@@ -51,6 +51,7 @@ var (
 		Lang{"kr", "Korean", "한국어"},
 		Lang{"kw", "Cornish", "Kernewek"},
 		Lang{"lt", "Lithuanian", "Lietuvių"},
+		Lang{"lv", "Latvian", "latviešu valoda"},
 		Lang{"mk", "Macedonian", "македонски"},
 		Lang{"ml", "Malayalam", "മലയാളം"},
 		Lang{"mm", "Burmese", "ဗမာ စာ"},
