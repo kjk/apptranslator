@@ -12,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -343,13 +342,6 @@ func apptranslatorHostPolicy(ctx netcontext.Context, host string) error {
 }
 
 func main() {
-	// set number of goroutines to number of cpus, but capped at 4 since
-	// I don't expect this to be heavily trafficed website
-	ncpu := runtime.NumCPU()
-	if ncpu > 4 {
-		ncpu = 4
-	}
-	runtime.GOMAXPROCS(ncpu)
 	flag.Parse()
 
 	if *inProduction {
@@ -379,6 +371,8 @@ func main() {
 		app := NewApp(&appData)
 		if err := addApp(app); err != nil {
 			log.Fatalf("Failed to add the app: %s, err: %s\n", app.Name, err)
+		} else {
+			logger.Noticef("Added app %s\n", app.Name)
 		}
 	}
 
@@ -396,7 +390,7 @@ func main() {
 	}
 
 	if s3BackupEnabled() {
-		go BackupLoop(backupConfig)
+		go s3BackupLoop(backupConfig)
 	}
 
 	if *inProduction {
@@ -415,8 +409,8 @@ func main() {
 
 	srv := initHTTPServer()
 	srv.Addr = *httpAddr
-	logger.Noticef("Started running on %s\n", srv.Addr)
-	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
+	logger.Noticef("Started running on %s. Data dir: %s\n", srv.Addr, getDataDir())
+	if err := srv.ListenAndServe(); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %q\n", err)
 	}
 	fmt.Printf("Exited\n")

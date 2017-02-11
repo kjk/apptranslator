@@ -202,7 +202,7 @@ func doBackup(config *BackupConfig) {
 	logger.Noticef("s3 backup of %q to %q took %.2f secs", zipLocalPath, zipS3Path, dur.Seconds())
 }
 
-func BackupLoop(config *BackupConfig) {
+func s3BackupLoop(config *BackupConfig) {
 	ensureValidConfig(config)
 	for {
 		doBackup(config)

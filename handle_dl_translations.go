@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// LangTrans describes translation for a given language
 type LangTrans struct {
 	lang  string
 	trans string
@@ -61,7 +62,7 @@ func translationsForApp(app *App) []byte {
 		// TODO: to be more efficient, allocate translations array outside of loop
 		translations := make([]string, n, n)
 		for _, lt := range ltarr {
-			n -= 1
+			n--
 			translations[n] = fmt.Sprintf("%s:%s\n", lt.lang, escapeTrans(lt.trans))
 		}
 		sort.Strings(translations)
