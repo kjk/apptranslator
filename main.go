@@ -26,6 +26,7 @@ var (
 	httpAddr   = flag.String("addr", ":5001", "HTTP server address")
 	//logPath      = flag.String("log", "stdout", "where to log")
 	inProduction = flag.Bool("production", false, "are we running in production")
+	noS3Backup   = flag.Bool("no-backup", false, "don't backup to s3")
 	cookieName   = "ckie"
 )
 
@@ -73,6 +74,10 @@ func StringEmpty(s *string) bool {
 }
 
 func S3BackupEnabled() bool {
+	if *noS3Backup {
+		logger.Notice("s3 backups disabled because -no-backup flag")
+		return false
+	}
 	if !*inProduction {
 		logger.Notice("s3 backups disabled because not in production")
 		return false

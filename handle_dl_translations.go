@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-
-	"github.com/kjk/u"
 )
 
 type LangTrans struct {
@@ -100,14 +98,10 @@ func handleDownloadTranslations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b := translationsForApp(app)
-	sha1, err := u.DataSha1(b)
-	sha2, _ := u.DataSha1(b)
+	sha1 := sha1HexOfBytes(b)
+	sha2 := sha1HexOfBytes(b)
 	if sha1 != sha2 {
 		logger.Errorf("sha1 != sha2 (%s != %s)", sha1, sha2)
-	}
-	if err != nil {
-		httpErrorf(w, "Error from DataSha1 %s", err)
-		return
 	}
 	if sha1 == sha1In {
 		io.WriteString(w, "No change\n")
