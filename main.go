@@ -2,6 +2,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,10 +16,13 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/acme/autocert"
+
 	"github.com/garyburd/go-oauth/oauth"
 	"github.com/gorilla/securecookie"
 	"github.com/kjk/apptranslator/store"
 	"github.com/kjk/u"
+	netcontext "golang.org/x/net/context"
 )
 
 var (
@@ -69,11 +73,11 @@ var (
 	alwaysLogTime = true
 )
 
-func StringEmpty(s *string) bool {
+func stringEmpty(s *string) bool {
 	return s == nil || 0 == len(*s)
 }
 
-func S3BackupEnabled() bool {
+func s3BackupEnabled() bool {
 	if *noS3Backup {
 		logger.Notice("s3 backups disabled because -no-backup flag")
 		return false
@@ -82,19 +86,19 @@ func S3BackupEnabled() bool {
 		logger.Notice("s3 backups disabled because not in production")
 		return false
 	}
-	if StringEmpty(config.AwsAccess) {
+	if stringEmpty(config.AwsAccess) {
 		logger.Notice("s3 backups disabled because AwsAccess not defined in config.json\n")
 		return false
 	}
-	if StringEmpty(config.AwsSecret) {
+	if stringEmpty(config.AwsSecret) {
 		logger.Notice("s3 backups disabled because AwsSecret not defined in config.json\n")
 		return false
 	}
-	if StringEmpty(config.S3BackupBucket) {
+	if stringEmpty(config.S3BackupBucket) {
 		logger.Notice("s3 backups disabled because S3BackupBucket not defined in config.json\n")
 		return false
 	}
-	if StringEmpty(config.S3BackupDir) {
+	if stringEmpty(config.S3BackupDir) {
 		logger.Notice("s3 backups disabled because S3BackupDir not defined in config.json\n")
 		return false
 	}
@@ -121,7 +125,7 @@ func getDataDir() string {
 	return ""
 }
 
-// a static configuration of a single app
+// AppConfigs is a static configuration of a single app
 type AppConfig struct {
 	Name string
 	// url for the application's website (shown in the UI)
@@ -136,41 +140,46 @@ type AppConfig struct {
 	UploadSecret string
 }
 
+// User describes an user
 type User struct {
 	Login string
 }
 
+// App describes an app
 type App struct {
 	AppConfig
 	store *store.StoreCsv
 }
 
+// AppState describes state of the app
 type AppState struct {
 	Users []*User
 	Apps  []*App
 }
 
+// NewApp creates new App
 func NewApp(config *AppConfig) *App {
 	app := &App{AppConfig: *config}
 	return app
 }
 
-// used in templates
+// LangsCount returns number of languages, used in templates
 func (a *App) LangsCount() int {
 	return len(store.Languages)
 	//return a.store.LangsCount()
 }
 
-// used in templates
+// StringsCount returns number of strings, used in templates
 func (a *App) StringsCount() int {
 	return a.store.StringsCount()
 }
 
-// used in templates
+// UntranslatedCount returns number of untranslated strings, used in templates
 func (a *App) UntranslatedCount() int {
 	return a.store.UntranslatedCount()
 }
 
+// EditsCount returns number of edits
 func (a *App) EditsCount() int {
 	return a.store.EditsCount()
 }
@@ -255,7 +264,7 @@ func addApp(app *App) error {
 	return nil
 }
 
-func isTopLevelUrl(url string) bool {
+func isTopLevelURL(url string) bool {
 	return 0 == len(url) || "/" == url
 }
 
@@ -326,6 +335,13 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 	}
 }
 
+func apptranslatorHostPolicy(ctx netcontext.Context, host string) error {
+	if strings.HasSuffix(host, "apptranslator.org") {
+		return nil
+	}
+	return errors.New("acme/autocert: only *.apptransloator.org hosts are allowed")
+}
+
 func main() {
 	// set number of goroutines to number of cpus, but capped at 4 since
 	// I don't expect this to be heavily trafficed website
@@ -379,12 +395,27 @@ func main() {
 		LocalDir:  getDataDir(),
 	}
 
-	if S3BackupEnabled() {
+	if s3BackupEnabled() {
 		go BackupLoop(backupConfig)
 	}
 
-	InitHttpHandlers()
-	logger.Noticef(fmt.Sprintf("Started running on %s", *httpAddr))
+	if *inProduction {
+		m := autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: apptranslatorHostPolicy,
+		}
+		srv := initHTTPServer()
+		srv.Addr = ":443"
+		srv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
+		logger.Noticef("Started runing HTTPS on %s\n", srv.Addr)
+		go func() {
+			srv.ListenAndServeTLS("", "")
+		}()
+	}
+
+	srv := initHTTPServer()
+	srv.Addr = *httpAddr
+	logger.Noticef("Started running on %s\n", srv.Addr)
 	if err := http.ListenAndServe(*httpAddr, nil); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %q\n", err)
 	}

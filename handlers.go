@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/kjk/apptranslator/store"
@@ -32,6 +33,7 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 	serveFileStatic(w, r, file)
 }
 
+// ModelMain describes main model
 type ModelMain struct {
 	PageTitle   string
 	Apps        *[]*App
@@ -66,7 +68,7 @@ func getAppLangArg(w http.ResponseWriter, r *http.Request) (*App, string) {
 
 // url: /
 func handleMain(w http.ResponseWriter, r *http.Request) {
-	if !isTopLevelUrl(r.URL.Path) {
+	if !isTopLevelURL(r.URL.Path) {
 		http404(w, r)
 		return
 	}
@@ -136,7 +138,8 @@ func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
-func InitHttpHandlers() {
+// // https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
+func initHTTPServer() *http.Server {
 	r := mux.NewRouter()
 	r.HandleFunc("/app/{appname}", makeTimingHandler(handleApp))
 	r.HandleFunc("/app/{appname}/edits", makeTimingHandler(handleAppEdits))
@@ -154,6 +157,18 @@ func InitHttpHandlers() {
 	r.HandleFunc("/logs", makeTimingHandler(handleLogs))
 	r.HandleFunc("/", makeTimingHandler(handleMain))
 
-	http.HandleFunc("/s/", makeTimingHandler(handleStatic))
-	http.Handle("/", r)
+	smux := &http.ServeMux{}
+
+	smux.HandleFunc("/s/", makeTimingHandler(handleStatic))
+	smux.Handle("/", r)
+
+	srv := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		// TODO: 1.8 only
+		// IdleTimeout:  120 * time.Second,
+		Handler: smux,
+	}
+	// TODO: track connections and their state
+	return srv
 }

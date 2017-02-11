@@ -5,4 +5,4 @@ set -o errexit
 set -o pipefail
 
 cd store
-godep go test -test.v=true
+go test -test.v=true
