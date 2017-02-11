@@ -277,7 +277,7 @@ func (s *StoreCsv) translatedCountForLangs() map[int]int {
 		count := 0
 		for _, isTranslated := range arr {
 			if isTranslated {
-				count += 1
+				count++
 			}
 		}
 		res[langId] = count
@@ -446,7 +446,7 @@ func (s *StoreCsv) translators() []*Translator {
 			continue
 		}
 		if t, ok := m[userId]; ok {
-			t.TranslationsCount += 1
+			t.TranslationsCount++
 		} else {
 			m[userId] = &Translator{Name: s.userById(userId), TranslationsCount: 1}
 		}
@@ -456,7 +456,7 @@ func (s *StoreCsv) translators() []*Translator {
 	i := 0
 	for _, t := range m {
 		res[i] = t
-		i += 1
+		i++
 	}
 	return res
 }

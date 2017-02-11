@@ -52,7 +52,7 @@ func (b *CircularMessagesBuf) Add(s string) {
 		b.full = true
 	}
 	b.Msgs[b.pos] = msg
-	b.pos += 1
+	b.pos++
 }
 
 func (b *CircularMessagesBuf) GetOrdered() []*TimestampedMsg {

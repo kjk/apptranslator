@@ -48,9 +48,9 @@ func translationsForApp(app *App) []byte {
 	// get strings in sorted order so that we can generate stable output
 	strings := make([]string, len(m), len(m))
 	i := 0
-	for k, _ := range m {
+	for k := range m {
 		strings[i] = k
-		i += 1
+		i++
 	}
 	sort.Strings(strings)
 
