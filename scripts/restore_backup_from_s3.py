@@ -1,5 +1,7 @@
-#!/usr/bin/env python
-# the backup is in kjkbackup bucket, directory apptranslator
+# the backup is in kjkbackup bucket, directory blog:
+# - directory blobs has articles blobs
+# - directory blobs_crashes has crashes blobs
+# - $date_$hash.zip has the rest (the latest has the most recent info)
 import os, json, zipfile
 
 
@@ -11,7 +13,6 @@ g_conn = None
 
 def memoize(func):
     memory = {}
-
     def __decorated(*args):
         if args not in memory:
             memory[args] = func(*args)
@@ -43,11 +44,13 @@ def delete_file(path):
 
 
 def create_dir(d):
-    if not os.path.exists(d): os.makedirs(d)
+    if not os.path.exists(d):
+        os.makedirs(d)
     return d
 
 @memoize
-def script_dir(): return os.path.realpath(os.path.dirname(__file__))
+def script_dir():
+    return os.path.realpath(os.path.dirname(__file__))
 
 
 # where we will download the files
@@ -55,7 +58,7 @@ def script_dir(): return os.path.realpath(os.path.dirname(__file__))
 # to the same directory where the script is - on the server
 @memoize
 def local_download_dir():
-    d = os.path.join(script_dir(), "..", "..", "apptranslatordata")
+    d = os.path.expanduser("~/data/apptranslator")
     if os.path.exists(d):
         return d
     return script_dir()
@@ -94,7 +97,7 @@ def restore_from_zip(s3_key):
     create_dir(dst_dir)
     for name in zf.namelist():
         dst_path = os.path.join(dst_dir, name)
-        delete_file(dst_path)  # just in case
+        delete_file(dst_path) # just in case
         zf.extract(name, dst_dir)
         print("  extracted %s to %s " % (name, dst_path))
     delete_file(tmp_path)

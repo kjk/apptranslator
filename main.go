@@ -110,21 +110,25 @@ func getDataDir() string {
 	if dataDir != "" {
 		return dataDir
 	}
-	// on the server, must be done first because ExpandTildeInPath()
-	// doesn't work when cross-compiled on mac for linux
-	dataDir = filepath.Join("..", "..", "data")
-	if u.PathExists(dataDir) {
-		return dataDir
+
+	dirsToCheck := []string{
+		// on the server, must be done first because ExpandTildeInPath()
+		// doesn't work when cross-compiled on mac for linux
+		filepath.Join("..", "..", "data"),
+		u.ExpandTildeInPath("~/data/apptranslator"),
 	}
-	dataDir = u.ExpandTildeInPath("~/data/apptranslator")
-	if u.PathExists(dataDir) {
-		return dataDir
+
+	for _, dir := range dirsToCheck {
+		if u.PathExists(dir) {
+			dataDir = dir
+			return dataDir
+		}
 	}
-	log.Fatal("data directory (../../data or ../apptranslatordata) doesn't exist")
+	log.Fatalf("data directory (%v) doesn't exist\n", dirsToCheck)
 	return ""
 }
 
-// AppConfigs is a static configuration of a single app
+// AppConfig is a static configuration of a single app
 type AppConfig struct {
 	Name string
 	// url for the application's website (shown in the UI)

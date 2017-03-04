@@ -1,0 +1,7 @@
+[MESSAGES CONTROL]
+# C0103 - invalid variable name (e.g. v1)
+# C0111 - no docstring
+# W0603 - using global statement
+# C0325 - unnedessary parens after print()
+# C0410 - multiple import on one line
+disable=C0111,C0103,W0603,C0325,C0410
