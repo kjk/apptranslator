@@ -1,13 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
+	<title>AppTranslator</title>
 	<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
 	<link href="/s/css/bootstrap.css" rel="stylesheet">
 	<link href="/s/css/bootstrap-responsive.css" rel="stylesheet">
 	<!--[if lt IE 9]>
 	  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
 	<![endif]-->
-	<style type=text/css>
+	<style type="text/css">
 	.trans {
 		padding-top: 2px;
 		padding-bottom: 2px;
@@ -45,6 +46,7 @@
 		</div> {{.TransProgressPercent}}%
 	</div>
 </header>
+</div>
 
 <p style="margin-bottom:16px"></p>
 
@@ -76,6 +78,7 @@
 
 {{if len .LangInfo.UnusedStrings}}
 <p></p>
+<p>
 <b>{{len .LangInfo.UnusedStrings}} unused strings:</b><br>
 	{{range .LangInfo.UnusedStrings}}
 	<div class="trans" id="idTrans{{.Id}}">
@@ -118,8 +121,7 @@
 				<input type="hidden" name="app" value="{{.App.Name}}">
 				<input type="hidden" name="lang" value="{{.LangInfo.Code}}">
 				<p id="mismatchedStringFormattingError" style="color:red;visibility:hidden"><bold>
-					Error: translation cannot be empty and string formatting directives (%s, %d etc.)
-					must be in the same order.
+					<span id="mismatchedStringMsg"></span>
 				</bold></p>
 				<p></p>
 				<p>Note: by adding/editing a translation you agree to place your translations
@@ -180,26 +182,46 @@
 {{end}}
 
 <hr style="margin:4px">
-<center style="padding-bottom:12px"><a href="https://github.com/kjk/apptranslator">App Translator</a>, lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk<a></center>
+<center style="padding-bottom:12px"><a href="https://github.com/kjk/apptranslator">App Translator</a>, lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk</a></center>
 
 <!-- placed at the end for faster loading -->
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
 <script src="/s/js/bootstrap.js"></script>
-<script src="/s/js/apptranslator.js"></script>
 
 <script>
 
-var prevTranslationValue = "";
-function updateEditTransState() {
-	var txt = $("#idEditFormString").text();
-	prevTranslationValue = $("#idEditFormTrans").val();
-	if (canSubmitTranslation(txt, prevTranslationValue)) {
-		$("button[type=submit]").removeAttr("disabled");
-		$("#mismatchedStringFormattingError").css({"visibility":"hidden"});
-	} else {
-		$("button[type=submit]").attr("disabled", "disabled");
-		$("#mismatchedStringFormattingError").css({"visibility":"visible"});
+// extract formatting string modifiers (%d, %s etc.) from both s1
+// and s2 and return true if they are in the same order
+function stringFormattingModifiersAreSame(s1, s2) {
+	var a1 = extractFormattingModifiers(s1);
+	var a2 = extractFormattingModifiers(s2);
+	if (a1.length != a2.length) { return false; }
+	var l = a1.length;
+	for (var i=0; i<a1.length; i++) {
+		if (a1[i] != a2[i]) { return false; }
 	}
+	return true;
+}
+
+// extract string formatting instructions (%s, %d etc.) from s
+// and return as an array
+function extractFormattingModifiers(s) {
+	var res = new Array;
+	for (var i=0; i<s.length; i++) {
+		var c = s[i];
+		if (c == '%') {
+			res.push(s[++i]);
+		}
+	}
+	return res;
+}
+
+// $translation of a given $text can be submitted if it's not an empty
+// string and if their string formatting instructions (%d, %s etc.) match
+function canSubmitTranslation(text, translation) {
+	var t = $.trim(translation);
+	if (t.length == 0) { return false; }
+	return stringFormattingModifiersAreSame(text, translation);
 }
 
 // 1. can't be the same
@@ -210,6 +232,25 @@ function canSubmitDuplication(orig, curr) {
     if (orig == t) { return false; }
     return canSubmitTranslation(orig, curr);
 }
+
+var prevTranslationValue = "";
+function updateEditTransState() {
+	prevTranslationValue = $("#idEditFormTrans").val();
+	var errorMsg = null;
+	var txt = $("#idEditFormString").text().trim();
+	if (txt === "") {
+		errorMsg
+	}
+
+	if (canSubmitTranslation(txt, prevTranslationValue)) {
+		$("button[type=submit]").removeAttr("disabled");
+		$("#mismatchedStringFormattingError").css({"visibility":"hidden"});
+	} else {
+		$("button[type=submit]").attr("disabled", "disabled");
+		$("#mismatchedStringFormattingError").css({"visibility":"visible"});
+	}
+}
+
 
 var prevDupValue = "";
 function updateDupTransState() {
