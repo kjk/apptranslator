@@ -139,7 +139,7 @@ func handleDuplicateTranslation(w http.ResponseWriter, r *http.Request) {
 }
 
 // // https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
-func initHTTPServer() *http.Server {
+func makeHTTPServer() *http.Server {
 	r := mux.NewRouter()
 	r.HandleFunc("/app/{appname}", makeTimingHandler(handleApp))
 	r.HandleFunc("/app/{appname}/edits", makeTimingHandler(handleAppEdits))

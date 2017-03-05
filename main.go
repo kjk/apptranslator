@@ -338,7 +338,7 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 	}
 }
 
-func apptranslatorHostPolicy(ctx netcontext.Context, host string) error {
+func hostPolicy(ctx netcontext.Context, host string) error {
 	if strings.HasSuffix(host, "apptranslator.org") {
 		return nil
 	}
@@ -400,9 +400,9 @@ func main() {
 	if *inProduction {
 		m := autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
-			HostPolicy: apptranslatorHostPolicy,
+			HostPolicy: hostPolicy,
 		}
-		srv := initHTTPServer()
+		srv := makeHTTPServer()
 		srv.Addr = ":443"
 		srv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
 		logger.Noticef("Started runing HTTPS on %s\n", srv.Addr)
@@ -411,7 +411,7 @@ func main() {
 		}()
 	}
 
-	srv := initHTTPServer()
+	srv := makeHTTPServer()
 	srv.Addr = *httpAddr
 	logger.Noticef("Started running on %s. Data dir: %s\n", srv.Addr, getDataDir())
 	if err := srv.ListenAndServe(); err != nil {
