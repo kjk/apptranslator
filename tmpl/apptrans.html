@@ -46,7 +46,6 @@
 		</div> {{.TransProgressPercent}}%
 	</div>
 </header>
-</div>
 
 <p style="margin-bottom:16px"></p>
 
@@ -115,9 +114,9 @@
 		<form class="well" action="/edittranslation" method="POST">
 			<div class="modal-body">
 				<label>String:</label>
-				<textarea rows=3 readonly="readonly" name="string" id="idEditFormString" style="width:90%"></textarea>
+				<textarea rows="3" readonly="readonly" name="string" id="idEditFormString" style="width:90%"></textarea>
 				<label>Translation:</label>
-				<textarea rows=3 name="translation" id="idEditFormTrans" style="width:90%"></textarea>
+				<textarea rows="3" name="translation" id="idEditFormTrans" style="width:90%"></textarea>
 				<input type="hidden" name="app" value="{{.App.Name}}">
 				<input type="hidden" name="lang" value="{{.LangInfo.Code}}">
 				<p id="mismatchedStringFormattingError" style="color:red;visibility:hidden"><bold>
@@ -161,12 +160,12 @@
         <form class="well" action="/duptranslation?lang={{.LangInfo.Code}}" method="POST">
             <div class="modal-body">
                 <label>Duplicate translation of string:</label>
-                <textarea rows=3 readonly="readonly" name="string" id="idDupFormString" style="width:90%"></textarea>
+                <textarea rows="3" readonly="readonly" name="string" id="idDupFormString" style="width:90%"></textarea>
                 <label>As:</label>
-                <textarea rows=3 name="duplicate" id="idDupFormTrans" style="width:90%"></textarea>
+                <textarea rows="3" name="duplicate" id="idDupFormTrans" style="width:90%"></textarea>
                 <input type="hidden" name="app" value="{{.App.Name}}">
                 <p id="mismatchedDupStringFormattingError" style="color:red;visibility:hidden"><bold>
-                    Error: new string cannot be empty, the same and string formatting directives (%s, %d etc.) must be in the same order.
+                    <span id="mismatchedDupStringMsg">Error: new string cannot be empty, the same and string formatting directives (%s, %d etc.) must be in the same order.</span>
                 </bold></p>
                 <p></p>
                 <p>Note: by adding/editing a translation you agree to place your translations
@@ -183,6 +182,8 @@
 
 <hr style="margin:4px">
 <center style="padding-bottom:12px"><a href="https://github.com/kjk/apptranslator">App Translator</a>, lovingly crafted by <a href="http://blog.kowalczyk.info">Krzysztof Kowalczyk</a></center>
+
+</div>
 
 <!-- placed at the end for faster loading -->
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
@@ -218,51 +219,56 @@ function extractFormattingModifiers(s) {
 
 // $translation of a given $text can be submitted if it's not an empty
 // string and if their string formatting instructions (%d, %s etc.) match
-function canSubmitTranslation(text, translation) {
+function canSubmitTranslationError(text, translation) {
 	var t = $.trim(translation);
-	if (t.length == 0) { return false; }
-	return stringFormattingModifiersAreSame(text, translation);
+	if (t.length === 0) {
+		return "Error: string cannot be empty";
+	}
+	if (!stringFormattingModifiersAreSame(text, translation)) {
+		return "Error: string formatting directives (%s, %d etc.) must be in the same order.";
+	}
+	return null;
 }
 
 // 1. can't be the same
 // 2. their string formatting instructions (%d, %s etc.) match
-function canSubmitDuplication(orig, curr) {
+function canSubmitDuplicationError(orig, curr) {
     var t = $.trim(curr);
-    if (t.length == 0) { return false; }
-    if (orig == t) { return false; }
-    return canSubmitTranslation(orig, curr);
+	if (orig === t) {
+		return "Error: strings cannot be the same";
+	}
+    return canSubmitTranslationError(orig, curr);
 }
 
 var prevTranslationValue = "";
 function updateEditTransState() {
 	prevTranslationValue = $("#idEditFormTrans").val();
 	var errorMsg = null;
-	var txt = $("#idEditFormString").text().trim();
-	if (txt === "") {
-		errorMsg
-	}
-
-	if (canSubmitTranslation(txt, prevTranslationValue)) {
+	var txt = $("#idEditFormString").text();
+	var errorMsg = canSubmitTranslationError(txt, prevTranslationValue);
+	if (errorMsg === null) {
 		$("button[type=submit]").removeAttr("disabled");
 		$("#mismatchedStringFormattingError").css({"visibility":"hidden"});
 	} else {
 		$("button[type=submit]").attr("disabled", "disabled");
 		$("#mismatchedStringFormattingError").css({"visibility":"visible"});
+		$("#mismatchedStringMsg").text(errorMsg);
 	}
 }
 
-
 var prevDupValue = "";
 function updateDupTransState() {
-    var orig = $("#idDupFormString").text();
-    prevDupValue = $("#idDupFormTrans").val();
-    if (canSubmitDuplication(orig, prevDupValue)) {
-        $("button[type=submit]").removeAttr("disabled");
-        $("#mismatchedDupStringFormattingError").css({"visibility":"hidden"});
-    } else {
-        $("button[type=submit]").attr("disabled", "disabled");
-        $("#mismatchedDupStringFormattingError").css({"visibility":"visible"});
-    }
+	var orig = $("#idDupFormString").text();
+	prevDupValue = $("#idDupFormTrans").val();
+	var errorMsg = canSubmitDuplicationError(orig, prevDupValue);
+	if (errorMsg === null) {
+		$("button[type=submit]").removeAttr("disabled");
+		$("#mismatchedDupStringFormattingError").css({"visibility":"hidden"});
+	} else {
+		$("button[type=submit]").attr("disabled", "disabled");
+		$("#mismatchedDupStringFormattingError").css({"visibility":"visible"});
+		$("#mismatchedDupStringMsg").text(errorMsg);
+	}
 }
 
 $(document).ready(function() {
@@ -293,21 +299,21 @@ $(document).ready(function() {
 		updateEditTransState();
 	});
 
-    $(".dupbtn").click(function() {
-        $("#idDupTransHdr").text("Duplicate translation");
-        var el = $(this).parent().find(".origstr");
-        var s = el.text()
-        $("#idDupFormString").text(s);
-        $("#idDupFormTrans").text(s);
-        $("#idDupTrans").modal('show');
-        $("#idDupFormTrans").focus();
-        updateDupTransState();
-    });
+	$(".dupbtn").click(function() {
+		$("#idDupTransHdr").text("Duplicate translation");
+		var el = $(this).parent().find(".origstr");
+		var s = el.text()
+		$("#idDupFormString").text(s);
+		$("#idDupFormTrans").text(s);
+		$("#idDupTrans").modal('show');
+		$("#idDupFormTrans").focus();
+		updateDupTransState();
+	});
 
-    $("#idDupFormTrans").bind("keyup paste", function(e) {
-        if ($(this).val() == prevDupValue) { return; }
-        updateDupTransState();
-    });
+	$("#idDupFormTrans").bind("keyup paste", function(e) {
+		if ($(this).val() == prevDupValue) { return; }
+		updateDupTransState();
+	});
 });
 
 </script>
