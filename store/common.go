@@ -1,5 +1,6 @@
-// This code is under BSD license. See license-bsd.txt
 package store
+
+// This code is under BSD license. See license-bsd.txt
 
 import (
 	"fmt"
@@ -7,23 +8,7 @@ import (
 	"strings"
 )
 
-func panicif(cond bool, args ...interface{}) {
-	if !cond {
-		return
-	}
-	msg := "panic"
-	if len(args) > 0 {
-		s, ok := args[0].(string)
-		if ok {
-			msg = s
-			if len(s) > 1 {
-				msg = fmt.Sprintf(msg, args[1:]...)
-			}
-		}
-	}
-	panic(msg)
-}
-
+// Translation describes a single translation of the phrase
 type Translation struct {
 	Id     int
 	String string
@@ -32,6 +17,7 @@ type Translation struct {
 	Translations []string
 }
 
+// NewTranslation creates a new Translation
 func NewTranslation(id int, s, trans string) *Translation {
 	t := &Translation{Id: id, String: s}
 	if trans != "" {
@@ -40,6 +26,7 @@ func NewTranslation(id int, s, trans string) *Translation {
 	return t
 }
 
+// Current returns latest translation
 func (t *Translation) Current() string {
 	n := len(t.Translations)
 	if 0 == n {
@@ -48,10 +35,12 @@ func (t *Translation) Current() string {
 	return t.Translations[n-1]
 }
 
+// IsTranslated returns true if the phrase is translated
 func (t *Translation) IsTranslated() bool {
 	return len(t.Translations) > 0
 }
 
+// History returns list of past translations
 func (t *Translation) History() []string {
 	n := len(t.Translations)
 	if n < 2 {
@@ -105,6 +94,7 @@ func (s ByString2) Less(i, j int) bool {
 	return transStringLess(s1, s2)
 }
 
+// LangInfo describes language
 type LangInfo struct {
 	Code          string
 	Name          string
@@ -136,15 +126,18 @@ func (s ByUntranslated) Less(i, j int) bool {
 	return s.LangInfoSeq[i].Name < s.LangInfoSeq[j].Name
 }
 
+// SortLangsByName sorts languages by name
 func SortLangsByName(langs []*LangInfo) {
 	sort.Sort(ByName{langs})
 }
 
+// NewLangInfo creates new LangInfo
 func NewLangInfo(langCode string) *LangInfo {
 	li := &LangInfo{Code: langCode, Name: LangNameByCode(langCode), untranslated: -1}
 	return li
 }
 
+// UntranslatedCount returns number of untranslated phrases in this language
 func (li *LangInfo) UntranslatedCount() int {
 	if li.untranslated == -1 {
 		li.untranslated = 0
@@ -155,4 +148,38 @@ func (li *LangInfo) UntranslatedCount() int {
 		}
 	}
 	return li.untranslated
+}
+
+func fmtArgs(args ...interface{}) string {
+	if len(args) == 0 {
+		return ""
+	}
+	format := args[0].(string)
+	if len(args) == 1 {
+		return format
+	}
+	return fmt.Sprintf(format, args[1:]...)
+}
+
+func panicWithMsg(defaultMsg string, args ...interface{}) {
+	s := fmtArgs(args...)
+	if s == "" {
+		s = defaultMsg
+	}
+	fmt.Printf("%s\n", s)
+	panic(s)
+}
+
+func fatalIfErr(err error, args ...interface{}) {
+	if err == nil {
+		return
+	}
+	panicWithMsg(err.Error(), args...)
+}
+
+func fatalIf(cond bool, args ...interface{}) {
+	if !cond {
+		return
+	}
+	panicWithMsg("fatalIf: condition failed", args...)
 }

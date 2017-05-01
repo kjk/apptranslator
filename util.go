@@ -8,21 +8,38 @@ import (
 	"os"
 )
 
-func panicif(cond bool, args ...interface{}) {
+func fmtArgs(args ...interface{}) string {
+	if len(args) == 0 {
+		return ""
+	}
+	format := args[0].(string)
+	if len(args) == 1 {
+		return format
+	}
+	return fmt.Sprintf(format, args[1:]...)
+}
+
+func panicWithMsg(defaultMsg string, args ...interface{}) {
+	s := fmtArgs(args...)
+	if s == "" {
+		s = defaultMsg
+	}
+	fmt.Printf("%s\n", s)
+	panic(s)
+}
+
+func fatalIfErr(err error, args ...interface{}) {
+	if err == nil {
+		return
+	}
+	panicWithMsg(err.Error(), args...)
+}
+
+func fatalIf(cond bool, args ...interface{}) {
 	if !cond {
 		return
 	}
-	msg := "panic"
-	if len(args) > 0 {
-		s, ok := args[0].(string)
-		if ok {
-			msg = s
-			if len(s) > 1 {
-				msg = fmt.Sprintf(msg, args[1:]...)
-			}
-		}
-	}
-	panic(msg)
+	panicWithMsg("fatalIf: condition failed", args...)
 }
 
 func http404(w http.ResponseWriter, r *http.Request) {

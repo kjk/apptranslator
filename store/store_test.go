@@ -8,55 +8,55 @@ import (
 
 func (s *StoreCsv) writeNewTranslationMust(s1, s2, s3, s4 string) {
 	err := s.WriteNewTranslation(s1, s2, s3, s4)
-	panicif(err != nil, "err != nil")
+	fatalIf(err != nil, "err != nil")
 }
 
 func (s *StoreCsv) duplicateTranslationMust(origStr, newStr string) {
 	err := s.DuplicateTranslation(origStr, newStr)
-	panicif(err != nil, "err != nil")
+	fatalIf(err != nil, "err != nil")
 }
 
 func (s *StoreCsv) updateStringsListMust(sl []string) ([]string, []string, []string) {
 	added, deleted, undeleted, err := s.UpdateStringsList(sl)
-	panicif(err != nil, "err != nil")
+	fatalIf(err != nil, "err != nil")
 	return added, deleted, undeleted
 }
 
 func (s *StoreCsv) ensureUserCount(exp int) {
-	panicif(s.users.Count() != exp, "len(s.userNameMap)=%d, exp: %d", s.users.Count(), exp)
+	fatalIf(s.users.Count() != exp, "len(s.userNameMap)=%d, exp: %d", s.users.Count(), exp)
 }
 
 func (s *StoreCsv) ensureStringsCount(exp int) {
-	panicif(s.strings.Count() != exp, "len(s.stringMap)=%d, exp: %d", s.strings.Count(), exp)
+	fatalIf(s.strings.Count() != exp, "len(s.stringMap)=%d, exp: %d", s.strings.Count(), exp)
 }
 
 func (s *StoreCsv) ensureUndeletedStringsCount(exp int) {
 	n := s.activeStringsCount()
-	panicif(n != exp, "len(s.activeStringsCount())=%d, exp: %d", s.activeStringsCount(), exp)
+	fatalIf(n != exp, "len(s.activeStringsCount())=%d, exp: %d", s.activeStringsCount(), exp)
 }
 
 func (s *StoreCsv) ensureTranslationsCount(exp int) {
-	panicif(len(s.edits) != exp, "len(s.translations)=%d, exp: %d", len(s.edits), exp)
+	fatalIf(len(s.edits) != exp, "len(s.translations)=%d, exp: %d", len(s.edits), exp)
 }
 
 func (s *StoreCsv) ensureLangCode(name string, exp int) {
 	// TODO: write me
-	//panicif(s.langCodeMap[name] != exp, "s.langCodeMap[%q]=%d, exp: %d", name, s.langCodeMap[name], exp)
+	//fatalIf(s.langCodeMap[name] != exp, "s.langCodeMap[%q]=%d, exp: %d", name, s.langCodeMap[name], exp)
 }
 
 func (s *StoreCsv) ensureUserCode(user string, exp int) {
 	userId := s.users.IdByStrMust(user)
-	panicif(userId != exp, "user: %q, got: %d, exp: %d", user, userId, exp)
+	fatalIf(userId != exp, "user: %q, got: %d, exp: %d", user, userId, exp)
 }
 
 func (s *StoreCsv) ensureStringCode(str string, exp int) {
 	strId := s.strings.IdByStrMust(str)
-	panicif(strId != exp, "str: %q, got: %d, exp: %d", str, strId, exp)
+	fatalIf(strId != exp, "str: %q, got: %d, exp: %d", str, strId, exp)
 }
 
 func (s *StoreCsv) ensureDeletedCount(exp int) {
 	// TODO: write me
-	//panicif(len(s.deletedStrings) != exp, "len(s.deletedStrings)=%d, exp: %d", len(s.deletedStrings), exp)
+	//fatalIf(len(s.deletedStrings) != exp, "len(s.deletedStrings)=%d, exp: %d", len(s.deletedStrings), exp)
 }
 
 func (s *StoreCsv) ensureStateEmpty() {
@@ -103,7 +103,7 @@ func (s *StoreCsv) ensureStringsAre(strs []string) {
 
 func NewTestStore(path string) *StoreCsv {
 	s, err := NewStoreCsv(path)
-	panicif(err != nil, "Failed to create new transtest.dat")
+	fatalIf(err != nil, "Failed to create new transtest.dat")
 	return s
 }
 
@@ -150,16 +150,16 @@ func TestTransLog2(t *testing.T) {
 
 	s.updateStringsListMust([]string{"foo", "bar", "go"})
 	//added, deleted, undeleted := s.updateStringsListMust([]string{"foo", "bar", "go"})
-	//panicif(len(added) != 2, "len(added) = %d != 2", len(added))
-	//panicif(len(deleted) != 0, "len(deleted) = %d != 0", len(deleted))
-	//panicif(len(undeleted) != 0, "len(undeleted) = %d != 0", len(undeleted))
+	//fatalIf(len(added) != 2, "len(added) = %d != 2", len(added))
+	//fatalIf(len(deleted) != 0, "len(deleted) = %d != 0", len(deleted))
+	//fatalIf(len(undeleted) != 0, "len(undeleted) = %d != 0", len(undeleted))
 	s.ensureStringsAre([]string{"foo", "bar", "go"})
 
 	_, _, _ = s.updateStringsListMust([]string{"foo", "bar"})
-	//panicif(len(deleted) != 1, "len(deleted) != 1")
+	//fatalIf(len(deleted) != 1, "len(deleted) != 1")
 
 	_, _, _ = s.updateStringsListMust([]string{"foo", "bar", "go"})
-	//panicif(len(undeleted) != 1, "len(undeleted) != 1")
+	//fatalIf(len(undeleted) != 1, "len(undeleted) != 1")
 
 	s.Close()
 }

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -11,8 +12,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/acme/autocert"
@@ -21,7 +26,6 @@ import (
 	"github.com/gorilla/securecookie"
 	"github.com/kjk/apptranslator/store"
 	"github.com/kjk/u"
-	netcontext "golang.org/x/net/context"
 )
 
 var (
@@ -338,7 +342,7 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 	}
 }
 
-func hostPolicy(ctx netcontext.Context, host string) error {
+func hostPolicy(ctx context.Context, host string) error {
 	if strings.HasSuffix(host, "apptranslator.org") {
 		return nil
 	}
@@ -397,25 +401,63 @@ func main() {
 		go s3BackupLoop(backupConfig)
 	}
 
+	var wg sync.WaitGroup
+	var httpsSrv, httpSrv *http.Server
+
 	if *inProduction {
 		m := autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
 			HostPolicy: hostPolicy,
 		}
-		srv := makeHTTPServer()
-		srv.Addr = ":443"
-		srv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
-		logger.Noticef("Started runing HTTPS on %s\n", srv.Addr)
+		httpsSrv = makeHTTPServer()
+		httpsSrv.Addr = ":443"
+		httpsSrv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
+		logger.Noticef("Started runing HTTPS on %s\n", httpsSrv.Addr)
 		go func() {
-			srv.ListenAndServeTLS("", "")
+			wg.Add(1)
+			err := httpsSrv.ListenAndServeTLS("", "")
+			// mute error caused by Shutdown()
+			if err == http.ErrServerClosed {
+				err = nil
+			}
+			fatalIfErr(err)
+			fmt.Printf("HTTPS server shutdown gracefully\n")
+			wg.Done()
 		}()
 	}
 
-	srv := makeHTTPServer()
-	srv.Addr = *httpAddr
-	logger.Noticef("Started running on %s. Data dir: %s\n", srv.Addr, getDataDir())
-	if err := srv.ListenAndServe(); err != nil {
-		fmt.Printf("http.ListendAndServer() failed with %q\n", err)
+	httpSrv = makeHTTPServer()
+	httpSrv.Addr = *httpAddr
+	logger.Noticef("Starting http server on %s, data dir: %s", httpSrv.Addr, getDataDir())
+	go func() {
+		wg.Add(1)
+		err := httpSrv.ListenAndServe()
+		// mute error caused by Shutdown()
+		if err == http.ErrServerClosed {
+			err = nil
+		}
+		fatalIfErr(err)
+		fmt.Printf("HTTP server shutdown gracefully\n")
+		wg.Done()
+	}()
+
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt /* SIGINT */, syscall.SIGTERM)
+	sig := <-c
+	fmt.Printf("Got signal %s\n", sig)
+	if httpsSrv != nil {
+		httpsSrv.Shutdown(nil)
 	}
-	fmt.Printf("Exited\n")
+	if httpSrv != nil {
+		httpSrv.Shutdown(nil)
+	}
+	wg.Wait()
+
+	for _, app := range appState.Apps {
+		if app.store != nil {
+			fmt.Printf("Closing store for %s\n", app.Name)
+			app.store.Close()
+		}
+	}
+	fmt.Printf("Apptranslator has successfully exited\n")
 }
