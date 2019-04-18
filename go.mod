@@ -1,6 +1,6 @@
 module github.com/kjk/apptranslator
 
-go 1.12
+go 1.11
 
 require (
 	github.com/crowdmob/goamz v0.0.0-20150128194925-3a06871fe9fc
