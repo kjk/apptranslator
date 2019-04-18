@@ -1,8 +1,10 @@
-// This code is under BSD license. See license-bsd.txt
 package store
+
+// This code is under BSD license. See license-bsd.txt
 
 import "fmt"
 
+// Lang describes a language
 type Lang struct {
 	Code       string
 	Name       string
@@ -24,6 +26,7 @@ var (
 		Lang{"ca-xv", "Catalan-Valencian", "Català-Valencià"},
 		Lang{"ca", "Catalan", "Català"},
 		Lang{"cn", "Chinese Simplified", "简体中文"},
+		Lang{"co", "Corsican", "corsu"},
 		Lang{"cy", "Welsh", "Cymraeg"},
 		Lang{"cz", "Czech", "Čeština"},
 		Lang{"de", "German", "Deutsch"},
